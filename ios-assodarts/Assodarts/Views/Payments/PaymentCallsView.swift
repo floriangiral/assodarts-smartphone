@@ -17,10 +17,13 @@ struct PaymentCallsView: View {
         ScrollView {
             VStack(spacing: 16) {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Encaissé cette saison")
+                    Text(tr("Encaissé cette saison", "Collected this season"))
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Theme.inkSecondary)
-                    Text("\(Fmt.money(collectedCents)) sur \(Fmt.money(expectedCents))")
+                    Text(tr(
+                        "\(Fmt.money(collectedCents)) sur \(Fmt.money(expectedCents))",
+                        "\(Fmt.money(collectedCents)) of \(Fmt.money(expectedCents))"
+                    ))
                         .font(.title2.bold())
                         .monospacedDigit()
                         .foregroundStyle(Theme.ink)
@@ -38,9 +41,12 @@ struct PaymentCallsView: View {
 
                 if calls.isEmpty {
                     ContentUnavailableView(
-                        "Aucun appel à paiement",
+                        tr("Aucun appel à paiement", "No payment requests"),
                         systemImage: "eurosign.circle",
-                        description: Text("Créez un appel pour les cotisations, tenues ou déplacements.")
+                        description: Text(tr(
+                            "Créez un appel pour les cotisations, tenues ou déplacements.",
+                            "Create a request for membership fees, kit or travel."
+                        ))
                     )
                     .padding(.top, 50)
                 }
@@ -49,7 +55,7 @@ struct PaymentCallsView: View {
             .padding(.vertical, 12)
         }
         .assoCanvas()
-        .navigationTitle("Appels à paiement")
+        .navigationTitle(tr("Appels à paiement", "Payment requests"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -58,7 +64,7 @@ struct PaymentCallsView: View {
                 } label: {
                     Image(systemName: "plus")
                 }
-                .accessibilityLabel("Nouvel appel à paiement")
+                .accessibilityLabel(tr("Nouvel appel à paiement", "New payment request"))
             }
         }
         .sheet(isPresented: $showsComposer) {
@@ -85,7 +91,10 @@ struct PaymentCallCard: View {
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Theme.ink)
                         .multilineTextAlignment(.leading)
-                    Text("\(Fmt.money(call.amountCents)) · échéance \(Fmt.shortDate(call.dueDate))")
+                    Text(tr(
+                        "\(Fmt.money(call.amountCents)) · échéance \(Fmt.shortDate(call.dueDate))",
+                        "\(Fmt.money(call.amountCents)) · due \(Fmt.shortDate(call.dueDate))"
+                    ))
                         .font(.caption)
                         .monospacedDigit()
                         .foregroundStyle(Theme.inkSecondary)
@@ -102,21 +111,24 @@ struct PaymentCallCard: View {
                 .tint(call.lateCount > 0 ? Theme.orange : Theme.navy)
 
             HStack(spacing: 10) {
-                Text("\(Fmt.money(call.collectedCents)) encaissés")
+                Text(tr(
+                    "\(Fmt.money(call.collectedCents)) encaissés",
+                    "\(Fmt.money(call.collectedCents)) collected"
+                ))
                     .font(.caption.weight(.semibold))
                     .monospacedDigit()
                     .foregroundStyle(Theme.ink)
                 Spacer()
-                Text("\(call.paidCount) payés")
+                Text(tr("\(call.paidCount) payés", "\(call.paidCount) paid"))
                     .font(.caption)
                     .foregroundStyle(Theme.green)
                 if call.pendingCount > 0 {
-                    Text("\(call.pendingCount) en attente")
+                    Text(tr("\(call.pendingCount) en attente", "\(call.pendingCount) pending"))
                         .font(.caption)
                         .foregroundStyle(Theme.amber)
                 }
                 if call.lateCount > 0 {
-                    Text("\(call.lateCount) en retard")
+                    Text(tr("\(call.lateCount) en retard", "\(call.lateCount) overdue"))
                         .font(.caption)
                         .foregroundStyle(Theme.red)
                 }

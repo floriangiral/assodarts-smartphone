@@ -31,8 +31,8 @@ struct Tournament: Identifiable, Codable, Sendable, Hashable {
     var isFinished: Bool = false
 
     var statusLabel: String {
-        if isFinished { return "Terminé" }
-        return date < .now ? "En cours" : "À venir"
+        if isFinished { return tr("Terminé", "Finished") }
+        return date < .now ? tr("En cours", "In progress") : tr("À venir", "Upcoming")
     }
 
     /// Distinct "tableaux" recorded so far, in order of first appearance.

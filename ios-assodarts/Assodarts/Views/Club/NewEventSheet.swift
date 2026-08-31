@@ -10,6 +10,7 @@ struct NewEventSheet: View {
     @State private var date: Date = Calendar.current.date(byAdding: .day, value: 7, to: .now) ?? .now
     @State private var location: String = ""
     @State private var details: String = ""
+    @FocusState private var isEditing: Bool
 
     private var canSave: Bool {
         !title.trimmingCharacters(in: .whitespaces).isEmpty
@@ -19,32 +20,40 @@ struct NewEventSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Événement") {
-                    TextField("Titre", text: $title)
-                    Picker("Type", selection: $kind) {
+                Section(tr("Événement", "Event")) {
+                    TextField(tr("Titre", "Title"), text: $title)
+                        .keyboardField(.freeText, submit: .next)
+                        .focused($isEditing)
+                    Picker(tr("Type", "Type"), selection: $kind) {
                         ForEach(EventKind.allCases) { kind in
                             Text(kind.label).tag(kind)
                         }
                     }
-                    DatePicker("Date et heure", selection: $date)
-                    TextField("Lieu", text: $location)
+                    DatePicker(tr("Date et heure", "Date and time"), selection: $date)
+                    TextField(tr("Lieu", "Location"), text: $location)
+                        .keyboardField(.freeText, submit: .next)
+                        .focused($isEditing)
                 }
 
-                Section("Détails") {
-                    TextField("Informations pratiques…", text: $details, axis: .vertical)
+                Section(tr("Détails", "Details")) {
+                    TextField(tr("Informations pratiques…", "Practical information…"), text: $details, axis: .vertical)
                         .lineLimit(4...8)
+                        .keyboardField(.freeText, submit: .return)
+                        .focused($isEditing)
                 }
             }
             .scrollContentBackground(.hidden)
             .background(Theme.canvas)
-            .navigationTitle("Nouvel événement")
+            .keyboardDismissable()
+            .keyboardDoneBar(isVisible: isEditing) { isEditing = false }
+            .navigationTitle(tr("Nouvel événement", "New event"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Annuler") { dismiss() }
+                    Button(tr("Annuler", "Cancel")) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Créer", action: save)
+                    Button(tr("Créer", "Create"), action: save)
                         .disabled(!canSave)
                         .fontWeight(.semibold)
                 }
@@ -63,7 +72,7 @@ struct NewEventSheet: View {
             details: details.trimmingCharacters(in: .whitespaces)
         )
         store.addEvent(event)
-        NotificationService.notify(title: "Nouvel événement", body: event.title)
+        NotificationService.notify(title: tr("Nouvel événement", "New event"), body: event.title)
         dismiss()
     }
 }

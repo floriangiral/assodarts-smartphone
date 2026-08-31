@@ -10,6 +10,7 @@ struct NewMessageSheet: View {
     @State private var selectedId: UUID?
     @State private var search: String = ""
     @State private var draft: String = ""
+    @FocusState private var isEditing: Bool
 
     enum Target: String, CaseIterable, Identifiable {
         case bureau
@@ -41,23 +42,33 @@ struct NewMessageSheet: View {
             Form {
                 if !isBureauUser {
                     Section {
-                        Picker("Destinataire", selection: $target) {
-                            Text("Le Bureau").tag(Target.bureau)
-                            Text("Un membre du bureau").tag(Target.person)
+                        Picker(tr("Destinataire", "Recipient"), selection: $target) {
+                            Text(tr("Le Bureau", "The Committee")).tag(Target.bureau)
+                            Text(tr("Un membre du bureau", "One committee member")).tag(Target.person)
                         }
                         .pickerStyle(.segmented)
                     } header: {
-                        Text("Destinataire")
+                        Text(tr("Destinataire", "Recipient"))
                     } footer: {
                         Text(target == .bureau
-                             ? "Votre message sera visible par tous les membres du bureau."
-                             : "Votre message restera privé entre vous et cette personne.")
+                             ? tr(
+                                "Votre message sera visible par tous les membres du bureau.",
+                                "Your message will be visible to every committee member."
+                             )
+                             : tr(
+                                "Votre message restera privé entre vous et cette personne.",
+                                "Your message stays private between you and this person."
+                             ))
                     }
                 }
 
                 if isBureauUser || target == .person {
-                    Section(isBureauUser ? "Membre du club" : "Membre du bureau") {
-                        TextField("Rechercher…", text: $search)
+                    Section(isBureauUser
+                        ? tr("Membre du club", "Club member")
+                        : tr("Membre du bureau", "Committee member")) {
+                        TextField(tr("Rechercher…", "Search…"), text: $search)
+                            .keyboardField(.name, submit: .search)
+                            .focused($isEditing)
 
                         ForEach(candidates) { member in
                             Button {
@@ -92,24 +103,31 @@ struct NewMessageSheet: View {
                 }
 
                 Section {
-                    TextField("Votre message…", text: $draft, axis: .vertical)
+                    TextField(tr("Votre message…", "Your message…"), text: $draft, axis: .vertical)
                         .lineLimit(4...10)
+                        .keyboardField(.freeText, submit: .return)
+                        .focused($isEditing)
                 } header: {
-                    Text("Votre message")
+                    Text(tr("Votre message", "Your message"))
                 } footer: {
-                    Text("Le destinataire recevra une notification.")
+                    Text(tr(
+                        "Le destinataire recevra une notification.",
+                        "The recipient will get a notification."
+                    ))
                 }
             }
             .scrollContentBackground(.hidden)
             .background(Theme.canvas)
-            .navigationTitle("Nouveau message")
+            .keyboardDismissable()
+            .keyboardDoneBar(isVisible: isEditing) { isEditing = false }
+            .navigationTitle(tr("Nouveau message", "New message"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Annuler") { dismiss() }
+                    Button(tr("Annuler", "Cancel")) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Envoyer", action: send)
+                    Button(tr("Envoyer", "Send"), action: send)
                         .fontWeight(.semibold)
                         .disabled(!canSend)
                 }
@@ -129,8 +147,8 @@ struct NewMessageSheet: View {
         }
         store.send(text: draft, in: conversation.id, from: user.id)
         NotificationService.notify(
-            title: "Message envoyé",
-            body: "Votre message a bien été transmis."
+            title: tr("Message envoyé", "Message sent"),
+            body: tr("Votre message a bien été transmis.", "Your message has been delivered.")
         )
         dismiss()
     }

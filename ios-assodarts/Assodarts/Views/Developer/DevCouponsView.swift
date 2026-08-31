@@ -8,17 +8,20 @@ struct DevCouponsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 18) {
-                DevHeaderBand(title: "Coupons")
+                DevHeaderBand(title: tr("Coupons", "Coupons"))
 
-                PrimaryButton(title: "Créer un coupon", symbol: "plus") {
+                PrimaryButton(title: tr("Créer un coupon", "Create a coupon"), symbol: "plus") {
                     showsComposer = true
                 }
 
                 if store.db.coupons.isEmpty {
                     ContentUnavailableView(
-                        "Aucun coupon",
+                        tr("Aucun coupon", "No coupons"),
                         systemImage: "ticket",
-                        description: Text("Créez un code de 10 % à 100 % et ciblez les clubs concernés.")
+                        description: Text(tr(
+                            "Créez un code de 10 % à 100 % et ciblez les clubs concernés.",
+                            "Create a 10% to 100% code and target the clubs you want."
+                        ))
                     )
                     .padding(.top, 40)
                 }
@@ -55,13 +58,18 @@ struct DevCouponsView: View {
             }
 
             HStack(spacing: 14) {
-                Label("\(clubs.count) club\(clubs.count > 1 ? "s" : "")", systemImage: "building.2")
+                Label(Fmt.count(clubs.count, "club", "clubs", "club", "clubs"), systemImage: "building.2")
                 Label(
-                    coupon.isExpired ? "Expiré" : "Jusqu'au \(Fmt.shortDate(coupon.expiresAt))",
+                    coupon.isExpired
+                        ? tr("Expiré", "Expired")
+                        : tr(
+                            "Jusqu'au \(Fmt.shortDate(coupon.expiresAt))",
+                            "Until \(Fmt.shortDate(coupon.expiresAt))"
+                        ),
                     systemImage: "calendar"
                 )
                 if coupon.autoRenew {
-                    Label("Renouvelé", systemImage: "arrow.clockwise")
+                    Label(tr("Renouvelé", "Renewing"), systemImage: "arrow.clockwise")
                 }
             }
             .font(.caption)
@@ -85,7 +93,7 @@ struct DevCouponsView: View {
                 }
             }
 
-            Button("Révoquer le coupon", role: .destructive) {
+            Button(tr("Révoquer le coupon", "Revoke coupon"), role: .destructive) {
                 store.deleteCoupon(coupon.id)
             }
             .font(.footnote.weight(.semibold))

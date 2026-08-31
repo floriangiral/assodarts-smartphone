@@ -12,6 +12,14 @@ struct InviteMemberSheet: View {
     @State private var isLicensed: Bool = false
     @State private var licenceNumber: String = ""
     @State private var showsConfirmation: Bool = false
+    @FocusState private var focusedField: Field?
+
+    private enum Field: Hashable {
+        case firstName
+        case lastName
+        case email
+        case licence
+    }
 
     private var canInvite: Bool {
         !firstName.trimmingCharacters(in: .whitespaces).isEmpty
@@ -22,26 +30,33 @@ struct InviteMemberSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Identité") {
-                    TextField("Prénom", text: $firstName)
-                    TextField("Nom", text: $lastName)
-                    TextField("Email", text: $email)
-                        .keyboardType(.emailAddress)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
+                Section(tr("Identité", "Identity")) {
+                    TextField(tr("Prénom", "First name"), text: $firstName)
+                        .keyboardField(.name, submit: .next)
+                        .focused($focusedField, equals: .firstName)
+                        .onSubmit { focusedField = .lastName }
+                    TextField(tr("Nom", "Last name"), text: $lastName)
+                        .keyboardField(.name, submit: .next)
+                        .focused($focusedField, equals: .lastName)
+                        .onSubmit { focusedField = .email }
+                    TextField(tr("Email", "Email"), text: $email)
+                        .keyboardField(.email, submit: .done)
+                        .focused($focusedField, equals: .email)
+                        .onSubmit { focusedField = nil }
                 }
 
-                Section("Licence") {
-                    Toggle("Licencié FFD", isOn: $isLicensed)
+                Section(tr("Licence", "Licence")) {
+                    Toggle(tr("Licencié FFD", "FFD licensed"), isOn: $isLicensed)
                     if isLicensed {
-                        TextField("N° de licence", text: $licenceNumber)
-                            .keyboardType(.numbersAndPunctuation)
+                        TextField(tr("N° de licence", "Licence number"), text: $licenceNumber)
+                            .keyboardField(.licence, submit: .done)
+                            .focused($focusedField, equals: .licence)
                     }
                 }
 
                 if store.currentUser?.role.canManageRoles == true {
-                    Section("Rôle") {
-                        Picker("Rôle", selection: $role) {
+                    Section(tr("Rôle", "Role")) {
+                        Picker(tr("Rôle", "Role"), selection: $role) {
                             ForEach(Role.clubRoles) { role in
                                 Text(role.label).tag(role)
                             }
@@ -57,28 +72,37 @@ struct InviteMemberSheet: View {
                     Button {
                         invite()
                     } label: {
-                        Label("Envoyer l'invitation", systemImage: "paperplane.fill")
+                        Label(tr("Envoyer l'invitation", "Send invitation"), systemImage: "paperplane.fill")
                             .frame(maxWidth: .infinity)
                     }
                     .disabled(!canInvite)
                 } footer: {
-                    Text("Le membre reçoit un email d'invitation avec un mot de passe provisoire. "
-                        + "Mot de passe de démonstration : demo")
+                    Text(tr(
+                        "Le membre reçoit un email d'invitation avec un mot de passe provisoire. "
+                            + "Mot de passe de démonstration : demo",
+                        "The member receives an invitation email with a temporary password. "
+                            + "Demo password: demo"
+                    ))
                 }
             }
             .scrollContentBackground(.hidden)
             .background(Theme.canvas)
-            .navigationTitle("Inviter un membre")
+            .keyboardDismissable()
+            .keyboardDoneBar(isVisible: focusedField != nil) { focusedField = nil }
+            .navigationTitle(tr("Inviter un membre", "Invite a member"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Annuler") { dismiss() }
+                    Button(tr("Annuler", "Cancel")) { dismiss() }
                 }
             }
-            .alert("Invitation envoyée", isPresented: $showsConfirmation) {
-                Button("Terminé") { dismiss() }
+            .alert(tr("Invitation envoyée", "Invitation sent"), isPresented: $showsConfirmation) {
+                Button(tr("Terminé", "Done")) { dismiss() }
             } message: {
-                Text("\(firstName) \(lastName) a été ajouté au club et recevra son invitation par email.")
+                Text(tr(
+                    "\(firstName) \(lastName) a été ajouté au club et recevra son invitation par email.",
+                    "\(firstName) \(lastName) has been added to the club and will receive an email invitation."
+                ))
             }
         }
     }

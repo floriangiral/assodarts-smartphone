@@ -12,10 +12,10 @@ enum EventKind: String, Codable, CaseIterable, Identifiable, Sendable {
 
     var label: String {
         switch self {
-        case .entrainement: "Entraînement"
-        case .competition: "Compétition"
-        case .reunion: "Réunion"
-        case .convivial: "Convivialité"
+        case .entrainement: tr("Entraînement", "Training")
+        case .competition: tr("Compétition", "Competition")
+        case .reunion: tr("Réunion", "Meeting")
+        case .convivial: tr("Convivialité", "Social")
         }
     }
 

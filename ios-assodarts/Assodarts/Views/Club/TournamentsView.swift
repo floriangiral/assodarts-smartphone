@@ -23,9 +23,12 @@ struct TournamentsView: View {
 
                 if tournaments.isEmpty {
                     ContentUnavailableView(
-                        "Aucun tournoi",
+                        tr("Aucun tournoi", "No tournaments"),
                         systemImage: "trophy",
-                        description: Text("Le bureau peut créer un tournoi et désigner ses marqueurs.")
+                        description: Text(tr(
+                            "Le bureau peut créer un tournoi et désigner ses marqueurs.",
+                            "The committee can create a tournament and appoint its scorers."
+                        ))
                     )
                     .padding(.top, 60)
                 }
@@ -34,7 +37,7 @@ struct TournamentsView: View {
             .padding(.vertical, 12)
         }
         .assoCanvas()
-        .navigationTitle("Tournois")
+        .navigationTitle(tr("Tournois", "Tournaments"))
         .toolbar {
             if store.canManageClub {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -43,7 +46,7 @@ struct TournamentsView: View {
                     } label: {
                         Image(systemName: "plus")
                     }
-                    .accessibilityLabel("Nouveau tournoi")
+                    .accessibilityLabel(tr("Nouveau tournoi", "New tournament"))
                 }
             }
         }
@@ -84,7 +87,13 @@ struct TournamentCard: View {
             HStack(spacing: 6) {
                 Image(systemName: "list.bullet.rectangle")
                     .font(.caption2)
-                Text("\(tournament.entries.count) résultat\(tournament.entries.count > 1 ? "s" : "") saisi\(tournament.entries.count > 1 ? "s" : "")")
+                Text(Fmt.count(
+                    tournament.entries.count,
+                    "résultat saisi",
+                    "résultats saisis",
+                    "result recorded",
+                    "results recorded"
+                ))
                     .font(.caption.weight(.medium))
                 Spacer()
                 Image(systemName: "chevron.right")

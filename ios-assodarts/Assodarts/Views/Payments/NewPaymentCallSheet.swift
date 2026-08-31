@@ -13,6 +13,13 @@ struct NewPaymentCallSheet: View {
     @State private var selection: Set<UUID> = []
     @State private var search: String = ""
     @State private var notify: Bool = true
+    @FocusState private var focusedField: Field?
+
+    private enum Field: Hashable {
+        case label
+        case amount
+        case search
+    }
 
     enum Audience: String, CaseIterable, Identifiable {
         case everyone
@@ -23,9 +30,9 @@ struct NewPaymentCallSheet: View {
 
         var label: String {
             switch self {
-            case .everyone: "Tout le club"
-            case .selection: "Sélection"
-            case .single: "Un membre"
+            case .everyone: tr("Tout le club", "Whole club")
+            case .selection: tr("Sélection", "Selection")
+            case .single: tr("Un membre", "One member")
             }
         }
     }
@@ -60,8 +67,11 @@ struct NewPaymentCallSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Intitulé") {
-                    TextField("Ex. Tenue du club 2026", text: $label)
+                Section(tr("Intitulé", "Title")) {
+                    TextField(tr("Ex. Tenue du club 2026", "E.g. Club kit 2026"), text: $label)
+                        .keyboardField(.freeText, submit: .next)
+                        .focused($focusedField, equals: .label)
+                        .onSubmit { focusedField = .amount }
 
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
@@ -85,23 +95,24 @@ struct NewPaymentCallSheet: View {
                     .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                 }
 
-                Section("Montant et échéance") {
+                Section(tr("Montant et échéance", "Amount and due date")) {
                     HStack {
-                        Text("Montant")
+                        Text(tr("Montant", "Amount"))
                         Spacer()
-                        TextField("0,00", text: $amountText)
-                            .keyboardType(.decimalPad)
+                        TextField(tr("0,00", "0.00"), text: $amountText)
+                            .keyboardField(.amount, submit: .done)
+                            .focused($focusedField, equals: .amount)
                             .multilineTextAlignment(.trailing)
                             .monospacedDigit()
                             .frame(maxWidth: 110)
                         Text("€")
                             .foregroundStyle(Theme.inkSecondary)
                     }
-                    DatePicker("Échéance", selection: $dueDate, displayedComponents: .date)
+                    DatePicker(tr("Échéance", "Due date"), selection: $dueDate, displayedComponents: .date)
                 }
 
-                Section("Destinataires") {
-                    Picker("Destinataires", selection: $audience) {
+                Section(tr("Destinataires", "Recipients")) {
+                    Picker(tr("Destinataires", "Recipients"), selection: $audience) {
                         ForEach(Audience.allCases) { option in
                             Text(option.label).tag(option)
                         }
@@ -112,7 +123,13 @@ struct NewPaymentCallSheet: View {
                     switch audience {
                     case .everyone:
                         Label(
-                            "\(recipients.count) membres du club",
+                            Fmt.count(
+                                recipients.count,
+                                "membre du club",
+                                "membres du club",
+                                "club member",
+                                "club members"
+                            ),
                             systemImage: "person.3.fill"
                         )
                         .font(.subheadline)
@@ -122,12 +139,20 @@ struct NewPaymentCallSheet: View {
                         Button {
                             selectLateMembers()
                         } label: {
-                            Label("Cotisation non réglée (\(lateMemberIds.count))", systemImage: "wand.and.stars")
+                            Label(
+                                tr(
+                                    "Cotisation non réglée (\(lateMemberIds.count))",
+                                    "Membership fee unpaid (\(lateMemberIds.count))"
+                                ),
+                                systemImage: "wand.and.stars"
+                            )
                                 .font(.footnote.weight(.semibold))
                         }
                         .disabled(audience == .single || lateMemberIds.isEmpty)
 
-                        TextField("Rechercher un membre", text: $search)
+                        TextField(tr("Rechercher un membre", "Search for a member"), text: $search)
+                            .keyboardField(.name, submit: .search)
+                            .focused($focusedField, equals: .search)
 
                         ForEach(members) { member in
                             Button {
@@ -162,26 +187,35 @@ struct NewPaymentCallSheet: View {
                 }
 
                 Section {
-                    Toggle("Notifier par notification et email", isOn: $notify)
+                    Toggle(tr("Notifier par notification et email", "Notify by push and email"), isOn: $notify)
                 } footer: {
-                    Text("Chaque destinataire retrouvera l'appel dans « Mes paiements » et pourra régler "
-                        + "par Apple Pay ou carte bancaire.")
+                    Text(tr(
+                        "Chaque destinataire retrouvera l'appel dans « Mes paiements » et pourra régler "
+                            + "par Apple Pay ou carte bancaire.",
+                        "Each recipient will find the request under “My payments” and can pay "
+                            + "with Apple Pay or a bank card."
+                    ))
                 }
             }
             .scrollContentBackground(.hidden)
             .background(Theme.canvas)
-            .navigationTitle("Nouvel appel à paiement")
+            .keyboardDismissable()
+            .keyboardDoneBar(isVisible: focusedField != nil) { focusedField = nil }
+            .navigationTitle(tr("Nouvel appel à paiement", "New payment request"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Annuler") { dismiss() }
+                    Button(tr("Annuler", "Cancel")) { dismiss() }
                 }
             }
             .safeAreaInset(edge: .bottom) {
                 PrimaryButton(
                     title: canSend
-                        ? "Envoyer · \(recipients.count) membre\(recipients.count > 1 ? "s" : "") · \(Fmt.money(totalCents))"
-                        : "Envoyer l'appel",
+                        ? tr(
+                            "Envoyer · \(Fmt.count(recipients.count, "membre", "membres", "member", "members")) · \(Fmt.money(totalCents))",
+                            "Send · \(Fmt.count(recipients.count, "membre", "membres", "member", "members")) · \(Fmt.money(totalCents))"
+                        )
+                        : tr("Envoyer l'appel", "Send request"),
                     symbol: "paperplane.fill",
                     isEnabled: canSend,
                     action: send
@@ -216,9 +250,9 @@ struct NewPaymentCallSheet: View {
 
     private func defaultLabel(for category: PaymentCategory) -> String {
         switch category {
-        case .cotisation: "Cotisation 2026–2027"
-        case .tenue: "Tenue du club 2026"
-        case .deplacement: "Déplacement"
+        case .cotisation: tr("Cotisation 2026–2027", "Membership fee 2026–2027")
+        case .tenue: tr("Tenue du club 2026", "Club kit 2026")
+        case .deplacement: tr("Déplacement", "Travel")
         case .autre: ""
         }
     }
@@ -241,8 +275,11 @@ struct NewPaymentCallSheet: View {
         store.createPaymentCall(call)
         if notify {
             NotificationService.notify(
-                title: "Nouvel appel à paiement",
-                body: "\(call.label) · \(Fmt.money(call.amountCents)) à régler avant le \(Fmt.shortDate(call.dueDate))"
+                title: tr("Nouvel appel à paiement", "New payment request"),
+                body: tr(
+                    "\(call.label) · \(Fmt.money(call.amountCents)) à régler avant le \(Fmt.shortDate(call.dueDate))",
+                    "\(call.label) · \(Fmt.money(call.amountCents)) due by \(Fmt.shortDate(call.dueDate))"
+                )
             )
         }
         dismiss()

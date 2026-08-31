@@ -14,6 +14,7 @@ struct MemberProfileView: View {
     @State private var showsDeactivateAlert: Bool = false
     @State private var reminderSent: Bool = false
     @State private var openedConversationId: UUID?
+    @FocusState private var isEditingLicence: Bool
 
     private var member: Member? { store.member(memberId) }
     private var canManage: Bool { store.canManageClub }
@@ -53,22 +54,26 @@ struct MemberProfileView: View {
             }
         }
         .assoCanvas()
-        .navigationTitle("Fiche membre")
+        .navigationTitle(tr("Fiche membre", "Member record"))
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(item: $openedConversationId) { id in
             ConversationView(conversationId: id)
                 .toolbar(.hidden, for: .tabBar)
         }
         .onAppear(perform: load)
-        .alert("Désactiver ce compte ?", isPresented: $showsDeactivateAlert) {
-            Button("Annuler", role: .cancel) {}
-            Button("Désactiver", role: .destructive) {
+        .keyboardDoneBar(isVisible: isEditingLicence) { isEditingLicence = false }
+        .alert(tr("Désactiver ce compte ?", "Deactivate this account?"), isPresented: $showsDeactivateAlert) {
+            Button(tr("Annuler", "Cancel"), role: .cancel) {}
+            Button(tr("Désactiver", "Deactivate"), role: .destructive) {
                 guard var member else { return }
                 member.isActive = false
                 store.updateMember(member)
             }
         } message: {
-            Text("Le membre n'aura plus accès à l'application. Ses données restent conservées par le club.")
+            Text(tr(
+                "Le membre n'aura plus accès à l'application. Ses données restent conservées par le club.",
+                "The member will lose access to the app. Their data stays with the club."
+            ))
         }
     }
 
@@ -82,7 +87,10 @@ struct MemberProfileView: View {
                 Text(member.fullName)
                     .font(.title3.bold())
                     .foregroundStyle(Theme.ink)
-                Text("\(store.club(member.clubId)?.name ?? "") · membre depuis \(Fmt.shortDate(member.joinedAt))")
+                Text(tr(
+                    "\(store.club(member.clubId)?.name ?? "") · membre depuis \(Fmt.shortDate(member.joinedAt))",
+                    "\(store.club(member.clubId)?.name ?? "") · member since \(Fmt.shortDate(member.joinedAt))"
+                ))
                     .font(.footnote)
                     .foregroundStyle(Theme.inkSecondary)
                     .multilineTextAlignment(.center)
@@ -92,7 +100,7 @@ struct MemberProfileView: View {
                 RoleBadge(role: member.role)
                 StatusChip(state: store.membershipState(for: member.id))
                 if !member.isActive {
-                    StatusChip(text: "Désactivé", tint: Theme.red, background: Theme.redTint)
+                    StatusChip(text: tr("Désactivé", "Deactivated"), tint: Theme.red, background: Theme.redTint)
                 }
             }
 
@@ -116,7 +124,7 @@ struct MemberProfileView: View {
 
     private func readOnlyLicence(_ member: Member) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            SectionLabel(text: "Licence")
+            SectionLabel(text: tr("Licence", "Licence"))
             Text(member.licenceLabel)
                 .font(.headline)
                 .foregroundStyle(Theme.ink)
@@ -132,11 +140,11 @@ struct MemberProfileView: View {
 
     private func licenceSection(_ member: Member) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionLabel(text: "Licence")
+            SectionLabel(text: tr("Licence", "Licence"))
 
-            Picker("Statut", selection: $isLicensedDraft) {
-                Text("Licencié").tag(true)
-                Text("Membre simple").tag(false)
+            Picker(tr("Statut", "Status"), selection: $isLicensedDraft) {
+                Text(tr("Licencié", "Licensed")).tag(true)
+                Text(tr("Membre simple", "Standard")).tag(false)
             }
             .pickerStyle(.segmented)
             .onChange(of: isLicensedDraft) { _, newValue in
@@ -148,20 +156,24 @@ struct MemberProfileView: View {
 
             if isLicensedDraft {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("N° de licence")
+                    Text(tr("N° de licence", "Licence number"))
                         .font(.caption)
                         .foregroundStyle(Theme.inkSecondary)
                     TextField("07 84 000 000", text: $licenceDraft)
-                        .keyboardType(.numbersAndPunctuation)
+                        .keyboardField(.licence, submit: .done)
+                        .focused($isEditingLicence)
                         .monospacedDigit()
                         .padding(12)
                         .background(Theme.canvas, in: .rect(cornerRadius: 10))
                         .onSubmit(saveLicence)
-                    Button("Enregistrer le numéro", action: saveLicence)
+                    Button(tr("Enregistrer le numéro", "Save number"), action: saveLicence)
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(Theme.navy)
                 }
-                Label("Modifiable par le bureau uniquement", systemImage: "lock.fill")
+                Label(
+                    tr("Modifiable par le bureau uniquement", "Editable by the committee only"),
+                    systemImage: "lock.fill"
+                )
                     .font(.caption)
                     .foregroundStyle(Theme.orange)
             }
@@ -171,10 +183,10 @@ struct MemberProfileView: View {
 
     private func roleSection(_ member: Member) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionLabel(text: "Rôle et droits")
+            SectionLabel(text: tr("Rôle et droits", "Role and permissions"))
 
             if canManageRoles {
-                Picker("Rôle", selection: $roleDraft) {
+                Picker(tr("Rôle", "Role"), selection: $roleDraft) {
                     ForEach(Role.clubRoles) { role in
                         Text(role.label).tag(role)
                     }
@@ -187,7 +199,7 @@ struct MemberProfileView: View {
                 }
             } else {
                 HStack {
-                    Text("Rôle")
+                    Text(tr("Rôle", "Role"))
                         .font(.subheadline)
                         .foregroundStyle(Theme.inkSecondary)
                     Spacer()
@@ -200,7 +212,10 @@ struct MemberProfileView: View {
                 .foregroundStyle(Theme.inkSecondary)
 
             if !canManageRoles {
-                Text("Seul un admin du club peut modifier les rôles.")
+                Text(tr(
+                    "Seul un admin du club peut modifier les rôles.",
+                    "Only a club admin can change roles."
+                ))
                     .font(.caption)
                     .foregroundStyle(Theme.orange)
             }
@@ -210,10 +225,10 @@ struct MemberProfileView: View {
 
     private var historySection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionLabel(text: "Historique des paiements")
+            SectionLabel(text: tr("Historique des paiements", "Payment history"))
 
             if payments.isEmpty {
-                Text("Aucun paiement enregistré.")
+                Text(tr("Aucun paiement enregistré.", "No payments on record."))
                     .font(.footnote)
                     .foregroundStyle(Theme.inkSecondary)
             }
@@ -253,30 +268,43 @@ struct MemberProfileView: View {
         VStack(spacing: 12) {
             if !unpaid.isEmpty {
                 PrimaryButton(
-                    title: reminderSent ? "Relance envoyée" : "Relancer (\(unpaid.count))",
+                    title: reminderSent
+                        ? tr("Relance envoyée", "Reminder sent")
+                        : tr("Relancer (\(unpaid.count))", "Remind (\(unpaid.count))"),
                     symbol: reminderSent ? "checkmark" : "bell.badge"
                 ) {
                     for entry in unpaid {
                         store.remind(callId: entry.call.id, memberIds: [member.id])
                     }
                     NotificationService.notify(
-                        title: "Relance envoyée",
-                        body: "\(member.firstName) a été relancé pour \(unpaid.count) paiement(s)."
+                        title: tr("Relance envoyée", "Reminder sent"),
+                        body: tr(
+                            "\(member.firstName) a été relancé pour \(unpaid.count) paiement(s).",
+                            "\(member.firstName) was reminded about \(unpaid.count) payment(s)."
+                        )
                     )
                     withAnimation { reminderSent = true }
                 }
             }
 
-            SecondaryButton(title: "Écrire à ce membre", symbol: "bubble.left") {
+            SecondaryButton(title: tr("Écrire à ce membre", "Message this member"), symbol: "bubble.left") {
                 openConversation(with: member)
             }
 
             if member.isActive, member.id != store.currentUser?.id {
-                SecondaryButton(title: "Désactiver le compte", symbol: "person.slash", tint: Theme.red) {
+                SecondaryButton(
+                    title: tr("Désactiver le compte", "Deactivate account"),
+                    symbol: "person.slash",
+                    tint: Theme.red
+                ) {
                     showsDeactivateAlert = true
                 }
             } else if !member.isActive {
-                SecondaryButton(title: "Réactiver le compte", symbol: "person.badge.plus", tint: Theme.green) {
+                SecondaryButton(
+                    title: tr("Réactiver le compte", "Reactivate account"),
+                    symbol: "person.badge.plus",
+                    tint: Theme.green
+                ) {
                     var updated = member
                     updated.isActive = true
                     store.updateMember(updated)
@@ -286,7 +314,7 @@ struct MemberProfileView: View {
     }
 
     private func messageButton(_ member: Member) -> some View {
-        SecondaryButton(title: "Écrire à ce membre", symbol: "bubble.left") {
+        SecondaryButton(title: tr("Écrire à ce membre", "Message this member"), symbol: "bubble.left") {
             openConversation(with: member)
         }
     }
@@ -301,12 +329,18 @@ struct MemberProfileView: View {
 
     private func subtitle(for entry: (call: PaymentCall, item: PaymentItem)) -> String {
         if entry.item.isPaid, let paidAt = entry.item.paidAt {
-            return "Payé le \(Fmt.shortDate(paidAt))"
+            return tr("Payé le \(Fmt.shortDate(paidAt))", "Paid on \(Fmt.shortDate(paidAt))")
         }
         if let reminded = entry.item.remindedAt {
-            return "Échéance \(Fmt.shortDate(entry.call.dueDate)) · relancé le \(Fmt.shortDate(reminded))"
+            return tr(
+                "Échéance \(Fmt.shortDate(entry.call.dueDate)) · relancé le \(Fmt.shortDate(reminded))",
+                "Due \(Fmt.shortDate(entry.call.dueDate)) · reminded on \(Fmt.shortDate(reminded))"
+            )
         }
-        return "Échéance \(Fmt.shortDate(entry.call.dueDate))"
+        return tr(
+            "Échéance \(Fmt.shortDate(entry.call.dueDate))",
+            "Due \(Fmt.shortDate(entry.call.dueDate))"
+        )
     }
 
     private func load() {

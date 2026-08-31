@@ -28,7 +28,7 @@ struct MemberDashboardContent: View {
 
             if let nextEvent {
                 VStack(alignment: .leading, spacing: 12) {
-                    SectionLabel(text: "Prochain rendez-vous")
+                    SectionLabel(text: tr("Prochain rendez-vous", "Next date"))
                     NavigationLink(value: ClubRoute.event(nextEvent.id)) {
                         EventSummaryCard(event: nextEvent, attendingCount: nextEvent.attendeeIds.count)
                     }
@@ -53,7 +53,7 @@ struct MemberDashboardContent: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Label(
-                    user.isLicensed ? "Licence FFD" : "Membre simple",
+                    user.isLicensed ? tr("Licence FFD", "FFD licence") : tr("Membre simple", "Standard member"),
                     systemImage: user.isLicensed ? "checkmark.seal.fill" : "person.crop.circle"
                 )
                 .font(.caption.weight(.bold))
@@ -67,14 +67,20 @@ struct MemberDashboardContent: View {
                     .font(.title2.weight(.semibold))
                     .monospacedDigit()
                     .foregroundStyle(Theme.ink)
-                Text("Saison 2026–2027 · valable jusqu'au 31 août 2027")
+                Text(tr(
+                    "Saison 2026–2027 · valable jusqu'au 31 août 2027",
+                    "2026–2027 season · valid until 31 August 2027"
+                ))
                     .font(.footnote)
                     .foregroundStyle(Theme.inkSecondary)
             } else {
-                Text("Aucun numéro de licence")
+                Text(tr("Aucun numéro de licence", "No licence number"))
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(Theme.ink)
-                Text("Le bureau peut enregistrer votre licence depuis votre fiche membre.")
+                Text(tr(
+                    "Le bureau peut enregistrer votre licence depuis votre fiche membre.",
+                    "The committee can add your licence from your member record."
+                ))
                     .font(.footnote)
                     .foregroundStyle(Theme.inkSecondary)
             }
@@ -86,7 +92,7 @@ struct MemberDashboardContent: View {
         NavigationLink(value: ClubRoute.myPayments) {
             VStack(alignment: .leading, spacing: 14) {
                 HStack {
-                    Text("À régler")
+                    Text(tr("À régler", "Due"))
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Theme.inkSecondary)
                     Spacer()
@@ -101,7 +107,13 @@ struct MemberDashboardContent: View {
                     .foregroundStyle(Theme.orange)
                     .contentTransition(.numericText())
 
-                Text("\(duePayments.count) paiement\(duePayments.count > 1 ? "s" : "") en attente")
+                Text(Fmt.count(
+                    duePayments.count,
+                    "paiement en attente",
+                    "paiements en attente",
+                    "pending payment",
+                    "pending payments"
+                ))
                     .font(.footnote)
                     .foregroundStyle(Theme.inkSecondary)
 
@@ -130,10 +142,10 @@ struct MemberDashboardContent: View {
                     .font(.title)
                     .foregroundStyle(Theme.green)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Vous êtes à jour")
+                    Text(tr("Vous êtes à jour", "You're all set"))
                         .font(.headline)
                         .foregroundStyle(Theme.ink)
-                    Text("Aucun paiement en attente")
+                    Text(tr("Aucun paiement en attente", "No pending payment"))
                         .font(.footnote)
                         .foregroundStyle(Theme.inkSecondary)
                 }
@@ -149,13 +161,13 @@ struct MemberDashboardContent: View {
 
     private var seasonCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionLabel(text: "Ma saison")
+            SectionLabel(text: tr("Ma saison", "My season"))
             HStack(spacing: 12) {
-                MetricTile(value: "\(user.eventsAttended)", label: "Événements")
-                MetricTile(value: "\(user.tournamentsPlayed)", label: "Tournois")
+                MetricTile(value: "\(user.eventsAttended)", label: tr("Événements", "Events"))
+                MetricTile(value: "\(user.tournamentsPlayed)", label: tr("Tournois", "Tournaments"))
                 MetricTile(
                     value: user.average.formatted(.number.locale(Fmt.locale).precision(.fractionLength(1))),
-                    label: "Moyenne",
+                    label: tr("Moyenne", "Average"),
                     tint: Theme.navy
                 )
             }
@@ -164,7 +176,7 @@ struct MemberDashboardContent: View {
 
     private var announcementsCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionLabel(text: "Dernières annonces")
+            SectionLabel(text: tr("Dernières annonces", "Latest news"))
             VStack(spacing: 0) {
                 ForEach(latestAnnouncements) { announcement in
                     NavigationLink(value: ClubRoute.announcement(announcement.id)) {

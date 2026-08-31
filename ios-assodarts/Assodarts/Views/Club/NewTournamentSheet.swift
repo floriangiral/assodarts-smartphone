@@ -9,6 +9,7 @@ struct NewTournamentSheet: View {
     @State private var date: Date = .now
     @State private var location: String = ""
     @State private var markerIds: Set<UUID> = []
+    @FocusState private var isEditing: Bool
 
     private var members: [Member] {
         guard let club = store.currentClub else { return [] }
@@ -23,10 +24,14 @@ struct NewTournamentSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Tournoi") {
-                    TextField("Nom du tournoi", text: $name)
-                    DatePicker("Date", selection: $date, displayedComponents: .date)
-                    TextField("Lieu", text: $location)
+                Section(tr("Tournoi", "Tournament")) {
+                    TextField(tr("Nom du tournoi", "Tournament name"), text: $name)
+                        .keyboardField(.freeText, submit: .next)
+                        .focused($isEditing)
+                    DatePicker(tr("Date", "Date"), selection: $date, displayedComponents: .date)
+                    TextField(tr("Lieu", "Location"), text: $location)
+                        .keyboardField(.freeText, submit: .done)
+                        .focused($isEditing)
                 }
 
                 Section {
@@ -55,21 +60,26 @@ struct NewTournamentSheet: View {
                         .buttonStyle(.plain)
                     }
                 } header: {
-                    Text("Marqueurs")
+                    Text(tr("Marqueurs", "Scorers"))
                 } footer: {
-                    Text("Les marqueurs désignés pourront saisir les résultats du tournoi.")
+                    Text(tr(
+                        "Les marqueurs désignés pourront saisir les résultats du tournoi.",
+                        "Appointed scorers will be able to record the tournament results."
+                    ))
                 }
             }
             .scrollContentBackground(.hidden)
             .background(Theme.canvas)
-            .navigationTitle("Nouveau tournoi")
+            .keyboardDismissable()
+            .keyboardDoneBar(isVisible: isEditing) { isEditing = false }
+            .navigationTitle(tr("Nouveau tournoi", "New tournament"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Annuler") { dismiss() }
+                    Button(tr("Annuler", "Cancel")) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Créer", action: save)
+                    Button(tr("Créer", "Create"), action: save)
                         .fontWeight(.semibold)
                         .disabled(!canSave)
                 }

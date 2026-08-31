@@ -10,7 +10,7 @@ struct DashboardHeader: View {
 
     private var greeting: String {
         let hour = Calendar.current.component(.hour, from: .now)
-        return hour < 18 ? "Bonjour" : "Bonsoir"
+        return hour < 18 ? tr("Bonjour", "Hello") : tr("Bonsoir", "Good evening")
     }
 
     var body: some View {
@@ -19,7 +19,7 @@ struct DashboardHeader: View {
                 AvatarView(initials: user.initials, photoData: user.photoData, size: 48)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Mon profil")
+            .accessibilityLabel(tr("Mon profil", "My profile"))
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("\(greeting), \(user.firstName)")
@@ -58,7 +58,7 @@ struct DashboardHeader: View {
                 }
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Messages")
+            .accessibilityLabel(tr("Messages", "Messages"))
         }
     }
 }

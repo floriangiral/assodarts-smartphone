@@ -66,13 +66,19 @@ final class AppStore {
     func signIn(email: String, password: String) -> String? {
         let normalized = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard let member = db.members.first(where: { $0.email.lowercased() == normalized }) else {
-            return "Aucun compte ne correspond à cette adresse."
+            return tr(
+                "Aucun compte ne correspond à cette adresse.",
+                "No account matches this email address."
+            )
         }
         guard member.password == password else {
-            return "Mot de passe incorrect."
+            return tr("Mot de passe incorrect.", "Incorrect password.")
         }
         guard member.isActive else {
-            return "Ce compte a été désactivé par le club."
+            return tr(
+                "Ce compte a été désactivé par le club.",
+                "This account has been deactivated by the club."
+            )
         }
         currentUserId = member.id
         save()
@@ -95,7 +101,7 @@ final class AppStore {
 
     func member(_ id: UUID) -> Member? { db.members.first { $0.id == id } }
 
-    func memberName(_ id: UUID) -> String { member(id)?.fullName ?? "Membre" }
+    func memberName(_ id: UUID) -> String { member(id)?.fullName ?? tr("Membre", "Member") }
 
     func members(of clubId: UUID, includeInactive: Bool = false) -> [Member] {
         db.members
@@ -185,9 +191,11 @@ final class AppStore {
             if viewer.role.canManageClub, let memberId = conversation.participantIds.first {
                 return memberName(memberId)
             }
-            return "Le Bureau"
+            return tr("Le Bureau", "The Committee")
         case .direct:
-            guard let otherId = conversation.counterpartId(for: viewer.id) else { return "Conversation" }
+            guard let otherId = conversation.counterpartId(for: viewer.id) else {
+                return tr("Conversation", "Conversation")
+            }
             return memberName(otherId)
         }
     }
@@ -196,10 +204,11 @@ final class AppStore {
         switch conversation.kind {
         case .bureau:
             if viewer.role.canManageClub {
-                return "Message adressé au bureau"
+                return tr("Message adressé au bureau", "Message sent to the committee")
             }
             let count = bureauMembers(of: conversation.clubId).count
-            return "\(club(conversation.clubId)?.name ?? "Club") · \(count) membres du bureau"
+            let people = Fmt.count(count, "membre du bureau", "membres du bureau", "committee member", "committee members")
+            return "\(club(conversation.clubId)?.name ?? "Club") · \(people)"
         case .direct:
             guard let otherId = conversation.counterpartId(for: viewer.id),
                   let other = member(otherId) else { return "" }

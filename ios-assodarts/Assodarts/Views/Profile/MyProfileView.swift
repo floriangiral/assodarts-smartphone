@@ -3,6 +3,7 @@ import SwiftUI
 /// The signed-in member's own profile: identity, licence, season and payments.
 struct MyProfileView: View {
     @Environment(AppStore.self) private var store
+    @Environment(Localization.self) private var localization
     @State private var showsEditor: Bool = false
     @State private var showsSignOutAlert: Bool = false
 
@@ -20,12 +21,13 @@ struct MyProfileView: View {
                     seasonCard(user)
                     paymentsCard
                     notificationsCard(user)
+                    languageCard
 
                     VStack(spacing: 12) {
-                        SecondaryButton(title: "Modifier mon profil", symbol: "pencil") {
+                        SecondaryButton(title: tr("Modifier mon profil", "Edit my profile"), symbol: "pencil") {
                             showsEditor = true
                         }
-                        Button("Se déconnecter") {
+                        Button(tr("Se déconnecter", "Sign out")) {
                             showsSignOutAlert = true
                         }
                         .font(.subheadline.weight(.semibold))
@@ -38,15 +40,45 @@ struct MyProfileView: View {
             }
         }
         .assoCanvas()
-        .navigationTitle("Mon profil")
+        .navigationTitle(tr("Mon profil", "My profile"))
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showsEditor) {
             EditProfileSheet()
         }
-        .alert("Se déconnecter ?", isPresented: $showsSignOutAlert) {
-            Button("Annuler", role: .cancel) {}
-            Button("Se déconnecter", role: .destructive) { store.signOut() }
+        .alert(tr("Se déconnecter ?", "Sign out?"), isPresented: $showsSignOutAlert) {
+            Button(tr("Annuler", "Cancel"), role: .cancel) {}
+            Button(tr("Se déconnecter", "Sign out"), role: .destructive) { store.signOut() }
         }
+    }
+
+    /// Language preference: follows the device by default, overridable here.
+    private var languageCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            SectionLabel(text: tr("Langue de l'application", "App language"))
+
+            Picker(tr("Langue", "Language"), selection: Binding(
+                get: { localization.preference },
+                set: { localization.preference = $0 }
+            )) {
+                ForEach(AppLanguage.allCases) { option in
+                    Text(option.label).tag(option)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            Text(localization.preference == .system
+                ? tr(
+                    "La langue suit celle de votre appareil : \(localization.lang == .fr ? "français" : "anglais").",
+                    "The language follows your device: \(localization.lang == .fr ? "French" : "English")."
+                )
+                : tr(
+                    "Dates, montants et clavier suivent cette langue.",
+                    "Dates, amounts and keyboard follow this language."
+                ))
+                .font(.caption)
+                .foregroundStyle(Theme.inkSecondary)
+        }
+        .assoCard()
     }
 
     private func identityCard(_ user: Member, club: Club) -> some View {
@@ -57,7 +89,10 @@ struct MyProfileView: View {
                 Text(user.fullName)
                     .font(.title3.bold())
                     .foregroundStyle(Theme.ink)
-                Text("\(club.name) · membre depuis \(Fmt.shortDate(user.joinedAt))")
+                Text(tr(
+                    "\(club.name) · membre depuis \(Fmt.shortDate(user.joinedAt))",
+                    "\(club.name) · member since \(Fmt.shortDate(user.joinedAt))"
+                ))
                     .font(.footnote)
                     .foregroundStyle(Theme.inkSecondary)
                     .multilineTextAlignment(.center)
@@ -66,7 +101,9 @@ struct MyProfileView: View {
             HStack(spacing: 8) {
                 RoleBadge(role: user.role)
                 StatusChip(
-                    text: store.isUpToDate(user.id) ? "Cotisation à jour" : "Cotisation en attente",
+                    text: store.isUpToDate(user.id)
+                        ? tr("Cotisation à jour", "Fee up to date")
+                        : tr("Cotisation en attente", "Fee pending"),
                     tint: store.isUpToDate(user.id) ? Theme.green : Theme.amber,
                     background: store.isUpToDate(user.id) ? Theme.greenTint : Theme.amberTint
                 )
@@ -78,7 +115,9 @@ struct MyProfileView: View {
     private func licenceCard(_ user: Member) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Label(
-                user.isLicensed ? "Licence FFD · \(user.licenceLabel)" : "Membre simple",
+                user.isLicensed
+                    ? tr("Licence FFD · \(user.licenceLabel)", "FFD licence · \(user.licenceLabel)")
+                    : tr("Membre simple", "Standard member"),
                 systemImage: user.isLicensed ? "checkmark.seal.fill" : "person.crop.circle"
             )
             .font(.caption.weight(.bold))
@@ -89,14 +128,20 @@ struct MyProfileView: View {
                     .font(.title2.weight(.semibold))
                     .monospacedDigit()
                     .foregroundStyle(Theme.ink)
-                Text("Saison 2026–2027 · valable jusqu'au 31 août 2027")
+                Text(tr(
+                    "Saison 2026–2027 · valable jusqu'au 31 août 2027",
+                    "2026–2027 season · valid until 31 August 2027"
+                ))
                     .font(.footnote)
                     .foregroundStyle(Theme.inkSecondary)
             } else {
-                Text("Aucun numéro enregistré")
+                Text(tr("Aucun numéro enregistré", "No number on file"))
                     .font(.headline)
                     .foregroundStyle(Theme.ink)
-                Text("Le bureau du club peut renseigner votre numéro de licence.")
+                Text(tr(
+                    "Le bureau du club peut renseigner votre numéro de licence.",
+                    "The club committee can fill in your licence number."
+                ))
                     .font(.footnote)
                     .foregroundStyle(Theme.inkSecondary)
             }
@@ -106,13 +151,13 @@ struct MyProfileView: View {
 
     private func seasonCard(_ user: Member) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionLabel(text: "Ma saison")
+            SectionLabel(text: tr("Ma saison", "My season"))
             HStack(spacing: 12) {
-                MetricTile(value: "\(user.eventsAttended)", label: "Événements")
-                MetricTile(value: "\(user.tournamentsPlayed)", label: "Tournois")
+                MetricTile(value: "\(user.eventsAttended)", label: tr("Événements", "Events"))
+                MetricTile(value: "\(user.tournamentsPlayed)", label: tr("Tournois", "Tournaments"))
                 MetricTile(
                     value: user.average.formatted(.number.locale(Fmt.locale).precision(.fractionLength(1))),
-                    label: "Moyenne",
+                    label: tr("Moyenne", "Average"),
                     tint: Theme.navy
                 )
             }
@@ -122,9 +167,9 @@ struct MyProfileView: View {
     private var paymentsCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                SectionLabel(text: "Mes paiements")
+                SectionLabel(text: tr("Mes paiements", "My payments"))
                 NavigationLink(value: ClubRoute.myPayments) {
-                    Text("Tout voir")
+                    Text(tr("Tout voir", "See all"))
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(Theme.navy)
                 }
@@ -154,7 +199,7 @@ struct MyProfileView: View {
             }
 
             if payments.isEmpty {
-                Text("Aucun paiement pour l'instant.")
+                Text(tr("Aucun paiement pour l'instant.", "No payments yet."))
                     .font(.footnote)
                     .foregroundStyle(Theme.inkSecondary)
             }
@@ -164,11 +209,11 @@ struct MyProfileView: View {
 
     private func notificationsCard(_ user: Member) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            SectionLabel(text: "Notifications")
-            preferenceRow("Annonces du club", isOn: user.notifyAnnouncements)
-            preferenceRow("Événements et convocations", isOn: user.notifyEvents)
-            preferenceRow("Appels à paiement", isOn: user.notifyPayments)
-            preferenceRow("Résultats de tournois", isOn: user.notifyTournaments)
+            SectionLabel(text: tr("Notifications", "Notifications"))
+            preferenceRow(tr("Annonces du club", "Club announcements"), isOn: user.notifyAnnouncements)
+            preferenceRow(tr("Événements et convocations", "Events and call-ups"), isOn: user.notifyEvents)
+            preferenceRow(tr("Appels à paiement", "Payment requests"), isOn: user.notifyPayments)
+            preferenceRow(tr("Résultats de tournois", "Tournament results"), isOn: user.notifyTournaments)
         }
         .assoCard()
     }

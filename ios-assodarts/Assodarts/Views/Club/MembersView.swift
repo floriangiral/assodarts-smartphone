@@ -18,9 +18,9 @@ struct MembersView: View {
 
         var label: String {
             switch self {
-            case .all: "Tous"
-            case .licensed: "Licenciés"
-            case .late: "À relancer"
+            case .all: tr("Tous", "All")
+            case .licensed: tr("Licenciés", "Licensed")
+            case .late: tr("À relancer", "To chase")
             }
         }
     }
@@ -41,7 +41,7 @@ struct MembersView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 12) {
-                Picker("Filtre", selection: $filter) {
+                Picker(tr("Filtre", "Filter"), selection: $filter) {
                     ForEach(MemberFilter.allCases) { option in
                         Text(option.label).tag(option)
                     }
@@ -50,10 +50,10 @@ struct MembersView: View {
 
                 if store.canManageClub {
                     HStack(spacing: 12) {
-                        SecondaryButton(title: "Inviter", symbol: "person.badge.plus") {
+                        SecondaryButton(title: tr("Inviter", "Invite"), symbol: "person.badge.plus") {
                             showsInvite = true
                         }
-                        SecondaryButton(title: "Appel à paiement", symbol: "eurosign.circle") {
+                        SecondaryButton(title: tr("Appel à paiement", "Payment request"), symbol: "eurosign.circle") {
                             showsPaymentCall = true
                         }
                     }
@@ -82,8 +82,8 @@ struct MembersView: View {
             .padding(.vertical, 12)
         }
         .assoCanvas()
-        .navigationTitle("Membres")
-        .searchable(text: $search, prompt: "Rechercher un membre")
+        .navigationTitle(tr("Membres", "Members"))
+        .searchable(text: $search, prompt: tr("Rechercher un membre", "Search for a member"))
         .sheet(isPresented: $showsInvite) {
             InviteMemberSheet()
         }
@@ -116,7 +116,9 @@ struct MemberRow: View {
                     Image(systemName: member.isLicensed ? "checkmark.seal.fill" : "person.crop.circle")
                         .font(.caption2)
                         .foregroundStyle(member.isLicensed ? Theme.orange : Theme.inkSecondary)
-                    Text(member.isLicensed ? "Licencié · \(member.licenceNumber)" : "Membre simple")
+                    Text(member.isLicensed
+                        ? tr("Licencié · \(member.licenceNumber)", "Licensed · \(member.licenceNumber)")
+                        : tr("Membre simple", "Standard member"))
                         .font(.caption)
                         .foregroundStyle(Theme.inkSecondary)
                         .lineLimit(1)
@@ -126,7 +128,7 @@ struct MemberRow: View {
             Spacer(minLength: 4)
 
             StatusChip(
-                text: state == .paid ? "À jour" : state.label,
+                text: state == .paid ? tr("À jour", "Up to date") : state.label,
                 tint: state.tint,
                 background: state.background
             )

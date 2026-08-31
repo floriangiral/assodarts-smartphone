@@ -50,6 +50,11 @@ struct ConversationView: View {
                     .onChange(of: conversation.messages.count) { _, _ in
                         scrollToEnd(proxy, conversation: conversation)
                     }
+                    .onChange(of: isInputFocused) { _, focused in
+                        guard focused else { return }
+                        scrollToEnd(proxy, conversation: conversation)
+                    }
+                    .scrollDismissesKeyboard(.interactively)
                 }
                 .safeAreaInset(edge: .bottom) {
                     inputBar(user: user)
@@ -70,7 +75,10 @@ struct ConversationView: View {
                     }
                 }
             } else {
-                ContentUnavailableView("Conversation introuvable", systemImage: "bubble.left")
+                ContentUnavailableView(
+                    tr("Conversation introuvable", "Conversation not found"),
+                    systemImage: "bubble.left"
+                )
             }
         }
         .task(id: photoItem) {
@@ -91,7 +99,7 @@ struct ConversationView: View {
                         .aspectRatio(contentMode: .fill)
                         .frame(width: 54, height: 54)
                         .clipShape(.rect(cornerRadius: 10))
-                    Text("Photo jointe")
+                    Text(tr("Photo jointe", "Photo attached"))
                         .font(.caption)
                         .foregroundStyle(Theme.inkSecondary)
                     Spacer()
@@ -115,9 +123,11 @@ struct ConversationView: View {
                         .background(Theme.canvas, in: .circle)
                 }
 
-                TextField("Votre message…", text: $draft, axis: .vertical)
+                TextField(tr("Votre message…", "Your message…"), text: $draft, axis: .vertical)
                     .lineLimit(1...4)
+                    .keyboardField(.freeText, submit: .send)
                     .focused($isInputFocused)
+                    .onSubmit { send(from: user) }
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
                     .background(Theme.canvas, in: .capsule)
@@ -254,7 +264,7 @@ struct MessageBubble: View {
             .frame(maxWidth: .infinity, alignment: isMine ? .trailing : .leading)
 
             if showsReadReceipt {
-                Text("Lu \(Fmt.time(message.sentAt))")
+                Text(tr("Lu \(Fmt.time(message.sentAt))", "Read \(Fmt.time(message.sentAt))"))
                     .font(.caption2)
                     .foregroundStyle(Theme.inkSecondary)
             }

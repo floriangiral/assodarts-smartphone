@@ -9,6 +9,7 @@ struct DevBroadcastView: View {
     @State private var message: String = ""
     @State private var audience: BroadcastAudience = .admins
     @State private var didPublish: Bool = false
+    @FocusState private var isEditing: Bool
 
     private var canPublish: Bool {
         !title.trimmingCharacters(in: .whitespaces).isEmpty
@@ -22,12 +23,12 @@ struct DevBroadcastView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 18) {
-                DevHeaderBand(title: "Annonces")
+                DevHeaderBand(title: tr("Annonces", "Broadcasts"))
 
                 composer
 
                 VStack(alignment: .leading, spacing: 12) {
-                    SectionLabel(text: "Annonces publiées")
+                    SectionLabel(text: tr("Annonces publiées", "Published broadcasts"))
                     ForEach(store.platformAnnouncements) { announcement in
                         publishedRow(announcement)
                     }
@@ -37,34 +38,45 @@ struct DevBroadcastView: View {
             .padding(.vertical, 12)
         }
         .assoCanvas()
+        .keyboardDismissable()
+        .keyboardDoneBar(isVisible: isEditing) { isEditing = false }
         .toolbar(.hidden, for: .navigationBar)
     }
 
     private var composer: some View {
         VStack(alignment: .leading, spacing: 12) {
-            TextField("Titre de l'annonce", text: $title)
+            TextField(tr("Titre de l'annonce", "Broadcast title"), text: $title)
                 .font(.headline)
+                .keyboardField(.freeText, submit: .next)
+                .focused($isEditing)
                 .padding(12)
                 .background(Theme.canvas, in: .rect(cornerRadius: 10))
 
-            TextField("Votre message…", text: $message, axis: .vertical)
+            TextField(tr("Votre message…", "Your message…"), text: $message, axis: .vertical)
                 .lineLimit(4...8)
+                .keyboardField(.freeText, submit: .return)
+                .focused($isEditing)
                 .padding(12)
                 .background(Theme.canvas, in: .rect(cornerRadius: 10))
 
-            Picker("Audience", selection: $audience) {
+            Picker(tr("Audience", "Audience"), selection: $audience) {
                 ForEach(BroadcastAudience.allCases) { option in
                     Text(option.label).tag(option)
                 }
             }
             .pickerStyle(.segmented)
 
-            Text("\(store.totalClubs) clubs · \(recipients.formatted(.number.locale(Fmt.locale))) destinataires")
+            Text(tr(
+                "\(store.totalClubs) clubs · \(Fmt.number(recipients)) destinataires",
+                "\(store.totalClubs) clubs · \(Fmt.number(recipients)) recipients"
+            ))
                 .font(.caption)
                 .foregroundStyle(Theme.inkSecondary)
 
             PrimaryButton(
-                title: didPublish ? "Annonce publiée" : "Publier l'annonce",
+                title: didPublish
+                    ? tr("Annonce publiée", "Broadcast published")
+                    : tr("Publier l'annonce", "Publish broadcast"),
                 symbol: didPublish ? "checkmark" : "paperplane.fill",
                 isEnabled: canPublish
             ) {

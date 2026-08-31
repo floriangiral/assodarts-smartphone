@@ -17,14 +17,20 @@ struct DevFinancesView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 18) {
-                DevHeaderBand(title: "Finances")
+                DevHeaderBand(title: tr("Finances", "Finances"))
 
                 heroCard
                 monthlyCard
                 tiersCard
                 couponsCard
 
-                Label("Hors paiements des clubs · encaissement Stripe bientôt disponible", systemImage: "info.circle")
+                Label(
+                    tr(
+                        "Hors paiements des clubs · encaissement Stripe bientôt disponible",
+                        "Excludes club-level payments · Stripe collection coming soon"
+                    ),
+                    systemImage: "info.circle"
+                )
                     .font(.caption)
                     .foregroundStyle(Theme.inkSecondary)
             }
@@ -37,14 +43,17 @@ struct DevFinancesView: View {
 
     private var heroCard: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Encaissé cette année")
+            Text(tr("Encaissé cette année", "Collected this year"))
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Theme.inkSecondary)
             Text(Fmt.money(store.annualRevenueCents))
                 .font(.system(size: 42, weight: .bold, design: .rounded))
                 .monospacedDigit()
                 .foregroundStyle(Theme.navy)
-            Text("\(renewals) renouvellements · \(activeClubs.count - renewals) premiers abonnements")
+            Text(tr(
+                "\(renewals) renouvellements · \(activeClubs.count - renewals) premiers abonnements",
+                "\(renewals) renewals · \(activeClubs.count - renewals) first subscriptions"
+            ))
                 .font(.footnote)
                 .foregroundStyle(Theme.inkSecondary)
         }
@@ -56,7 +65,7 @@ struct DevFinancesView: View {
         let maximum = max(data.map(\.count).max() ?? 1, 1)
 
         return VStack(alignment: .leading, spacing: 14) {
-            Text("Revenus par mois")
+            Text(tr("Revenus par mois", "Revenue per month"))
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Theme.ink)
 
@@ -81,8 +90,8 @@ struct DevFinancesView: View {
             .frame(height: 120, alignment: .bottom)
 
             HStack(spacing: 16) {
-                legend("Nouveaux", color: Theme.navy)
-                legend("Renouvellements", color: Theme.orange)
+                legend(tr("Nouveaux", "New"), color: Theme.navy)
+                legend(tr("Renouvellements", "Renewals"), color: Theme.orange)
             }
         }
         .assoCard(padding: 20)
@@ -99,16 +108,16 @@ struct DevFinancesView: View {
 
     private var tiersCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionLabel(text: "Répartition par formule")
+            SectionLabel(text: tr("Répartition par formule", "Split by plan"))
             VStack(spacing: 0) {
                 let rows = store.revenueByTier
                 ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("\(row.tier.name) \(row.tier.priceEuros > 0 ? Fmt.euros(row.tier.priceEuros) : "sur devis")")
+                            Text("\(row.tier.name) \(row.tier.priceEuros > 0 ? Fmt.euros(row.tier.priceEuros) : tr("sur devis", "custom quote"))")
                                 .font(.subheadline.weight(.medium))
                                 .foregroundStyle(Theme.ink)
-                            Text("\(row.clubs) club\(row.clubs > 1 ? "s" : "")")
+                            Text(Fmt.count(row.clubs, "club", "clubs", "club", "clubs"))
                                 .font(.caption)
                                 .foregroundStyle(Theme.inkSecondary)
                         }
@@ -131,7 +140,7 @@ struct DevFinancesView: View {
 
     private var couponsCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionLabel(text: "Coupons appliqués")
+            SectionLabel(text: tr("Coupons appliqués", "Coupons applied"))
             VStack(spacing: 0) {
                 let coupons = store.db.coupons
                 ForEach(Array(coupons.enumerated()), id: \.element.id) { index, coupon in
@@ -146,7 +155,7 @@ struct DevFinancesView: View {
                             Text("\(coupon.code) · \(coupon.discountLabel)")
                                 .font(.subheadline.weight(.medium))
                                 .foregroundStyle(Theme.ink)
-                            Text("\(clubs.count) club\(clubs.count > 1 ? "s" : "") ciblé\(clubs.count > 1 ? "s" : "")")
+                            Text(Fmt.count(clubs.count, "club ciblé", "clubs ciblés", "club targeted", "clubs targeted"))
                                 .font(.caption)
                                 .foregroundStyle(Theme.inkSecondary)
                         }
@@ -164,7 +173,7 @@ struct DevFinancesView: View {
                 }
 
                 if coupons.isEmpty {
-                    Text("Aucun coupon actif.")
+                    Text(tr("Aucun coupon actif.", "No active coupons."))
                         .font(.footnote)
                         .foregroundStyle(Theme.inkSecondary)
                         .frame(maxWidth: .infinity, alignment: .leading)

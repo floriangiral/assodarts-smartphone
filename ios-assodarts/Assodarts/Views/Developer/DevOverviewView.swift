@@ -28,21 +28,23 @@ struct DevOverviewView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 18) {
-                DevHeaderBand(title: "Vue d'ensemble")
+                DevHeaderBand(title: tr("Vue d'ensemble", "Overview"))
 
                 HStack(spacing: 12) {
                     MetricTile(
                         value: "\(store.totalClubs)",
-                        label: "Clubs actifs",
-                        delta: newClubsThisMonth > 0 ? "+\(newClubsThisMonth) ce mois" : nil
+                        label: tr("Clubs actifs", "Active clubs"),
+                        delta: newClubsThisMonth > 0
+                            ? tr("+\(newClubsThisMonth) ce mois", "+\(newClubsThisMonth) this month")
+                            : nil
                     )
                     MetricTile(
                         value: store.totalMembers.formatted(.number.locale(Fmt.locale)),
-                        label: "Membres"
+                        label: tr("Membres", "Members")
                     )
                     MetricTile(
                         value: Fmt.money(store.annualRevenueCents),
-                        label: "Revenu annuel",
+                        label: tr("Revenu annuel", "Annual revenue"),
                         tint: Theme.navy
                     )
                 }
@@ -51,7 +53,7 @@ struct DevOverviewView: View {
                 alertsCard
 
                 VStack(alignment: .leading, spacing: 12) {
-                    SectionLabel(text: "Derniers clubs inscrits")
+                    SectionLabel(text: tr("Derniers clubs inscrits", "Latest clubs signed up"))
                     VStack(spacing: 0) {
                         ForEach(latestClubs) { club in
                             clubRow(club)
@@ -76,10 +78,13 @@ struct DevOverviewView: View {
 
         return VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Nouveaux clubs par mois")
+                Text(tr("Nouveaux clubs par mois", "New clubs per month"))
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Theme.ink)
-                Text("\(store.totalClubs) clubs · \(store.trialClubs) en essai")
+                Text(tr(
+                    "\(store.totalClubs) clubs · \(store.trialClubs) en essai",
+                    "\(store.totalClubs) clubs · \(store.trialClubs) on trial"
+                ))
                     .font(.caption)
                     .foregroundStyle(Theme.inkSecondary)
             }
@@ -104,16 +109,19 @@ struct DevOverviewView: View {
 
     private var alertsCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionLabel(text: "Alertes")
+            SectionLabel(text: tr("Alertes", "Alerts"))
 
             HStack(spacing: 10) {
                 Image(systemName: "hourglass")
                     .foregroundStyle(Theme.amber)
-                Text("\(expiringTrials.count) essai\(expiringTrials.count > 1 ? "s" : "") expire\(expiringTrials.count > 1 ? "nt" : "") sous 7 jours")
+                Text(tr(
+                    "\(expiringTrials.count) essai\(expiringTrials.count > 1 ? "s" : "") expire\(expiringTrials.count > 1 ? "nt" : "") sous 7 jours",
+                    "\(expiringTrials.count) trial\(expiringTrials.count == 1 ? "" : "s") expiring within 7 days"
+                ))
                     .font(.subheadline)
                     .foregroundStyle(Theme.ink)
                 Spacer()
-                StatusChip(text: "Essai", tint: Theme.amber, background: Theme.amberTint)
+                StatusChip(text: tr("Essai", "Trial"), tint: Theme.amber, background: Theme.amberTint)
             }
 
             Divider().overlay(Theme.border)
@@ -121,11 +129,14 @@ struct DevOverviewView: View {
             HStack(spacing: 10) {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundStyle(Theme.red)
-                Text("\(graceClubs.count) abonnement\(graceClubs.count > 1 ? "s" : "") en délai de grâce")
+                Text(tr(
+                    "\(graceClubs.count) abonnement\(graceClubs.count > 1 ? "s" : "") en délai de grâce",
+                    "\(graceClubs.count) subscription\(graceClubs.count == 1 ? "" : "s") in grace period"
+                ))
                     .font(.subheadline)
                     .foregroundStyle(Theme.ink)
                 Spacer()
-                StatusChip(text: "Lecture seule", tint: Theme.red, background: Theme.redTint)
+                StatusChip(text: tr("Lecture seule", "Read-only"), tint: Theme.red, background: Theme.redTint)
             }
         }
         .assoCard()
@@ -138,14 +149,19 @@ struct DevOverviewView: View {
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(Theme.ink)
                     .lineLimit(1)
-                Text("\(store.memberCount(of: club)) membres · \(Fmt.euros(store.tier(for: club).priceEuros))/an")
+                Text(tr(
+                    "\(store.memberCount(of: club)) membres · \(Fmt.euros(store.tier(for: club).priceEuros))/an",
+                    "\(store.memberCount(of: club)) members · \(Fmt.euros(store.tier(for: club).priceEuros))/year"
+                ))
                     .font(.caption)
                     .monospacedDigit()
                     .foregroundStyle(Theme.inkSecondary)
             }
             Spacer(minLength: 4)
             StatusChip(
-                text: club.status == .trial ? "Essai" : club.status == .active ? "Actif" : "Grâce",
+                text: club.status == .trial
+                    ? tr("Essai", "Trial")
+                    : club.status == .active ? tr("Actif", "Active") : tr("Grâce", "Grace"),
                 tint: club.status == .active ? Theme.green : Theme.amber,
                 background: club.status == .active ? Theme.greenTint : Theme.amberTint
             )

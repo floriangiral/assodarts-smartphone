@@ -121,7 +121,7 @@ struct EventSummaryCard: View {
                     .font(.caption)
                     .foregroundStyle(Theme.inkSecondary)
                     .lineLimit(1)
-                Text("\(attendingCount) présents")
+                Text(Fmt.count(attendingCount, "présent", "présents", "attending", "attending"))
                     .font(.caption2.weight(.medium))
                     .foregroundStyle(Theme.green)
             }
@@ -140,4 +140,5 @@ struct EventSummaryCard: View {
         DashboardView()
     }
     .environment(AppStore())
+    .environment(Localization.shared)
 }

@@ -10,6 +10,14 @@ struct EditProfileSheet: View {
     @State private var photoItem: PhotosPickerItem?
     @State private var hasBirthDate: Bool = false
     @State private var birthDate: Date = .now
+    @FocusState private var focusedField: Field?
+
+    private enum Field: Hashable {
+        case firstName
+        case lastName
+        case email
+        case phone
+    }
 
     var body: some View {
         NavigationStack {
@@ -20,14 +28,15 @@ struct EditProfileSheet: View {
                     ProgressView()
                 }
             }
-            .navigationTitle("Modifier mon profil")
+            .keyboardDoneBar(isVisible: focusedField != nil) { focusedField = nil }
+            .navigationTitle(tr("Modifier mon profil", "Edit my profile"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Annuler") { dismiss() }
+                    Button(tr("Annuler", "Cancel")) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Enregistrer", action: save)
+                    Button(tr("Enregistrer", "Save"), action: save)
                         .fontWeight(.semibold)
                         .disabled(draft == nil)
                 }
@@ -54,11 +63,11 @@ struct EditProfileSheet: View {
                 VStack(spacing: 12) {
                     AvatarView(initials: member.initials, photoData: member.photoData, size: 88)
                     PhotosPicker(selection: $photoItem, matching: .images) {
-                        Label("Changer la photo", systemImage: "camera.fill")
+                        Label(tr("Changer la photo", "Change photo"), systemImage: "camera.fill")
                             .font(.subheadline.weight(.semibold))
                     }
                     if member.photoData != nil {
-                        Button("Retirer la photo", role: .destructive) {
+                        Button(tr("Retirer la photo", "Remove photo"), role: .destructive) {
                             draft?.photoData = nil
                             photoItem = nil
                         }
@@ -70,66 +79,78 @@ struct EditProfileSheet: View {
                 .listRowBackground(Color.clear)
             }
 
-            Section("Identité") {
-                TextField("Prénom", text: Binding(
+            Section(tr("Identité", "Identity")) {
+                TextField(tr("Prénom", "First name"), text: Binding(
                     get: { draft?.firstName ?? "" },
                     set: { draft?.firstName = $0 }
                 ))
-                TextField("Nom", text: Binding(
+                .keyboardField(.name, submit: .next)
+                .focused($focusedField, equals: .firstName)
+                .onSubmit { focusedField = .lastName }
+
+                TextField(tr("Nom", "Last name"), text: Binding(
                     get: { draft?.lastName ?? "" },
                     set: { draft?.lastName = $0 }
                 ))
-                Toggle("Date de naissance", isOn: $hasBirthDate)
+                .keyboardField(.name, submit: .next)
+                .focused($focusedField, equals: .lastName)
+                .onSubmit { focusedField = .email }
+
+                Toggle(tr("Date de naissance", "Date of birth"), isOn: $hasBirthDate)
                 if hasBirthDate {
-                    DatePicker("Née(e) le", selection: $birthDate, displayedComponents: .date)
+                    DatePicker(tr("Né(e) le", "Born on"), selection: $birthDate, displayedComponents: .date)
                 }
             }
 
             Section {
-                TextField("Email", text: Binding(
+                TextField(tr("Email", "Email"), text: Binding(
                     get: { draft?.email ?? "" },
                     set: { draft?.email = $0 }
                 ))
-                .keyboardType(.emailAddress)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
+                .keyboardField(.email, submit: .next)
+                .focused($focusedField, equals: .email)
+                .onSubmit { focusedField = .phone }
 
-                TextField("Téléphone", text: Binding(
+                TextField(tr("Téléphone", "Phone"), text: Binding(
                     get: { draft?.phone ?? "" },
                     set: { draft?.phone = $0 }
                 ))
-                .keyboardType(.phonePad)
+                .keyboardField(.phone, submit: .done)
+                .focused($focusedField, equals: .phone)
             } header: {
-                Text("Contact")
+                Text(tr("Contact", "Contact"))
             } footer: {
-                Text("Visible par le bureau du club.")
+                Text(tr("Visible par le bureau du club.", "Visible to the club committee."))
             }
 
             Section {
-                Toggle("Annonces du club", isOn: Binding(
+                Toggle(tr("Annonces du club", "Club announcements"), isOn: Binding(
                     get: { draft?.notifyAnnouncements ?? true },
                     set: { draft?.notifyAnnouncements = $0 }
                 ))
-                Toggle("Événements et convocations", isOn: Binding(
+                Toggle(tr("Événements et convocations", "Events and call-ups"), isOn: Binding(
                     get: { draft?.notifyEvents ?? true },
                     set: { draft?.notifyEvents = $0 }
                 ))
-                Toggle("Appels à paiement", isOn: Binding(
+                Toggle(tr("Appels à paiement", "Payment requests"), isOn: Binding(
                     get: { draft?.notifyPayments ?? true },
                     set: { draft?.notifyPayments = $0 }
                 ))
-                Toggle("Résultats de tournois", isOn: Binding(
+                Toggle(tr("Résultats de tournois", "Tournament results"), isOn: Binding(
                     get: { draft?.notifyTournaments ?? false },
                     set: { draft?.notifyTournaments = $0 }
                 ))
             } header: {
-                Text("Notifications")
+                Text(tr("Notifications", "Notifications"))
             } footer: {
-                Text("Notifications push sur iPhone et Android, et rappel par email pour les paiements.")
+                Text(tr(
+                    "Notifications push sur iPhone et Android, et rappel par email pour les paiements.",
+                    "Push notifications on iPhone and Android, plus email reminders for payments."
+                ))
             }
 
             Section {
-                Button("Se déconnecter", role: .destructive) {
+                Button(tr("Se déconnecter", "Sign out"), role: .destructive) {
                     dismiss()
                     store.signOut()
                 }
@@ -137,6 +158,7 @@ struct EditProfileSheet: View {
         }
         .scrollContentBackground(.hidden)
         .background(Theme.canvas)
+        .keyboardDismissable()
     }
 
     private func save() {

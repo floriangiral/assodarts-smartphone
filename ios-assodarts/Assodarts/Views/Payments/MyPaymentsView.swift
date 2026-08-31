@@ -29,7 +29,7 @@ struct MyPaymentsView: View {
 
                 if !due.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
-                        SectionLabel(text: "À régler")
+                        SectionLabel(text: tr("À régler", "Due"))
                         VStack(spacing: 14) {
                             ForEach(due, id: \.item.id) { entry in
                                 dueRow(entry)
@@ -44,7 +44,7 @@ struct MyPaymentsView: View {
 
                 if !history.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
-                        SectionLabel(text: "Historique")
+                        SectionLabel(text: tr("Historique", "History"))
                         VStack(spacing: 0) {
                             ForEach(history, id: \.item.id) { entry in
                                 historyRow(entry)
@@ -57,7 +57,10 @@ struct MyPaymentsView: View {
                     }
                 }
 
-                Label("Paiement sécurisé · Apple Pay ou carte bancaire", systemImage: "lock.shield")
+                Label(
+                    tr("Paiement sécurisé · Apple Pay ou carte bancaire", "Secure payment · Apple Pay or card"),
+                    systemImage: "lock.shield"
+                )
                     .font(.caption)
                     .foregroundStyle(Theme.inkSecondary)
                     .padding(.top, 4)
@@ -66,7 +69,7 @@ struct MyPaymentsView: View {
             .padding(.vertical, 12)
         }
         .assoCanvas()
-        .navigationTitle("Mes paiements")
+        .navigationTitle(tr("Mes paiements", "My payments"))
         .navigationBarTitleDisplayMode(.inline)
         .sheet(item: Binding(
             get: { payingCallId.map(PaymentSheetTarget.init(id:)) },
@@ -78,7 +81,7 @@ struct MyPaymentsView: View {
 
     private var summaryCard: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("À régler")
+            Text(tr("À régler", "Due"))
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Theme.inkSecondary)
 
@@ -89,8 +92,8 @@ struct MyPaymentsView: View {
                 .contentTransition(.numericText())
 
             Text(dueCents > 0
-                 ? "\(due.count) paiement\(due.count > 1 ? "s" : "") en attente"
-                 : "Vous êtes à jour de vos paiements")
+                 ? Fmt.count(due.count, "paiement en attente", "paiements en attente", "pending payment", "pending payments")
+                 : tr("Vous êtes à jour de vos paiements", "All your payments are up to date"))
                 .font(.footnote)
                 .foregroundStyle(Theme.inkSecondary)
         }
@@ -104,7 +107,10 @@ struct MyPaymentsView: View {
                     Text(entry.call.label)
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Theme.ink)
-                    Text("\(Fmt.money(entry.call.amountCents)) · échéance \(Fmt.shortDate(entry.call.dueDate))")
+                    Text(tr(
+                        "\(Fmt.money(entry.call.amountCents)) · échéance \(Fmt.shortDate(entry.call.dueDate))",
+                        "\(Fmt.money(entry.call.amountCents)) · due \(Fmt.shortDate(entry.call.dueDate))"
+                    ))
                         .font(.caption)
                         .monospacedDigit()
                         .foregroundStyle(Theme.inkSecondary)
@@ -116,7 +122,10 @@ struct MyPaymentsView: View {
             Button {
                 payingCallId = entry.call.id
             } label: {
-                Text("Payer \(Fmt.money(entry.call.amountCents))")
+                Text(tr(
+                    "Payer \(Fmt.money(entry.call.amountCents))",
+                    "Pay \(Fmt.money(entry.call.amountCents))"
+                ))
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
@@ -139,7 +148,10 @@ struct MyPaymentsView: View {
                 Text(entry.call.label)
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(Theme.ink)
-                Text("\(Fmt.money(entry.call.amountCents)) · payé le \(Fmt.shortDate(entry.item.paidAt ?? entry.call.dueDate))")
+                Text(tr(
+                    "\(Fmt.money(entry.call.amountCents)) · payé le \(Fmt.shortDate(entry.item.paidAt ?? entry.call.dueDate))",
+                    "\(Fmt.money(entry.call.amountCents)) · paid on \(Fmt.shortDate(entry.item.paidAt ?? entry.call.dueDate))"
+                ))
                     .font(.caption)
                     .monospacedDigit()
                     .foregroundStyle(Theme.inkSecondary)

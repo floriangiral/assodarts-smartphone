@@ -25,11 +25,17 @@ struct MessagesListView: View {
                     VStack(spacing: 12) {
                         if conversations.isEmpty {
                             ContentUnavailableView(
-                                "Aucune conversation",
+                                tr("Aucune conversation", "No conversations"),
                                 systemImage: "bubble.left.and.bubble.right",
                                 description: Text(user.role.canManageClub
-                                    ? "Les messages des membres arriveront ici."
-                                    : "Écrivez au bureau de votre club en un tap.")
+                                    ? tr(
+                                        "Les messages des membres arriveront ici.",
+                                        "Messages from members will arrive here."
+                                    )
+                                    : tr(
+                                        "Écrivez au bureau de votre club en un tap.",
+                                        "Message your club committee in one tap."
+                                    ))
                             )
                             .padding(.top, 80)
                         }
@@ -58,7 +64,7 @@ struct MessagesListView: View {
                                     .frame(width: 60, height: 60)
                                     .background(Theme.navy, in: .circle)
                                     .shadow(color: Theme.navy.opacity(0.3), radius: 12, y: 6)
-                                Text("Nouveau message")
+                                Text(tr("Nouveau message", "New message"))
                                     .font(.caption.weight(.semibold))
                                     .foregroundStyle(Theme.ink)
                             }
@@ -70,8 +76,8 @@ struct MessagesListView: View {
                 }
             }
         }
-        .navigationTitle("Messages")
-        .searchable(text: $search, prompt: "Rechercher une conversation")
+        .navigationTitle(tr("Messages", "Messages"))
+        .searchable(text: $search, prompt: tr("Rechercher une conversation", "Search a conversation"))
         .sheet(isPresented: $showsComposer) {
             NewMessageSheet()
         }
@@ -120,7 +126,7 @@ struct ConversationRow: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Theme.ink)
                     .lineLimit(1)
-                Text(conversation.lastMessage?.text ?? "Nouvelle conversation")
+                Text(conversation.lastMessage?.text ?? tr("Nouvelle conversation", "New conversation"))
                     .font(.footnote)
                     .foregroundStyle(unread > 0 ? Theme.ink : Theme.inkSecondary)
                     .lineLimit(1)

@@ -67,31 +67,31 @@ struct ClubTabView: View {
             NavigationStack {
                 DashboardView()
             }
-            .tabItem { Label("Accueil", systemImage: "house.fill") }
+            .tabItem { Label(tr("Accueil", "Home"), systemImage: "house.fill") }
             .tag(0)
 
             NavigationStack {
                 AnnouncementsView()
             }
-            .tabItem { Label("Annonces", systemImage: "megaphone.fill") }
+            .tabItem { Label(tr("Annonces", "News"), systemImage: "megaphone.fill") }
             .tag(1)
 
             NavigationStack {
                 EventsView()
             }
-            .tabItem { Label("Événements", systemImage: "calendar") }
+            .tabItem { Label(tr("Événements", "Events"), systemImage: "calendar") }
             .tag(2)
 
             NavigationStack {
                 MembersView()
             }
-            .tabItem { Label("Membres", systemImage: "person.3.fill") }
+            .tabItem { Label(tr("Membres", "Members"), systemImage: "person.3.fill") }
             .tag(3)
 
             NavigationStack {
                 TournamentsView()
             }
-            .tabItem { Label("Tournois", systemImage: "trophy.fill") }
+            .tabItem { Label(tr("Tournois", "Tournaments"), systemImage: "trophy.fill") }
             .tag(4)
         }
         .tint(Theme.navy)
@@ -101,4 +101,5 @@ struct ClubTabView: View {
 #Preview {
     ClubTabView()
         .environment(AppStore())
+        .environment(Localization.shared)
 }

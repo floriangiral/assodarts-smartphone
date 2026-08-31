@@ -12,10 +12,10 @@ enum PaymentCategory: String, Codable, CaseIterable, Identifiable, Sendable {
 
     var label: String {
         switch self {
-        case .cotisation: "Cotisation"
-        case .tenue: "Tenue"
-        case .deplacement: "Déplacement"
-        case .autre: "Autre"
+        case .cotisation: tr("Cotisation", "Membership fee")
+        case .tenue: tr("Tenue", "Kit")
+        case .deplacement: tr("Déplacement", "Travel")
+        case .autre: tr("Autre", "Other")
         }
     }
 
@@ -37,9 +37,9 @@ enum PaymentState: String, Sendable {
 
     var label: String {
         switch self {
-        case .paid: "Payé"
-        case .pending: "En attente"
-        case .late: "En retard"
+        case .paid: tr("Payé", "Paid")
+        case .pending: tr("En attente", "Pending")
+        case .late: tr("En retard", "Overdue")
         }
     }
 

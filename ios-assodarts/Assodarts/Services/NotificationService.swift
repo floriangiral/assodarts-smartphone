@@ -9,7 +9,7 @@ enum NotificationService {
             _ = try await UNUserNotificationCenter.current()
                 .requestAuthorization(options: [.alert, .badge, .sound])
         } catch {
-            print("Notifications: autorisation refusée ou indisponible")
+            print("Notifications: authorization denied or unavailable")
         }
     }
 
@@ -28,7 +28,7 @@ enum NotificationService {
         )
         UNUserNotificationCenter.current().add(request) { error in
             if error != nil {
-                print("Notifications: envoi impossible")
+                print("Notifications: delivery failed")
             }
         }
     }

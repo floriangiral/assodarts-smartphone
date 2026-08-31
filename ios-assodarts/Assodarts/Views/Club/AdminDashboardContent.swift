@@ -47,7 +47,7 @@ struct AdminDashboardContent: View {
 
             if let nextEvent {
                 VStack(alignment: .leading, spacing: 12) {
-                    SectionLabel(text: "Prochain rendez-vous")
+                    SectionLabel(text: tr("Prochain rendez-vous", "Next date"))
                     NavigationLink(value: ClubRoute.event(nextEvent.id)) {
                         EventSummaryCard(event: nextEvent, attendingCount: nextEvent.attendeeIds.count)
                     }
@@ -75,11 +75,11 @@ struct AdminDashboardContent: View {
 
     private var metrics: some View {
         HStack(spacing: 12) {
-            MetricTile(value: "\(members.count)", label: "Membres")
-            MetricTile(value: "\(licensedCount)", label: "Licenciés")
+            MetricTile(value: "\(members.count)", label: tr("Membres", "Members"))
+            MetricTile(value: "\(licensedCount)", label: tr("Licenciés", "Licensed"))
             MetricTile(
                 value: "\(upToDateCount)/\(members.count)",
-                label: "Cotisations à jour",
+                label: tr("Cotisations à jour", "Fees up to date"),
                 tint: upToDateCount == members.count ? Theme.green : Theme.ink
             )
         }
@@ -89,7 +89,7 @@ struct AdminDashboardContent: View {
         NavigationLink(value: ClubRoute.paymentCalls) {
             VStack(alignment: .leading, spacing: 14) {
                 HStack {
-                    Text("Encaissements du club")
+                    Text(tr("Encaissements du club", "Club collections"))
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Theme.inkSecondary)
                     Spacer()
@@ -105,13 +105,22 @@ struct AdminDashboardContent: View {
 
                 HStack(spacing: 16) {
                     Label(
-                        "\(Fmt.money(outstandingCents)) en attente",
+                        tr(
+                            "\(Fmt.money(outstandingCents)) en attente",
+                            "\(Fmt.money(outstandingCents)) outstanding"
+                        ),
                         systemImage: "clock.badge.exclamationmark"
                     )
                     .font(.caption.weight(.medium))
                     .foregroundStyle(outstandingCents > 0 ? Theme.amber : Theme.green)
 
-                    Text("\(openCalls.count) appel\(openCalls.count > 1 ? "s" : "") en cours")
+                    Text(Fmt.count(
+                        openCalls.count,
+                        "appel en cours",
+                        "appels en cours",
+                        "open request",
+                        "open requests"
+                    ))
                         .font(.caption)
                         .foregroundStyle(Theme.inkSecondary)
                 }
@@ -123,19 +132,23 @@ struct AdminDashboardContent: View {
 
     private var quickActions: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionLabel(text: "Actions du bureau")
+            SectionLabel(text: tr("Actions du bureau", "Committee actions"))
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
-                actionTile("Appel à paiement", symbol: "eurosign.circle.fill", tint: Theme.navy) {
+                actionTile(tr("Appel à paiement", "Payment request"), symbol: "eurosign.circle.fill", tint: Theme.navy) {
                     showsNewPaymentCall = true
                 }
-                actionTile("Nouvelle annonce", symbol: "megaphone.fill", tint: Theme.orange) {
+                actionTile(tr("Nouvelle annonce", "New announcement"), symbol: "megaphone.fill", tint: Theme.orange) {
                     showsNewAnnouncement = true
                 }
-                actionTile("Inviter un membre", symbol: "person.badge.plus", tint: Theme.green) {
+                actionTile(tr("Inviter un membre", "Invite a member"), symbol: "person.badge.plus", tint: Theme.green) {
                     showsInvite = true
                 }
                 NavigationLink(value: ClubRoute.messages) {
-                    actionTileLabel("Messagerie", symbol: "bubble.left.and.bubble.right.fill", tint: Theme.navy)
+                    actionTileLabel(
+                        tr("Messagerie", "Messages"),
+                        symbol: "bubble.left.and.bubble.right.fill",
+                        tint: Theme.navy
+                    )
                 }
                 .buttonStyle(.plain)
             }
@@ -178,7 +191,7 @@ struct AdminDashboardContent: View {
     private var alertsCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Label("Alertes", systemImage: "exclamationmark.triangle.fill")
+                Label(tr("Alertes", "Alerts"), systemImage: "exclamationmark.triangle.fill")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Theme.red)
                 Spacer()
@@ -223,7 +236,7 @@ struct AdminDashboardContent: View {
                     .frame(width: 44, height: 44)
                     .background(Theme.navyTint, in: .circle)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Abonnement du club")
+                    Text(tr("Abonnement du club", "Club subscription"))
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Theme.ink)
                     Text("\(store.tier(for: club).name) · \(club.status.label)")

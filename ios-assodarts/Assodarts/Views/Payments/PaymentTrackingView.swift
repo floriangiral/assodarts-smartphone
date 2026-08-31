@@ -17,9 +17,9 @@ struct PaymentTrackingView: View {
 
         var label: String {
             switch self {
-            case .all: "Tous"
-            case .pending: "En attente"
-            case .paid: "Payés"
+            case .all: tr("Tous", "All")
+            case .pending: tr("En attente", "Pending")
+            case .paid: tr("Payés", "Paid")
             }
         }
     }
@@ -45,7 +45,7 @@ struct PaymentTrackingView: View {
                     header(call)
                     progressCard(call)
 
-                    Picker("Filtre", selection: $filter) {
+                    Picker(tr("Filtre", "Filter"), selection: $filter) {
                         ForEach(Filter.allCases) { option in
                             Text(option.label).tag(option)
                         }
@@ -65,15 +65,21 @@ struct PaymentTrackingView: View {
                     if call.unpaidCount > 0 {
                         SecondaryButton(
                             title: remindedAll
-                                ? "Relances envoyées"
-                                : "Relancer les \(call.unpaidCount) impayés",
+                                ? tr("Relances envoyées", "Reminders sent")
+                                : tr(
+                                    "Relancer les \(call.unpaidCount) impayés",
+                                    "Chase the \(call.unpaidCount) unpaid"
+                                ),
                             symbol: remindedAll ? "checkmark" : "bell.badge"
                         ) {
                             let unpaidIds = call.items.filter { !$0.isPaid }.map(\.memberId)
                             store.remind(callId: call.id, memberIds: unpaidIds)
                             NotificationService.notify(
-                                title: "Relance envoyée",
-                                body: "\(unpaidIds.count) membres relancés pour \(call.label)."
+                                title: tr("Relance envoyée", "Reminder sent"),
+                                body: tr(
+                                    "\(unpaidIds.count) membres relancés pour \(call.label).",
+                                    "\(unpaidIds.count) members reminded about \(call.label)."
+                                )
                             )
                             withAnimation { remindedAll = true }
                         }
@@ -84,7 +90,7 @@ struct PaymentTrackingView: View {
             }
         }
         .assoCanvas()
-        .navigationTitle("Suivi des paiements")
+        .navigationTitle(tr("Suivi des paiements", "Payment tracking"))
         .navigationBarTitleDisplayMode(.inline)
     }
 
@@ -93,7 +99,10 @@ struct PaymentTrackingView: View {
             Text(call.label)
                 .font(.title3.bold())
                 .foregroundStyle(Theme.ink)
-            Text("\(Fmt.money(call.amountCents)) · échéance \(Fmt.shortDate(call.dueDate))")
+            Text(tr(
+                "\(Fmt.money(call.amountCents)) · échéance \(Fmt.shortDate(call.dueDate))",
+                "\(Fmt.money(call.amountCents)) · due \(Fmt.shortDate(call.dueDate))"
+            ))
                 .font(.subheadline)
                 .monospacedDigit()
                 .foregroundStyle(Theme.inkSecondary)
@@ -103,7 +112,10 @@ struct PaymentTrackingView: View {
 
     private func progressCard(_ call: PaymentCall) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("\(Fmt.money(call.collectedCents)) encaissés sur \(Fmt.money(call.expectedCents))")
+            Text(tr(
+                "\(Fmt.money(call.collectedCents)) encaissés sur \(Fmt.money(call.expectedCents))",
+                "\(Fmt.money(call.collectedCents)) collected of \(Fmt.money(call.expectedCents))"
+            ))
                 .font(.title3.bold())
                 .monospacedDigit()
                 .foregroundStyle(Theme.ink)
@@ -112,9 +124,9 @@ struct PaymentTrackingView: View {
                 .tint(Theme.navy)
 
             HStack(spacing: 16) {
-                counter("\(call.paidCount) payés", tint: Theme.green)
-                counter("\(call.pendingCount) en attente", tint: Theme.amber)
-                counter("\(call.lateCount) en retard", tint: Theme.red)
+                counter(tr("\(call.paidCount) payés", "\(call.paidCount) paid"), tint: Theme.green)
+                counter(tr("\(call.pendingCount) en attente", "\(call.pendingCount) pending"), tint: Theme.amber)
+                counter(tr("\(call.lateCount) en retard", "\(call.lateCount) overdue"), tint: Theme.red)
             }
         }
         .assoCard(padding: 20)
@@ -137,7 +149,7 @@ struct PaymentTrackingView: View {
             AvatarView(initials: member?.initials ?? "??", photoData: member?.photoData, size: 38)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(member?.fullName ?? "Membre")
+                Text(member?.fullName ?? tr("Membre", "Member"))
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(Theme.ink)
                 Text(subtitle(item: item, call: call))
@@ -151,7 +163,7 @@ struct PaymentTrackingView: View {
             VStack(alignment: .trailing, spacing: 6) {
                 StatusChip(state: state)
                 if !item.isPaid {
-                    Button("Relancer") {
+                    Button(tr("Relancer", "Remind")) {
                         store.remind(callId: call.id, memberIds: [item.memberId])
                     }
                     .font(.caption.weight(.semibold))
@@ -162,20 +174,25 @@ struct PaymentTrackingView: View {
         .padding(.vertical, 9)
         .contextMenu {
             if !item.isPaid {
-                Button("Marquer comme payé", systemImage: "checkmark.circle") {
+                Button(tr("Marquer comme payé", "Mark as paid"), systemImage: "checkmark.circle") {
                     store.markPaid(callId: call.id, memberId: item.memberId)
                 }
             }
-            Button("Voir la fiche membre", systemImage: "person.crop.circle") {}
         }
     }
 
     private func subtitle(item: PaymentItem, call: PaymentCall) -> String {
         if item.isPaid, let paidAt = item.paidAt {
-            return "\(Fmt.money(call.amountCents)) · payé le \(Fmt.shortDate(paidAt))"
+            return tr(
+                "\(Fmt.money(call.amountCents)) · payé le \(Fmt.shortDate(paidAt))",
+                "\(Fmt.money(call.amountCents)) · paid on \(Fmt.shortDate(paidAt))"
+            )
         }
         if let reminded = item.remindedAt {
-            return "\(Fmt.money(call.amountCents)) · relancé le \(Fmt.shortDate(reminded))"
+            return tr(
+                "\(Fmt.money(call.amountCents)) · relancé le \(Fmt.shortDate(reminded))",
+                "\(Fmt.money(call.amountCents)) · reminded on \(Fmt.shortDate(reminded))"
+            )
         }
         return Fmt.money(call.amountCents)
     }

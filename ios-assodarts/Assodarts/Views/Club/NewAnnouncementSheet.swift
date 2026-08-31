@@ -9,6 +9,7 @@ struct NewAnnouncementSheet: View {
     @State private var body_: String = ""
     @State private var isPinned: Bool = false
     @State private var notify: Bool = true
+    @FocusState private var isEditing: Bool
 
     private var canPublish: Bool {
         !title.trimmingCharacters(in: .whitespaces).isEmpty
@@ -18,29 +19,38 @@ struct NewAnnouncementSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Annonce") {
-                    TextField("Titre de l'annonce", text: $title)
-                    TextField("Votre message…", text: $body_, axis: .vertical)
+                Section(tr("Annonce", "Announcement")) {
+                    TextField(tr("Titre de l'annonce", "Announcement title"), text: $title)
+                        .keyboardField(.freeText, submit: .next)
+                        .focused($isEditing)
+                    TextField(tr("Votre message…", "Your message…"), text: $body_, axis: .vertical)
                         .lineLimit(5...10)
+                        .keyboardField(.freeText, submit: .return)
+                        .focused($isEditing)
                 }
 
                 Section {
-                    Toggle("Épingler en haut du fil", isOn: $isPinned)
-                    Toggle("Notifier les membres", isOn: $notify)
+                    Toggle(tr("Épingler en haut du fil", "Pin to the top of the feed"), isOn: $isPinned)
+                    Toggle(tr("Notifier les membres", "Notify members"), isOn: $notify)
                 } footer: {
-                    Text("Les membres ayant activé les notifications d'annonces recevront une alerte.")
+                    Text(tr(
+                        "Les membres ayant activé les notifications d'annonces recevront une alerte.",
+                        "Members who enabled announcement notifications will get an alert."
+                    ))
                 }
             }
             .scrollContentBackground(.hidden)
             .background(Theme.canvas)
-            .navigationTitle("Nouvelle annonce")
+            .keyboardDismissable()
+            .keyboardDoneBar(isVisible: isEditing) { isEditing = false }
+            .navigationTitle(tr("Nouvelle annonce", "New announcement"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Annuler") { dismiss() }
+                    Button(tr("Annuler", "Cancel")) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Publier", action: publish)
+                    Button(tr("Publier", "Publish"), action: publish)
                         .disabled(!canPublish)
                         .fontWeight(.semibold)
                 }
@@ -53,7 +63,7 @@ struct NewAnnouncementSheet: View {
         store.publishAnnouncement(title: title, body: body_, pinned: isPinned, author: user)
         if notify {
             NotificationService.notify(
-                title: store.currentClub?.name ?? "Votre club",
+                title: store.currentClub?.name ?? tr("Votre club", "Your club"),
                 body: title.trimmingCharacters(in: .whitespaces)
             )
         }

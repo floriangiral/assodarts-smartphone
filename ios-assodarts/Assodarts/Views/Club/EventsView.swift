@@ -15,9 +15,9 @@ struct EventsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 14) {
-                Picker("Période", selection: $showsPast) {
-                    Text("À venir").tag(false)
-                    Text("Passés").tag(true)
+                Picker(tr("Période", "Period"), selection: $showsPast) {
+                    Text(tr("À venir", "Upcoming")).tag(false)
+                    Text(tr("Passés", "Past")).tag(true)
                 }
                 .pickerStyle(.segmented)
                 .padding(.bottom, 2)
@@ -31,9 +31,14 @@ struct EventsView: View {
 
                 if events.isEmpty {
                     ContentUnavailableView(
-                        showsPast ? "Aucun événement passé" : "Aucun événement à venir",
+                        showsPast
+                            ? tr("Aucun événement passé", "No past events")
+                            : tr("Aucun événement à venir", "No upcoming events"),
                         systemImage: "calendar",
-                        description: Text("Le bureau publiera ici les entraînements et compétitions.")
+                        description: Text(tr(
+                            "Le bureau publiera ici les entraînements et compétitions.",
+                            "The committee will post training sessions and competitions here."
+                        ))
                     )
                     .padding(.top, 60)
                 }
@@ -42,7 +47,7 @@ struct EventsView: View {
             .padding(.vertical, 12)
         }
         .assoCanvas()
-        .navigationTitle("Événements")
+        .navigationTitle(tr("Événements", "Events"))
         .toolbar {
             if store.canManageClub {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -51,7 +56,7 @@ struct EventsView: View {
                     } label: {
                         Image(systemName: "plus")
                     }
-                    .accessibilityLabel("Nouvel événement")
+                    .accessibilityLabel(tr("Nouvel événement", "New event"))
                 }
             }
         }
@@ -80,7 +85,7 @@ struct EventCard: View {
                 Spacer()
                 if let user = store.currentUser, let response = event.response(for: user.id) {
                     StatusChip(
-                        text: response ? "Présent" : "Absent",
+                        text: response ? tr("Présent", "Going") : tr("Absent", "Not going"),
                         tint: response ? Theme.green : Theme.inkSecondary,
                         background: response ? Theme.greenTint : Theme.canvas
                     )
@@ -102,7 +107,7 @@ struct EventCard: View {
             HStack(spacing: 6) {
                 Image(systemName: "person.2.fill")
                     .font(.caption2)
-                Text("\(event.attendeeIds.count) présents")
+                Text(Fmt.count(event.attendeeIds.count, "présent", "présents", "attending", "attending"))
                     .font(.caption.weight(.medium))
                 Spacer()
                 Image(systemName: "chevron.right")
@@ -155,10 +160,10 @@ struct EventDetailView: View {
 
                     if event.date >= .now {
                         VStack(alignment: .leading, spacing: 12) {
-                            SectionLabel(text: "Votre réponse")
+                            SectionLabel(text: tr("Votre réponse", "Your answer"))
                             HStack(spacing: 12) {
                                 answerButton(
-                                    "Présent",
+                                    tr("Présent", "Going"),
                                     symbol: "checkmark.circle.fill",
                                     tint: Theme.green,
                                     isSelected: event.response(for: user.id) == true
@@ -170,7 +175,7 @@ struct EventDetailView: View {
                                     )
                                 }
                                 answerButton(
-                                    "Absent",
+                                    tr("Absent", "Not going"),
                                     symbol: "xmark.circle.fill",
                                     tint: Theme.red,
                                     isSelected: event.response(for: user.id) == false
@@ -187,9 +192,12 @@ struct EventDetailView: View {
                     }
 
                     VStack(alignment: .leading, spacing: 12) {
-                        SectionLabel(text: "Participants · \(event.attendeeIds.count)")
+                        SectionLabel(text: tr(
+                            "Participants · \(event.attendeeIds.count)",
+                            "Attendees · \(event.attendeeIds.count)"
+                        ))
                         if event.attendeeIds.isEmpty {
-                            Text("Aucune réponse pour l'instant.")
+                            Text(tr("Aucune réponse pour l'instant.", "No answers yet."))
                                 .font(.footnote)
                                 .foregroundStyle(Theme.inkSecondary)
                         } else {
@@ -216,7 +224,7 @@ struct EventDetailView: View {
             }
         }
         .assoCanvas()
-        .navigationTitle("Événement")
+        .navigationTitle(tr("Événement", "Event"))
         .navigationBarTitleDisplayMode(.inline)
     }
 

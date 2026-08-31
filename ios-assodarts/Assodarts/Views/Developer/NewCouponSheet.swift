@@ -12,6 +12,7 @@ struct NewCouponSheet: View {
     @State private var selection: Set<UUID> = []
     @State private var search: String = ""
     @State private var autoRenew: Bool = false
+    @FocusState private var isEditing: Bool
 
     private var clubs: [Club] {
         let all = store.platformClubs.sorted { $0.name < $1.name }
@@ -36,29 +37,37 @@ struct NewCouponSheet: View {
             autoRenew: false
         ).discountedCents(fromEuros: tier.priceEuros)
         if roundedPercent >= 100 {
-            return "Formule \(tier.name) · abonnement offert"
+            return tr(
+                "Formule \(tier.name) · abonnement offert",
+                "\(tier.name) plan · subscription free"
+            )
         }
-        return "Formule \(tier.name) · \(Fmt.euros(tier.priceEuros)) → \(Fmt.money(discounted))"
+        return tr(
+            "Formule \(tier.name) · \(Fmt.euros(tier.priceEuros)) → \(Fmt.money(discounted))",
+            "\(tier.name) plan · \(Fmt.euros(tier.priceEuros)) → \(Fmt.money(discounted))"
+        )
     }
 
     var body: some View {
         NavigationStack {
             Form {
-                Section("Code") {
-                    TextField("Ex. RENTREE26", text: $code)
-                        .textInputAutocapitalization(.characters)
-                        .autocorrectionDisabled()
+                Section(tr("Code", "Code")) {
+                    TextField(tr("Ex. RENTREE26", "E.g. AUTUMN26"), text: $code)
+                        .keyboardField(.code, submit: .done)
+                        .focused($isEditing)
                         .monospaced()
                 }
 
                 Section {
                     VStack(alignment: .leading, spacing: 10) {
                         HStack {
-                            Text("Réduction")
+                            Text(tr("Réduction", "Discount"))
                                 .font(.subheadline.weight(.semibold))
                                 .foregroundStyle(Theme.ink)
                             Spacer()
-                            Text(roundedPercent >= 100 ? "Offert" : "\(roundedPercent) %")
+                            Text(roundedPercent >= 100
+                                ? tr("Offert", "Free")
+                                : tr("\(roundedPercent) %", "\(roundedPercent)%"))
                                 .font(.headline)
                                 .monospacedDigit()
                                 .foregroundStyle(roundedPercent >= 100 ? Theme.green : Theme.orange)
@@ -66,9 +75,9 @@ struct NewCouponSheet: View {
                         Slider(value: $percent, in: 10...100, step: 5)
                             .tint(Theme.navy)
                         HStack {
-                            Text("10 %")
+                            Text(tr("10 %", "10%"))
                             Spacer()
-                            Text("Offert (100 %)")
+                            Text(tr("Offert (100 %)", "Free (100%)"))
                         }
                         .font(.caption)
                         .foregroundStyle(Theme.inkSecondary)
@@ -80,11 +89,17 @@ struct NewCouponSheet: View {
                     }
                     .padding(.vertical, 4)
 
-                    DatePicker("Valable jusqu'au", selection: $expiresAt, displayedComponents: .date)
+                    DatePicker(
+                        tr("Valable jusqu'au", "Valid until"),
+                        selection: $expiresAt,
+                        displayedComponents: .date
+                    )
                 }
 
                 Section {
-                    TextField("Rechercher un club", text: $search)
+                    TextField(tr("Rechercher un club", "Search for a club"), text: $search)
+                        .keyboardField(.freeText, submit: .search)
+                        .focused($isEditing)
 
                     ForEach(clubs) { club in
                         Button {
@@ -99,7 +114,10 @@ struct NewCouponSheet: View {
                                     Text(club.name)
                                         .font(.subheadline)
                                         .foregroundStyle(Theme.ink)
-                                    Text("\(store.memberCount(of: club)) membres · \(Fmt.euros(store.tier(for: club).priceEuros))/an")
+                                    Text(tr(
+                                        "\(store.memberCount(of: club)) membres · \(Fmt.euros(store.tier(for: club).priceEuros))/an",
+                                        "\(store.memberCount(of: club)) members · \(Fmt.euros(store.tier(for: club).priceEuros))/year"
+                                    ))
                                         .font(.caption)
                                         .foregroundStyle(Theme.inkSecondary)
                                 }
@@ -115,27 +133,38 @@ struct NewCouponSheet: View {
                         .buttonStyle(.plain)
                     }
                 } header: {
-                    Text("Clubs ciblés · \(selection.count) sélectionné\(selection.count > 1 ? "s" : "")")
+                    Text(tr(
+                        "Clubs ciblés · \(selection.count) sélectionné\(selection.count > 1 ? "s" : "")",
+                        "Targeted clubs · \(selection.count) selected"
+                    ))
                 } footer: {
-                    Text("Le coupon est appliqué au prochain renouvellement des clubs sélectionnés.")
+                    Text(tr(
+                        "Le coupon est appliqué au prochain renouvellement des clubs sélectionnés.",
+                        "The coupon applies at the next renewal of the selected clubs."
+                    ))
                 }
 
                 Section {
-                    Toggle("Renouvellement automatique", isOn: $autoRenew)
+                    Toggle(tr("Renouvellement automatique", "Automatic renewal"), isOn: $autoRenew)
                 } footer: {
-                    Text("Le coupon sera réappliqué à chaque renouvellement tant qu'il n'est pas révoqué.")
+                    Text(tr(
+                        "Le coupon sera réappliqué à chaque renouvellement tant qu'il n'est pas révoqué.",
+                        "The coupon will be re-applied at every renewal until it is revoked."
+                    ))
                 }
             }
             .scrollContentBackground(.hidden)
             .background(Theme.canvas)
-            .navigationTitle("Nouveau coupon")
+            .keyboardDismissable()
+            .keyboardDoneBar(isVisible: isEditing) { isEditing = false }
+            .navigationTitle(tr("Nouveau coupon", "New coupon"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Annuler") { dismiss() }
+                    Button(tr("Annuler", "Cancel")) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Créer", action: create)
+                    Button(tr("Créer", "Create"), action: create)
                         .fontWeight(.semibold)
                         .disabled(!canCreate)
                 }

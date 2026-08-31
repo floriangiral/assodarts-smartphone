@@ -25,7 +25,7 @@ struct PaySheet: View {
         var label: String {
             switch self {
             case .applePay: "Apple Pay"
-            case .card: "Carte bancaire ····4242"
+            case .card: tr("Carte bancaire ····4242", "Bank card ····4242")
             }
         }
 
@@ -47,15 +47,18 @@ struct PaySheet: View {
                 } else if let call {
                     content(call)
                 } else {
-                    ContentUnavailableView("Paiement introuvable", systemImage: "eurosign.circle")
+                    ContentUnavailableView(
+                        tr("Paiement introuvable", "Payment not found"),
+                        systemImage: "eurosign.circle"
+                    )
                 }
             }
-            .navigationTitle(phase == .done ? "" : "Paiement")
+            .navigationTitle(phase == .done ? "" : tr("Paiement", "Payment"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 if phase != .done {
                     ToolbarItem(placement: .cancellationAction) {
-                        Button("Annuler") { dismiss() }
+                        Button(tr("Annuler", "Cancel")) { dismiss() }
                     }
                 }
             }
@@ -81,22 +84,25 @@ struct PaySheet: View {
                         .font(.system(size: 46, weight: .bold, design: .rounded))
                         .monospacedDigit()
                         .foregroundStyle(Theme.navy)
-                    Text("À régler avant le \(Fmt.mediumDate(call.dueDate))")
+                    Text(tr(
+                        "À régler avant le \(Fmt.mediumDate(call.dueDate))",
+                        "Due by \(Fmt.mediumDate(call.dueDate))"
+                    ))
                         .font(.footnote)
                         .foregroundStyle(Theme.inkSecondary)
                 }
 
                 VStack(spacing: 10) {
-                    detailRow("Bénéficiaire", store.currentClub?.shortName ?? "Club")
+                    detailRow(tr("Bénéficiaire", "Payee"), store.currentClub?.shortName ?? "Club")
                     Divider().overlay(Theme.border)
-                    detailRow("Catégorie", call.category.label)
+                    detailRow(tr("Catégorie", "Category"), call.category.label)
                     Divider().overlay(Theme.border)
-                    detailRow("Référence", call.reference)
+                    detailRow(tr("Référence", "Reference"), call.reference)
                 }
                 .assoCard()
 
                 VStack(alignment: .leading, spacing: 10) {
-                    SectionLabel(text: "Moyen de paiement")
+                    SectionLabel(text: tr("Moyen de paiement", "Payment method"))
                     ForEach(PaymentMethod.allCases) { option in
                         Button {
                             method = option
@@ -128,7 +134,9 @@ struct PaySheet: View {
                             } else {
                                 Image(systemName: method.symbol)
                             }
-                            Text(method == .applePay ? "Payer avec Apple Pay" : "Payer \(Fmt.money(call.amountCents))")
+                            Text(method == .applePay
+                                ? tr("Payer avec Apple Pay", "Pay with Apple Pay")
+                                : tr("Payer \(Fmt.money(call.amountCents))", "Pay \(Fmt.money(call.amountCents))"))
                                 .font(.headline)
                         }
                         .frame(maxWidth: .infinity)
@@ -140,7 +148,7 @@ struct PaySheet: View {
                     .buttonStyle(PressableButtonStyle())
                     .disabled(phase == .processing)
 
-                    Text("Reçu envoyé par email · paiement sécurisé")
+                    Text(tr("Reçu envoyé par email · paiement sécurisé", "Receipt sent by email · secure payment"))
                         .font(.caption)
                         .foregroundStyle(Theme.inkSecondary)
                 }
@@ -159,7 +167,7 @@ struct PaySheet: View {
                 .font(.system(size: 78))
                 .foregroundStyle(Theme.green)
                 .transition(.scale.combined(with: .opacity))
-            Text("Paiement confirmé")
+            Text(tr("Paiement confirmé", "Payment confirmed"))
                 .font(.title2.bold())
                 .foregroundStyle(Theme.ink)
             if let call {
@@ -168,11 +176,14 @@ struct PaySheet: View {
                     .monospacedDigit()
                     .foregroundStyle(Theme.inkSecondary)
             }
-            Text("Un reçu vient de vous être envoyé par email.")
+            Text(tr(
+                "Un reçu vient de vous être envoyé par email.",
+                "A receipt has just been emailed to you."
+            ))
                 .font(.footnote)
                 .foregroundStyle(Theme.inkSecondary)
             Spacer()
-            PrimaryButton(title: "Terminé") { dismiss() }
+            PrimaryButton(title: tr("Terminé", "Done")) { dismiss() }
                 .padding(.horizontal, 20)
                 .padding(.bottom, 24)
         }
@@ -199,7 +210,7 @@ struct PaySheet: View {
             try? await Task.sleep(for: .seconds(1.2))
             store.markPaid(callId: call.id, memberId: user.id)
             NotificationService.notify(
-                title: "Paiement confirmé",
+                title: tr("Paiement confirmé", "Payment confirmed"),
                 body: "\(call.label) · \(Fmt.money(call.amountCents))"
             )
             withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {

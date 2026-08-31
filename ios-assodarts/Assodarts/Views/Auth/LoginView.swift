@@ -31,11 +31,18 @@ struct LoginView: View {
                 demoSection
             }
             .padding(.horizontal, 20)
-            .padding(.top, 48)
+            .padding(.top, 24)
             .padding(.bottom, 40)
         }
-        .scrollDismissesKeyboard(.interactively)
+        .keyboardDismissable()
+        .keyboardDoneBar(isVisible: focusedField != nil) { focusedField = nil }
         .assoCanvas()
+        .overlay(alignment: .topTrailing) {
+            LanguageMenu()
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
+        }
+        .onTapGesture { focusedField = nil }
     }
 
     private var header: some View {
@@ -44,10 +51,13 @@ struct LoginView: View {
             Text("Assodarts")
                 .font(.largeTitle.bold())
                 .foregroundStyle(Theme.ink)
-            Text("La gestion de votre club de fléchettes,\nréunie dans une seule application.")
-                .font(.subheadline)
-                .multilineTextAlignment(.center)
-                .foregroundStyle(Theme.inkSecondary)
+            Text(tr(
+                "La gestion de votre club de fléchettes,\nréunie dans une seule application.",
+                "Everything your darts club needs,\nbrought together in one app."
+            ))
+            .font(.subheadline)
+            .multilineTextAlignment(.center)
+            .foregroundStyle(Theme.inkSecondary)
         }
         .padding(.bottom, 8)
     }
@@ -55,25 +65,20 @@ struct LoginView: View {
     private var form: some View {
         VStack(spacing: 14) {
             VStack(alignment: .leading, spacing: 8) {
-                SectionLabel(text: "Adresse email")
-                TextField("prenom@club.fr", text: $email)
-                    .textContentType(.emailAddress)
-                    .keyboardType(.emailAddress)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
+                SectionLabel(text: tr("Adresse email", "Email address"))
+                TextField(tr("prenom@club.fr", "name@club.com"), text: $email)
+                    .keyboardField(.email, submit: .next)
                     .focused($focusedField, equals: .email)
-                    .submitLabel(.next)
                     .onSubmit { focusedField = .password }
                     .padding(14)
                     .background(Theme.canvas, in: .rect(cornerRadius: 12))
             }
 
             VStack(alignment: .leading, spacing: 8) {
-                SectionLabel(text: "Mot de passe")
+                SectionLabel(text: tr("Mot de passe", "Password"))
                 SecureField("••••••", text: $password)
-                    .textContentType(.password)
+                    .keyboardField(.password, submit: .go)
                     .focused($focusedField, equals: .password)
-                    .submitLabel(.go)
                     .onSubmit(submit)
                     .padding(14)
                     .background(Theme.canvas, in: .rect(cornerRadius: 12))
@@ -87,11 +92,19 @@ struct LoginView: View {
                     .transition(.opacity.combined(with: .move(edge: .top)))
             }
 
-            PrimaryButton(title: "Se connecter", symbol: "arrow.right", isEnabled: !isSubmitting, action: submit)
-                .padding(.top, 4)
+            PrimaryButton(
+                title: tr("Se connecter", "Sign in"),
+                symbol: "arrow.right",
+                isEnabled: !isSubmitting,
+                action: submit
+            )
+            .padding(.top, 4)
 
-            Button("Mot de passe oublié ?") {
-                errorMessage = "Contactez le bureau de votre club pour réinitialiser votre accès."
+            Button(tr("Mot de passe oublié ?", "Forgot your password?")) {
+                errorMessage = tr(
+                    "Contactez le bureau de votre club pour réinitialiser votre accès.",
+                    "Contact your club committee to reset your access."
+                )
             }
             .font(.footnote.weight(.medium))
             .foregroundStyle(Theme.inkSecondary)
@@ -108,7 +121,7 @@ struct LoginView: View {
             } label: {
                 HStack {
                     Image(systemName: "person.2.badge.key")
-                    Text("Comptes de démonstration")
+                    Text(tr("Comptes de démonstration", "Demo accounts"))
                         .font(.subheadline.weight(.semibold))
                     Spacer()
                     Image(systemName: "chevron.down")
@@ -149,7 +162,7 @@ struct LoginView: View {
                         }
                     }
 
-                    Text("Mot de passe : demo")
+                    Text(tr("Mot de passe : demo", "Password: demo"))
                         .font(.caption)
                         .foregroundStyle(Theme.inkSecondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -174,4 +187,5 @@ struct LoginView: View {
 #Preview {
     LoginView()
         .environment(AppStore())
+        .environment(Localization.shared)
 }
