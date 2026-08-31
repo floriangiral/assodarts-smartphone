@@ -59,6 +59,30 @@ enum DemoData {
 
         db.clubs = [lyon, marseille, rennes, devClub] + syntheticClubs()
 
+        // Bank details of the demo club: online collection verified, plus bank
+        // transfer and cash accepted with bureau validation.
+        if let lyonIndex = db.clubs.firstIndex(where: { $0.id == lyon.id }) {
+            db.clubs[lyonIndex].bank = ClubBankAccount(
+                holder: "Fléchettes Club de Lyon",
+                iban: "FR76 3000 6000 0112 3456 7890 189",
+                bic: "AGRIFRPP",
+                bankName: "Crédit Agricole",
+                stripeStatus: .verified,
+                stripeAccountId: "acct_demolyonclub01",
+                acceptsTransfer: true,
+                acceptsCash: true,
+                transferNote: tr(
+                    "Merci d'indiquer la référence de l'appel à paiement dans le libellé du virement.",
+                    "Please quote the payment request reference in your transfer label."
+                ),
+                cashNote: tr(
+                    "Remise possible au club house les mardis et jeudis soir, auprès du trésorier.",
+                    "Cash accepted at the club house on Tuesday and Thursday evenings, from the treasurer."
+                ),
+                updatedAt: day(-30)
+            )
+        }
+
         // MARK: Members of the demo club
 
         let julien = Member(
@@ -343,6 +367,14 @@ enum DemoData {
             cotisation.items[sophieIndex].isPaid = false
             cotisation.items[sophieIndex].paidAt = nil
         }
+        // A transfer declared by a member, waiting for the bureau to confirm it.
+        if let nadiaIndex = cotisation.items.firstIndex(where: { $0.memberId == nadia.id }) {
+            cotisation.items[nadiaIndex].isPaid = false
+            cotisation.items[nadiaIndex].paidAt = nil
+            cotisation.items[nadiaIndex].method = .transfer
+            cotisation.items[nadiaIndex].declaredAt = day(-2)
+            cotisation.items[nadiaIndex].reference = "VIR COT-2026-0147"
+        }
 
         var tenue = PaymentCall(
             clubId: lyon.id,
@@ -382,6 +414,16 @@ enum DemoData {
         if let julienIndex = deplacement.items.firstIndex(where: { $0.memberId == julien.id }) {
             deplacement.items[julienIndex].isPaid = true
             deplacement.items[julienIndex].paidAt = day(-14)
+            deplacement.items[julienIndex].method = .card
+        }
+        // Cash handed over and declared, pending bureau validation.
+        if let sophieIndex = deplacement.items.firstIndex(where: { $0.memberId == sophie.id }) {
+            deplacement.items[sophieIndex].method = .cash
+            deplacement.items[sophieIndex].declaredAt = day(-1)
+            deplacement.items[sophieIndex].reference = tr(
+                "Remis à Karim Benali au club house",
+                "Handed to Karim Benali at the club house"
+            )
         }
 
         var previousSeason = PaymentCall(

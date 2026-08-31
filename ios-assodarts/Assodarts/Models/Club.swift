@@ -67,6 +67,9 @@ struct Club: Identifiable, Codable, Sendable, Hashable {
     var status: SubscriptionStatus
     var seedMemberCount: Int
     var couponCode: String?
+    /// Where the club receives its members' payments. Filled in by the bureau
+    /// or the admin from the club settings.
+    var bank: ClubBankAccount?
 
     var shortName: String {
         name.replacingOccurrences(of: "Fléchettes Club de ", with: "FC ")

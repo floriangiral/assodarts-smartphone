@@ -338,6 +338,64 @@ final class AppStore {
         save()
     }
 
+    // MARK: - Club bank details
+
+    func bankAccount(of clubId: UUID) -> ClubBankAccount? {
+        club(clubId)?.bank
+    }
+
+    var currentBankAccount: ClubBankAccount? {
+        currentClub?.bank
+    }
+
+    /// Saves the bank details of a club. Only the bureau and the admin reach this
+    /// path, and a club can never write another club's details.
+    func saveBankAccount(_ account: ClubBankAccount, for clubId: UUID, by memberId: UUID?) {
+        guard let index = db.clubs.firstIndex(where: { $0.id == clubId }) else { return }
+        var updated = account
+        updated.holder = account.holder.trimmingCharacters(in: .whitespacesAndNewlines)
+        updated.iban = ClubBankAccount.group(account.iban)
+        updated.bic = account.bic.uppercased().filter { $0.isLetter || $0.isNumber }
+        updated.bankName = account.bankName.trimmingCharacters(in: .whitespacesAndNewlines)
+        updated.updatedAt = .now
+        updated.updatedById = memberId
+        db.clubs[index].bank = updated
+        save()
+    }
+
+    /// Starts the online collection setup: the account goes to verification
+    /// before card, Apple Pay and Google Pay become available.
+    func startOnlineCollection(for clubId: UUID) {
+        guard let index = db.clubs.firstIndex(where: { $0.id == clubId }) else { return }
+        var account = db.clubs[index].bank ?? ClubBankAccount()
+        account.stripeStatus = .pending
+        account.stripeAccountId = "acct_" + UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(16)
+        db.clubs[index].bank = account
+        save()
+    }
+
+    func completeOnlineCollection(for clubId: UUID) {
+        guard let index = db.clubs.firstIndex(where: { $0.id == clubId }),
+              var account = db.clubs[index].bank else { return }
+        account.stripeStatus = .verified
+        db.clubs[index].bank = account
+        save()
+    }
+
+    func disableOnlineCollection(for clubId: UUID) {
+        guard let index = db.clubs.firstIndex(where: { $0.id == clubId }),
+              var account = db.clubs[index].bank else { return }
+        account.stripeStatus = .notConnected
+        account.stripeAccountId = nil
+        db.clubs[index].bank = account
+        save()
+    }
+
+    /// Methods a member of this club can actually use right now.
+    func availableMethods(of clubId: UUID) -> [PaymentMethodKind] {
+        bankAccount(of: clubId)?.availableMethods ?? []
+    }
+
     // MARK: - Payments
 
     func createPaymentCall(_ call: PaymentCall) {
@@ -345,20 +403,80 @@ final class AppStore {
         save()
     }
 
-    func markPaid(callId: UUID, memberId: UUID) {
+    private func itemIndexes(callId: UUID, memberId: UUID) -> (call: Int, item: Int)? {
         guard let callIndex = db.paymentCalls.firstIndex(where: { $0.id == callId }),
               let itemIndex = db.paymentCalls[callIndex].items.firstIndex(where: { $0.memberId == memberId })
-        else { return }
-        db.paymentCalls[callIndex].items[itemIndex].isPaid = true
-        db.paymentCalls[callIndex].items[itemIndex].paidAt = .now
+        else { return nil }
+        return (callIndex, itemIndex)
+    }
+
+    func markPaid(callId: UUID, memberId: UUID, method: PaymentMethodKind? = nil) {
+        guard let index = itemIndexes(callId: callId, memberId: memberId) else { return }
+        db.paymentCalls[index.call].items[index.item].isPaid = true
+        db.paymentCalls[index.call].items[index.item].paidAt = .now
+        db.paymentCalls[index.call].items[index.item].declaredAt = nil
+        if let method { db.paymentCalls[index.call].items[index.item].method = method }
         save()
+    }
+
+    /// A member states he has sent a transfer or handed over cash. The line moves
+    /// to the bureau's validation queue instead of being marked paid.
+    func declarePayment(
+        callId: UUID,
+        memberId: UUID,
+        method: PaymentMethodKind,
+        reference: String?
+    ) {
+        guard let index = itemIndexes(callId: callId, memberId: memberId) else { return }
+        db.paymentCalls[index.call].items[index.item].method = method
+        db.paymentCalls[index.call].items[index.item].declaredAt = .now
+        let trimmed = reference?.trimmingCharacters(in: .whitespacesAndNewlines)
+        db.paymentCalls[index.call].items[index.item].reference = (trimmed?.isEmpty ?? true) ? nil : trimmed
+        save()
+    }
+
+    /// The bureau confirms the money has been received.
+    func validatePayment(callId: UUID, memberId: UUID, by validatorId: UUID) {
+        guard let index = itemIndexes(callId: callId, memberId: memberId) else { return }
+        db.paymentCalls[index.call].items[index.item].isPaid = true
+        db.paymentCalls[index.call].items[index.item].paidAt = .now
+        db.paymentCalls[index.call].items[index.item].declaredAt = nil
+        db.paymentCalls[index.call].items[index.item].validatedById = validatorId
+        save()
+    }
+
+    /// The declaration is rejected, or cancelled by the member himself: the line
+    /// goes back to unpaid.
+    func cancelDeclaration(callId: UUID, memberId: UUID) {
+        guard let index = itemIndexes(callId: callId, memberId: memberId) else { return }
+        db.paymentCalls[index.call].items[index.item].declaredAt = nil
+        db.paymentCalls[index.call].items[index.item].method = nil
+        db.paymentCalls[index.call].items[index.item].reference = nil
+        save()
+    }
+
+    /// Everything the bureau of a club has to confirm, oldest declaration first.
+    func pendingValidations(of clubId: UUID) -> [(call: PaymentCall, item: PaymentItem)] {
+        db.paymentCalls
+            .filter { $0.clubId == clubId }
+            .flatMap { call in call.items.filter(\.isAwaitingValidation).map { (call: call, item: $0) } }
+            .sorted { ($0.item.declaredAt ?? .distantPast) < ($1.item.declaredAt ?? .distantPast) }
+    }
+
+    func pendingValidationCount(of clubId: UUID) -> Int {
+        pendingValidations(of: clubId).count
+    }
+
+    func pendingValidationCents(of clubId: UUID) -> Int {
+        pendingValidations(of: clubId).reduce(0) { $0 + $1.call.amountCents }
     }
 
     func remind(callId: UUID, memberIds: [UUID]) {
         guard let callIndex = db.paymentCalls.firstIndex(where: { $0.id == callId }) else { return }
         for itemIndex in db.paymentCalls[callIndex].items.indices
         where memberIds.contains(db.paymentCalls[callIndex].items[itemIndex].memberId)
-            && !db.paymentCalls[callIndex].items[itemIndex].isPaid {
+            && !db.paymentCalls[callIndex].items[itemIndex].isPaid
+            && db.paymentCalls[callIndex].items[itemIndex].declaredAt == nil {
             db.paymentCalls[callIndex].items[itemIndex].remindedAt = .now
         }
         save()

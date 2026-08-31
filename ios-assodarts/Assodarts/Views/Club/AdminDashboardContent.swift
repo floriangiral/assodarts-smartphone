@@ -35,10 +35,23 @@ struct AdminDashboardContent: View {
 
     private var nextEvent: ClubEvent? { store.upcomingEvents(of: club.id).first }
 
+    private var validationCount: Int { store.pendingValidationCount(of: club.id) }
+    private var validationCents: Int { store.pendingValidationCents(of: club.id) }
+    private var bank: ClubBankAccount? { club.bank }
+
     var body: some View {
         VStack(spacing: 18) {
             metrics
             collectionCard
+
+            if validationCount > 0 {
+                validationCard
+            }
+
+            if bank?.isComplete != true || bank?.canCollectOnline != true {
+                bankSetupCard
+            }
+
             quickActions
 
             if !lateMembers.isEmpty {
@@ -151,6 +164,22 @@ struct AdminDashboardContent: View {
                     )
                 }
                 .buttonStyle(.plain)
+                NavigationLink(value: ClubRoute.bankSettings) {
+                    actionTileLabel(
+                        tr("Coordonnées bancaires", "Bank details"),
+                        symbol: "building.columns.fill",
+                        tint: Theme.navy
+                    )
+                }
+                .buttonStyle(.plain)
+                NavigationLink(value: ClubRoute.paymentValidation) {
+                    actionTileLabel(
+                        tr("Valider les paiements", "Confirm payments"),
+                        symbol: "checkmark.seal.fill",
+                        tint: Theme.orange
+                    )
+                }
+                .buttonStyle(.plain)
             }
         }
     }
@@ -186,6 +215,83 @@ struct AdminDashboardContent: View {
             RoundedRectangle(cornerRadius: Theme.cardRadius)
                 .stroke(Theme.border, lineWidth: 1)
         }
+    }
+
+    /// Transfers and cash declared by members, waiting for the bureau.
+    private var validationCard: some View {
+        NavigationLink(value: ClubRoute.paymentValidation) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Label(tr("Paiements à valider", "Payments to confirm"), systemImage: "clock.badge.checkmark")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Theme.navy)
+                    Spacer()
+                    Text("\(validationCount)")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Theme.navy, in: .capsule)
+                }
+
+                Text(tr(
+                    "\(Fmt.money(validationCents)) déclarés par virement ou espèces",
+                    "\(Fmt.money(validationCents)) declared by transfer or cash"
+                ))
+                    .font(.title3.bold())
+                    .monospacedDigit()
+                    .foregroundStyle(Theme.ink)
+
+                Text(tr(
+                    "Confirmez la réception pour marquer ces membres comme payés.",
+                    "Confirm receipt to mark these members as paid."
+                ))
+                    .font(.caption)
+                    .foregroundStyle(Theme.inkSecondary)
+            }
+            .assoCard()
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// Nudge shown until the club can actually receive money.
+    private var bankSetupCard: some View {
+        NavigationLink(value: ClubRoute.bankSettings) {
+            HStack(spacing: 14) {
+                Image(systemName: "building.columns.fill")
+                    .font(.title3)
+                    .foregroundStyle(Theme.orange)
+                    .frame(width: 44, height: 44)
+                    .background(Theme.orangeTint, in: .circle)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(bank?.isComplete == true
+                         ? tr("Activez les paiements en ligne", "Activate online payments")
+                         : tr("Renseignez vos coordonnées bancaires", "Add your bank details"))
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Theme.ink)
+                    Text(bank?.isComplete == true
+                         ? tr(
+                            "Apple Pay, Google Pay et carte après vérification du compte.",
+                            "Apple Pay, Google Pay and card once the account is verified."
+                         )
+                         : tr(
+                            "IBAN et BIC du club pour encaisser virements et paiements en ligne.",
+                            "The club IBAN and BIC to collect transfers and online payments."
+                         ))
+                        .font(.caption)
+                        .foregroundStyle(Theme.inkSecondary)
+                }
+
+                Spacer(minLength: 0)
+
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(Theme.inkSecondary.opacity(0.6))
+            }
+            .assoCard()
+        }
+        .buttonStyle(.plain)
     }
 
     private var alertsCard: some View {

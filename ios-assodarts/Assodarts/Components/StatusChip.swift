@@ -51,6 +51,7 @@ struct RoleBadge: View {
 #Preview {
     VStack(spacing: 12) {
         StatusChip(state: .paid)
+        StatusChip(state: .awaitingValidation)
         StatusChip(state: .pending)
         StatusChip(state: .late)
         RoleBadge(role: .bureau)

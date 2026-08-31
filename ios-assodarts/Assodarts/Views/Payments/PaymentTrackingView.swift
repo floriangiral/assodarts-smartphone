@@ -10,6 +10,7 @@ struct PaymentTrackingView: View {
 
     private enum Filter: String, CaseIterable, Identifiable {
         case all
+        case toValidate
         case pending
         case paid
 
@@ -18,6 +19,7 @@ struct PaymentTrackingView: View {
         var label: String {
             switch self {
             case .all: tr("Tous", "All")
+            case .toValidate: tr("À valider", "To confirm")
             case .pending: tr("En attente", "Pending")
             case .paid: tr("Payés", "Paid")
             }
@@ -33,7 +35,8 @@ struct PaymentTrackingView: View {
         }
         switch filter {
         case .all: return sorted
-        case .pending: return sorted.filter { !$0.isPaid }
+        case .toValidate: return sorted.filter(\.isAwaitingValidation)
+        case .pending: return sorted.filter { !$0.isPaid && $0.declaredAt == nil }
         case .paid: return sorted.filter(\.isPaid)
         }
     }
@@ -62,17 +65,53 @@ struct PaymentTrackingView: View {
                     }
                     .assoCard(padding: 14)
 
-                    if call.unpaidCount > 0 {
+                    if call.awaitingCount > 0 {
+                        NavigationLink(value: ClubRoute.paymentValidation) {
+                            HStack(spacing: 10) {
+                                Image(systemName: "clock.badge.checkmark")
+                                    .foregroundStyle(Theme.navy)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(Fmt.count(
+                                        call.awaitingCount,
+                                        "paiement à valider",
+                                        "paiements à valider",
+                                        "payment to confirm",
+                                        "payments to confirm"
+                                    ))
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundStyle(Theme.navy)
+                                    Text(tr(
+                                        "\(Fmt.money(call.awaitingCents)) déclarés par virement ou espèces",
+                                        "\(Fmt.money(call.awaitingCents)) declared by transfer or cash"
+                                    ))
+                                        .font(.caption)
+                                        .monospacedDigit()
+                                        .foregroundStyle(Theme.inkSecondary)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(Theme.navy.opacity(0.6))
+                            }
+                            .padding(14)
+                            .background(Theme.navyTint, in: .rect(cornerRadius: Theme.cardRadius))
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    if call.chasableCount > 0 {
                         SecondaryButton(
                             title: remindedAll
                                 ? tr("Relances envoyées", "Reminders sent")
                                 : tr(
-                                    "Relancer les \(call.unpaidCount) impayés",
-                                    "Chase the \(call.unpaidCount) unpaid"
+                                    "Relancer les \(call.chasableCount) impayés",
+                                    "Chase the \(call.chasableCount) unpaid"
                                 ),
                             symbol: remindedAll ? "checkmark" : "bell.badge"
                         ) {
-                            let unpaidIds = call.items.filter { !$0.isPaid }.map(\.memberId)
+                            let unpaidIds = call.items
+                                .filter { !$0.isPaid && $0.declaredAt == nil }
+                                .map(\.memberId)
                             store.remind(callId: call.id, memberIds: unpaidIds)
                             NotificationService.notify(
                                 title: tr("Relance envoyée", "Reminder sent"),
@@ -123,8 +162,14 @@ struct PaymentTrackingView: View {
             ProgressView(value: call.progress)
                 .tint(Theme.navy)
 
-            HStack(spacing: 16) {
+            HStack(spacing: 14) {
                 counter(tr("\(call.paidCount) payés", "\(call.paidCount) paid"), tint: Theme.green)
+                if call.awaitingCount > 0 {
+                    counter(
+                        tr("\(call.awaitingCount) à valider", "\(call.awaitingCount) to confirm"),
+                        tint: Theme.navy
+                    )
+                }
                 counter(tr("\(call.pendingCount) en attente", "\(call.pendingCount) pending"), tint: Theme.amber)
                 counter(tr("\(call.lateCount) en retard", "\(call.lateCount) overdue"), tint: Theme.red)
             }
@@ -162,7 +207,20 @@ struct PaymentTrackingView: View {
 
             VStack(alignment: .trailing, spacing: 6) {
                 StatusChip(state: state)
-                if !item.isPaid {
+                if item.isAwaitingValidation {
+                    Button(tr("Valider", "Confirm")) {
+                        guard let validator = store.currentUser else { return }
+                        withAnimation {
+                            store.validatePayment(
+                                callId: call.id,
+                                memberId: item.memberId,
+                                by: validator.id
+                            )
+                        }
+                    }
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Theme.green)
+                } else if !item.isPaid {
                     Button(tr("Relancer", "Remind")) {
                         store.remind(callId: call.id, memberIds: [item.memberId])
                     }
@@ -173,9 +231,17 @@ struct PaymentTrackingView: View {
         }
         .padding(.vertical, 9)
         .contextMenu {
-            if !item.isPaid {
-                Button(tr("Marquer comme payé", "Mark as paid"), systemImage: "checkmark.circle") {
-                    store.markPaid(callId: call.id, memberId: item.memberId)
+            if item.isAwaitingValidation {
+                Button(tr("Valider le paiement", "Confirm payment"), systemImage: "checkmark.seal") {
+                    guard let validator = store.currentUser else { return }
+                    store.validatePayment(callId: call.id, memberId: item.memberId, by: validator.id)
+                }
+                Button(tr("Refuser la déclaration", "Reject declaration"), systemImage: "xmark.circle", role: .destructive) {
+                    store.cancelDeclaration(callId: call.id, memberId: item.memberId)
+                }
+            } else if !item.isPaid {
+                Button(tr("Marquer comme payé (espèces)", "Mark as paid (cash)"), systemImage: "banknote") {
+                    store.markPaid(callId: call.id, memberId: item.memberId, method: .cash)
                 }
             }
         }
@@ -183,9 +249,17 @@ struct PaymentTrackingView: View {
 
     private func subtitle(item: PaymentItem, call: PaymentCall) -> String {
         if item.isPaid, let paidAt = item.paidAt {
+            let method = item.method.map { " · \($0.label)" } ?? ""
             return tr(
-                "\(Fmt.money(call.amountCents)) · payé le \(Fmt.shortDate(paidAt))",
-                "\(Fmt.money(call.amountCents)) · paid on \(Fmt.shortDate(paidAt))"
+                "\(Fmt.money(call.amountCents)) · payé le \(Fmt.shortDate(paidAt))\(method)",
+                "\(Fmt.money(call.amountCents)) · paid on \(Fmt.shortDate(paidAt))\(method)"
+            )
+        }
+        if let declaredAt = item.declaredAt {
+            let method = (item.method ?? .transfer).label
+            return tr(
+                "\(Fmt.money(call.amountCents)) · \(method) déclaré le \(Fmt.shortDate(declaredAt))",
+                "\(Fmt.money(call.amountCents)) · \(method) declared on \(Fmt.shortDate(declaredAt))"
             )
         }
         if let reminded = item.remindedAt {

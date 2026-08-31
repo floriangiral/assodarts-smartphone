@@ -6,6 +6,8 @@ enum ClubRoute: Hashable {
     case myPayments
     case paymentCalls
     case paymentCall(UUID)
+    case paymentValidation
+    case bankSettings
     case messages
     case conversation(UUID)
     case myProfile
@@ -28,6 +30,10 @@ struct ClubRouteView: View {
             PaymentCallsView()
         case .paymentCall(let id):
             PaymentTrackingView(callId: id)
+        case .paymentValidation:
+            PaymentValidationView()
+        case .bankSettings:
+            BankSettingsView()
         case .messages:
             MessagesListView()
         case .conversation(let id):
