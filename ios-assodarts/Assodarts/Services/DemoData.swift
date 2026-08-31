@@ -1,0 +1,573 @@
+import Foundation
+
+/// Seeds the app with a realistic French demo platform: one fully detailed club
+/// (Fléchettes Club de Lyon) plus the wider platform used by the developer console.
+enum DemoData {
+    static func day(_ offset: Int) -> Date {
+        Calendar.current.date(byAdding: .day, value: offset, to: .now) ?? .now
+    }
+
+    static func hour(_ offset: Int) -> Date {
+        Calendar.current.date(byAdding: .hour, value: offset, to: .now) ?? .now
+    }
+
+    // MARK: - Seed
+
+    static func seed() -> Database {
+        var db = Database()
+
+        let lyon = Club(
+            id: UUID(),
+            name: "Fléchettes Club de Lyon",
+            city: "Lyon",
+            createdAt: day(-1080),
+            renewalDate: day(120),
+            status: .active,
+            seedMemberCount: 24,
+            couponCode: "CLUB25"
+        )
+        let marseille = Club(
+            id: UUID(),
+            name: "Darts Club de Marseille",
+            city: "Marseille",
+            createdAt: day(-210),
+            renewalDate: day(155),
+            status: .active,
+            seedMemberCount: 61,
+            couponCode: "LANC2026"
+        )
+        let rennes = Club(
+            id: UUID(),
+            name: "Fléchettes Rennais",
+            city: "Rennes",
+            createdAt: day(-24),
+            renewalDate: day(341),
+            status: .trial,
+            seedMemberCount: 12,
+            couponCode: nil
+        )
+        let devClub = Club(
+            id: UUID(),
+            name: "Assodarts",
+            city: "Plateforme",
+            createdAt: day(-1200),
+            renewalDate: day(365),
+            status: .active,
+            seedMemberCount: 1,
+            couponCode: nil
+        )
+
+        db.clubs = [lyon, marseille, rennes, devClub] + syntheticClubs()
+
+        // MARK: Members of the demo club
+
+        let julien = Member(
+            clubId: lyon.id,
+            firstName: "Julien",
+            lastName: "Morel",
+            email: "admin@fcl-lyon.fr",
+            phone: "06 11 45 88 21",
+            birthDate: day(-15_600),
+            role: .admin,
+            isLicensed: true,
+            licenceNumber: "07 84 220 145",
+            joinedAt: day(-1075),
+            eventsAttended: 22,
+            tournamentsPlayed: 9,
+            average: 64.8
+        )
+        let karim = Member(
+            clubId: lyon.id,
+            firstName: "Karim",
+            lastName: "Benali",
+            email: "bureau@fcl-lyon.fr",
+            phone: "06 78 20 44 10",
+            birthDate: day(-13_100),
+            role: .bureau,
+            isLicensed: true,
+            licenceNumber: "07 84 907 118",
+            joinedAt: day(-590),
+            eventsAttended: 17,
+            tournamentsPlayed: 7,
+            average: 58.2
+        )
+        let sophie = Member(
+            clubId: lyon.id,
+            firstName: "Sophie",
+            lastName: "Laurent",
+            email: "sophie@fcl-lyon.fr",
+            phone: "06 42 18 77 05",
+            birthDate: day(-12_890),
+            role: .membre,
+            isLicensed: true,
+            licenceNumber: "07 84 512 336",
+            joinedAt: day(-1080),
+            notifyTournaments: false,
+            eventsAttended: 14,
+            tournamentsPlayed: 6,
+            average: 61.4
+        )
+        let nadia = Member(
+            clubId: lyon.id,
+            firstName: "Nadia",
+            lastName: "Petit",
+            email: "nadia.petit@fcl-lyon.fr",
+            phone: "06 33 91 02 77",
+            role: .membre,
+            isLicensed: false,
+            joinedAt: day(-300),
+            eventsAttended: 8,
+            tournamentsPlayed: 2,
+            average: 47.6
+        )
+        let developer = Member(
+            clubId: devClub.id,
+            firstName: "Thomas",
+            lastName: "Riva",
+            email: "dev@assodarts.fr",
+            phone: "06 09 55 12 33",
+            role: .developpeur,
+            joinedAt: day(-1200)
+        )
+
+        let extras = extraMembers(clubId: lyon.id)
+        db.members = [julien, karim, sophie, nadia, developer] + extras
+
+        // MARK: Announcements
+
+        db.announcements = [
+            Announcement(
+                clubId: lyon.id,
+                title: "Reprise des entraînements",
+                body: "Les entraînements reprennent tous les mardis et jeudis à 19h au club house. "
+                    + "Pensez à ramener vos fléchettes personnelles, les jeux du club restent disponibles pour les nouveaux.",
+                authorId: julien.id,
+                publishedAt: day(-2),
+                isPinned: true
+            ),
+            Announcement(
+                clubId: lyon.id,
+                title: "Licences 2026–2027 : dernière ligne droite",
+                body: "Le bureau boucle les dossiers de licence cette semaine. "
+                    + "Si votre numéro n'apparaît pas encore sur votre profil, écrivez au bureau depuis la messagerie.",
+                authorId: karim.id,
+                publishedAt: day(-6)
+            ),
+            Announcement(
+                clubId: lyon.id,
+                title: "Nouvelles tenues du club",
+                body: "Les maillots floqués sont arrivés. Un appel à paiement de 62 € a été envoyé aux membres concernés, "
+                    + "retrait au club house les soirs d'entraînement.",
+                authorId: karim.id,
+                publishedAt: day(-11)
+            ),
+            Announcement(
+                clubId: lyon.id,
+                title: "Assemblée générale le 12 décembre",
+                body: "Convocation officielle à l'assemblée générale ordinaire. Ordre du jour : bilan sportif, "
+                    + "bilan financier, renouvellement du tiers sortant du bureau.",
+                authorId: julien.id,
+                publishedAt: day(-19)
+            )
+        ]
+
+        // MARK: Events
+
+        db.events = [
+            ClubEvent(
+                clubId: lyon.id,
+                title: "Entraînement hebdomadaire",
+                kind: .entrainement,
+                date: day(2),
+                location: "Club house · Lyon 7e",
+                details: "Séance ouverte à tous, travail des doubles et série de 501.",
+                attendeeIds: [julien.id, karim.id, nadia.id]
+            ),
+            ClubEvent(
+                clubId: lyon.id,
+                title: "Open de Villeurbanne",
+                kind: .competition,
+                date: day(9),
+                location: "Salle des sports · Villeurbanne",
+                details: "Départ groupé du club house à 8h30. Déplacement facturé 33 € par joueur.",
+                attendeeIds: [sophie.id, karim.id]
+            ),
+            ClubEvent(
+                clubId: lyon.id,
+                title: "Réunion du bureau",
+                kind: .reunion,
+                date: day(14),
+                location: "Club house · salle du haut",
+                details: "Point licences, budget tenues et préparation de l'assemblée générale.",
+                attendeeIds: [julien.id, karim.id]
+            ),
+            ClubEvent(
+                clubId: lyon.id,
+                title: "Soirée de rentrée du club",
+                kind: .convivial,
+                date: day(21),
+                location: "Club house · Lyon 7e",
+                details: "Buffet partagé et tournoi amical en doublettes tirées au sort.",
+                attendeeIds: [sophie.id, nadia.id, julien.id]
+            ),
+            ClubEvent(
+                clubId: lyon.id,
+                title: "Interclubs · journée 1",
+                kind: .competition,
+                date: day(-8),
+                location: "Saint-Priest",
+                details: "Victoire 5-3 face à Saint-Priest.",
+                attendeeIds: [sophie.id, karim.id, julien.id]
+            )
+        ]
+
+        // MARK: Tournaments
+
+        var open = Tournament(
+            clubId: lyon.id,
+            name: "Open de Villeurbanne",
+            date: day(9),
+            location: "Salle des sports · Villeurbanne",
+            markerIds: [karim.id]
+        )
+        open.entries = [
+            TournamentEntry(
+                tableau: "Tableau principal",
+                tour: "Poule A",
+                playerA: "Sophie Laurent",
+                playerB: "Marion Dubois",
+                scoreA: 3,
+                scoreB: 1,
+                note: "Sortie sur double 16.",
+                recordedById: karim.id,
+                recordedAt: day(-1)
+            ),
+            TournamentEntry(
+                tableau: "Tableau principal",
+                tour: "Poule A",
+                playerA: "Karim Benali",
+                playerB: "Yanis Rocher",
+                scoreA: 2,
+                scoreB: 3,
+                note: "",
+                recordedById: karim.id,
+                recordedAt: day(-1)
+            )
+        ]
+
+        var interclubs = Tournament(
+            clubId: lyon.id,
+            name: "Interclubs Rhône · journée 1",
+            date: day(-8),
+            location: "Saint-Priest",
+            markerIds: [karim.id, julien.id],
+            isFinished: true
+        )
+        interclubs.entries = [
+            TournamentEntry(
+                tableau: "Rencontre par équipes",
+                tour: "Simples 1",
+                playerA: "Julien Morel",
+                playerB: "Franck Ledoux",
+                scoreA: 3,
+                scoreB: 0,
+                note: "Moyenne 68,1.",
+                recordedById: julien.id,
+                recordedAt: day(-8)
+            ),
+            TournamentEntry(
+                tableau: "Rencontre par équipes",
+                tour: "Doublettes",
+                playerA: "Sophie Laurent / Karim Benali",
+                playerB: "Équipe Saint-Priest 2",
+                scoreA: 2,
+                scoreB: 3,
+                note: "Match très serré, décidé au dernier leg.",
+                recordedById: karim.id,
+                recordedAt: day(-8)
+            )
+        ]
+        db.tournaments = [open, interclubs]
+
+        // MARK: Payment calls
+
+        let allLyonIds = ([julien, karim, sophie, nadia] + extras).map(\.id)
+
+        var cotisation = PaymentCall(
+            clubId: lyon.id,
+            label: "Cotisation 2026–2027",
+            category: .cotisation,
+            amountCents: 4500,
+            dueDate: day(45),
+            createdAt: day(-12),
+            createdById: karim.id,
+            reference: "COT-2026-0147",
+            items: allLyonIds.map { PaymentItem(memberId: $0) }
+        )
+        for index in cotisation.items.indices where index % 3 != 0 {
+            cotisation.items[index].isPaid = true
+            cotisation.items[index].paidAt = day(-Int.random(in: 1...10))
+        }
+        if let sophieIndex = cotisation.items.firstIndex(where: { $0.memberId == sophie.id }) {
+            cotisation.items[sophieIndex].isPaid = false
+            cotisation.items[sophieIndex].paidAt = nil
+        }
+
+        var tenue = PaymentCall(
+            clubId: lyon.id,
+            label: "Tenue du club 2026",
+            category: .tenue,
+            amountCents: 6200,
+            dueDate: day(90),
+            createdAt: day(-20),
+            createdById: karim.id,
+            reference: "TEN-2026-0032",
+            items: allLyonIds.prefix(12).map { PaymentItem(memberId: $0) }
+        )
+        for index in tenue.items.indices where index % 3 != 2 {
+            tenue.items[index].isPaid = true
+            tenue.items[index].paidAt = day(-Int.random(in: 2...14))
+        }
+        if let sophieIndex = tenue.items.firstIndex(where: { $0.memberId == sophie.id }) {
+            tenue.items[sophieIndex].isPaid = true
+            tenue.items[sophieIndex].paidAt = day(-5)
+        }
+
+        var deplacement = PaymentCall(
+            clubId: lyon.id,
+            label: "Déplacement Open de Villeurbanne",
+            category: .deplacement,
+            amountCents: 3300,
+            dueDate: day(-6),
+            createdAt: day(-25),
+            createdById: karim.id,
+            reference: "DEP-2026-0088",
+            items: [sophie, karim, julien, nadia].map { PaymentItem(memberId: $0.id) }
+        )
+        if let karimIndex = deplacement.items.firstIndex(where: { $0.memberId == karim.id }) {
+            deplacement.items[karimIndex].isPaid = true
+            deplacement.items[karimIndex].paidAt = day(-12)
+        }
+        if let julienIndex = deplacement.items.firstIndex(where: { $0.memberId == julien.id }) {
+            deplacement.items[julienIndex].isPaid = true
+            deplacement.items[julienIndex].paidAt = day(-14)
+        }
+
+        var previousSeason = PaymentCall(
+            clubId: lyon.id,
+            label: "Cotisation 2025–2026",
+            category: .cotisation,
+            amountCents: 4500,
+            dueDate: day(-300),
+            createdAt: day(-360),
+            createdById: julien.id,
+            reference: "COT-2025-0121",
+            items: allLyonIds.map { PaymentItem(memberId: $0) }
+        )
+        for index in previousSeason.items.indices {
+            previousSeason.items[index].isPaid = true
+            previousSeason.items[index].paidAt = day(-310 + index)
+        }
+
+        db.paymentCalls = [cotisation, tenue, deplacement, previousSeason]
+
+        // MARK: Conversations
+
+        let bureauChannel = Conversation(
+            clubId: lyon.id,
+            kind: .bureau,
+            participantIds: [sophie.id],
+            messages: [
+                Message(
+                    senderId: karim.id,
+                    text: "Bonjour Sophie, ta licence 2026–2027 est validée par le club ✅",
+                    sentAt: hour(-5),
+                    readBy: [karim.id]
+                ),
+                Message(
+                    senderId: karim.id,
+                    text: "Tu peux passer récupérer ta carte de membre au club house.",
+                    sentAt: hour(-4),
+                    readBy: [karim.id]
+                )
+            ]
+        )
+
+        let withJulien = Conversation(
+            clubId: lyon.id,
+            kind: .direct,
+            participantIds: [sophie.id, julien.id],
+            messages: [
+                Message(
+                    senderId: julien.id,
+                    text: "Tu peux passer récupérer les tee-shirts avant samedi ?",
+                    sentAt: day(-1),
+                    readBy: [julien.id, sophie.id]
+                ),
+                Message(
+                    senderId: sophie.id,
+                    text: "Oui sans souci, je passe jeudi soir après l'entraînement.",
+                    sentAt: day(-1),
+                    readBy: [julien.id, sophie.id]
+                )
+            ]
+        )
+
+        let karimAndNadia = Conversation(
+            clubId: lyon.id,
+            kind: .direct,
+            participantIds: [karim.id, nadia.id],
+            messages: [
+                Message(
+                    senderId: nadia.id,
+                    text: "Bonjour, est-ce que je peux régler la cotisation en deux fois ?",
+                    sentAt: day(-2),
+                    readBy: [nadia.id]
+                ),
+                Message(
+                    senderId: karim.id,
+                    text: "Merci pour le retour, on voit ça en réunion de bureau mardi.",
+                    sentAt: day(-1),
+                    readBy: [karim.id, nadia.id]
+                )
+            ]
+        )
+
+        let nadiaChannel = Conversation(
+            clubId: lyon.id,
+            kind: .bureau,
+            participantIds: [nadia.id],
+            messages: [
+                Message(
+                    senderId: nadia.id,
+                    text: "Bonjour, je souhaiterais m'inscrire au déplacement de Villeurbanne.",
+                    sentAt: day(-3),
+                    readBy: [nadia.id]
+                )
+            ]
+        )
+
+        db.conversations = [bureauChannel, withJulien, karimAndNadia, nadiaChannel]
+
+        // MARK: Coupons and platform announcements
+
+        db.coupons = [
+            Coupon(
+                code: "CLUB25",
+                percent: 25,
+                expiresAt: day(300),
+                clubIds: [lyon.id, rennes.id],
+                autoRenew: true,
+                createdAt: day(-60)
+            ),
+            Coupon(
+                code: "LANC2026",
+                percent: 100,
+                expiresAt: day(180),
+                clubIds: [marseille.id],
+                autoRenew: false,
+                createdAt: day(-120)
+            )
+        ]
+
+        db.platformAnnouncements = [
+            PlatformAnnouncement(
+                title: "Nouveauté : paiements dans l'application",
+                body: "Les membres peuvent désormais régler leurs cotisations, tenues et déplacements "
+                    + "directement depuis l'application. Le bureau suit les encaissements en temps réel.",
+                audience: .all,
+                publishedAt: day(-3)
+            ),
+            PlatformAnnouncement(
+                title: "Maintenance planifiée",
+                body: "L'application sera indisponible dimanche de 2h à 4h pour une mise à jour serveur. "
+                    + "Aucune action n'est requise de votre côté.",
+                audience: .admins,
+                publishedAt: day(-9)
+            ),
+            PlatformAnnouncement(
+                title: "Bienvenue sur Assodarts",
+                body: "La plateforme s'ouvre aux premiers clubs de la fédération. Merci de votre confiance !",
+                audience: .all,
+                publishedAt: day(-25)
+            )
+        ]
+
+        return db
+    }
+
+    // MARK: - Helpers
+
+    private static func extraMembers(clubId: UUID) -> [Member] {
+        let people: [(String, String, Bool)] = [
+            ("Marion", "Dubois", true),
+            ("Yanis", "Rocher", true),
+            ("Camille", "Girard", true),
+            ("Hugo", "Lemaire", false),
+            ("Inès", "Marchand", true),
+            ("Paul", "Roussel", false),
+            ("Élodie", "Chevalier", true),
+            ("Mehdi", "Aziz", true),
+            ("Laura", "Bonnet", false),
+            ("Antoine", "Perrin", true),
+            ("Sarah", "Meunier", true),
+            ("Lucas", "Faure", false),
+            ("Chloé", "Guerin", true),
+            ("Damien", "Colin", true),
+            ("Manon", "Lopez", false),
+            ("Théo", "Blanc", true),
+            ("Amandine", "Robin", true),
+            ("Vincent", "Noel", false),
+            ("Leïla", "Hamidi", true),
+            ("Bastien", "Renard", true)
+        ]
+        return people.enumerated().map { index, person in
+            Member(
+                clubId: clubId,
+                firstName: person.0,
+                lastName: person.1,
+                email: "\(person.0.lowercased()).\(person.1.lowercased())@fcl-lyon.fr",
+                phone: "06 \(20 + index) \(10 + index) \(30 + index) \(40 + index)",
+                role: .membre,
+                isLicensed: person.2,
+                licenceNumber: person.2 ? "07 84 \(600 + index * 7) \(100 + index)" : "",
+                joinedAt: day(-200 - index * 21),
+                eventsAttended: 4 + index % 14,
+                tournamentsPlayed: index % 7,
+                average: 38 + Double(index % 25) + 0.4
+            )
+        }
+    }
+
+    /// Additional tenants used to make the developer console reflect a real
+    /// platform (47 clubs, ~1 280 members).
+    private static func syntheticClubs() -> [Club] {
+        let cities = [
+            "Bordeaux", "Nantes", "Toulouse", "Lille", "Strasbourg", "Nice", "Montpellier",
+            "Rouen", "Dijon", "Grenoble", "Angers", "Reims", "Le Mans", "Brest", "Tours",
+            "Limoges", "Amiens", "Metz", "Perpignan", "Besançon", "Orléans", "Caen",
+            "Nancy", "Avignon", "Poitiers", "Pau", "La Rochelle", "Annecy", "Troyes",
+            "Valence", "Chambéry", "Quimper", "Colmar", "Vannes", "Lorient", "Béziers",
+            "Niort", "Albi", "Roanne", "Vichy", "Chartres", "Blois", "Auxerre"
+        ]
+        return cities.enumerated().map { index, city in
+            let count = [8, 14, 19, 23, 27, 31, 36, 42, 47, 55, 63, 74, 88, 104][index % 14]
+            let status: SubscriptionStatus
+            switch index % 9 {
+            case 0: status = .trial
+            case 7: status = .grace
+            default: status = .active
+            }
+            return Club(
+                id: UUID(),
+                name: index % 2 == 0 ? "Fléchettes Club de \(city)" : "Darts Club de \(city)",
+                city: city,
+                createdAt: day(-30 - index * 17),
+                renewalDate: day(365 - (index * 17) % 365),
+                status: status,
+                seedMemberCount: count,
+                couponCode: nil
+            )
+        }
+    }
+}
