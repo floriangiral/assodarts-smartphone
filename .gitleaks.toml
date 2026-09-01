@@ -1,0 +1,10 @@
+title = "Assodarts secret scanning policy"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Generated public configuration contains intentionally empty values."
+paths = [
+  '''ios-assodarts/Assodarts/Config\.swift$''',
+]

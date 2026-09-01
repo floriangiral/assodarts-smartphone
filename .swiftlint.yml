@@ -1,0 +1,18 @@
+included:
+  - ios-assodarts/Assodarts
+
+excluded:
+  - ios-assodarts/Assodarts/Config.swift
+
+line_length:
+  warning: 140
+  error: 180
+
+opt_in_rules:
+  - empty_count
+  - explicit_init
+  - first_where
+  - redundant_nil_coalescing
+
+disabled_rules:
+  - trailing_comma
