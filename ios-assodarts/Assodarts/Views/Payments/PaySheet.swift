@@ -14,6 +14,8 @@ struct PaySheet: View {
     @State private var reference: String = ""
     @State private var ribURL: URL?
     @State private var didCopyIban: Bool = false
+    @State private var checkoutSheet: IdentifiableURL?
+    @State private var checkoutError: String?
     @FocusState private var isEditingReference: Bool
 
     private enum Phase {
@@ -62,6 +64,18 @@ struct PaySheet: View {
             }
             .onAppear {
                 if method == nil { method = methods.first { $0.isAvailableOnThisDevice } }
+            }
+            .sheet(item: $checkoutSheet, onDismiss: settleCheckout) { sheet in
+                SafariSheet(url: sheet.url)
+                    .ignoresSafeArea()
+            }
+            .alert(
+                tr("Paiement impossible", "Payment failed"),
+                isPresented: Binding(get: { checkoutError != nil }, set: { if !$0 { checkoutError = nil } })
+            ) {
+                Button(tr("Fermer", "Close"), role: .cancel) { checkoutError = nil }
+            } message: {
+                Text(checkoutError ?? "")
             }
         }
     }
@@ -453,14 +467,60 @@ struct PaySheet: View {
         }
 
         phase = .processing
+
+        // Live clubs are charged through Stripe Checkout, which handles Apple Pay
+        // and card entry outside the app. Demo mode keeps a simulated payment.
+        guard store.mode == .live, let item = call.item(for: user.id) else {
+            Task {
+                try? await Task.sleep(for: .seconds(1.2))
+                store.markPaid(callId: call.id, memberId: user.id, method: method)
+                NotificationService.notify(
+                    title: tr("Paiement confirmé", "Payment confirmed"),
+                    body: "\(call.label) · \(Fmt.money(call.amountCents))"
+                )
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) { phase = .paid }
+            }
+            return
+        }
+
         Task {
-            try? await Task.sleep(for: .seconds(1.2))
-            store.markPaid(callId: call.id, memberId: user.id, method: method)
-            NotificationService.notify(
-                title: tr("Paiement confirmé", "Payment confirmed"),
-                body: "\(call.label) · \(Fmt.money(call.amountCents))"
-            )
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) { phase = .paid }
+            do {
+                let url = try await StripeService.createCheckout(itemId: item.id)
+                checkoutSheet = IdentifiableURL(url: url)
+            } catch {
+                print("Checkout creation failed: \(error)")
+                checkoutError = friendlyMessage(for: error)
+                phase = .ready
+            }
+        }
+    }
+
+    /// Called when the Stripe page is closed. The webhook is the source of truth,
+    /// so the app simply re-reads the line and reacts to what the server says.
+    private func settleCheckout() {
+        guard let call, let user = store.currentUser else { return }
+
+        Task {
+            // Give the webhook a brief head start before the first read.
+            try? await Task.sleep(for: .milliseconds(900))
+            await store.refresh()
+
+            var isPaid = store.paymentCall(call.id)?.item(for: user.id)?.isPaid ?? false
+            if !isPaid {
+                try? await Task.sleep(for: .seconds(2))
+                await store.refresh()
+                isPaid = store.paymentCall(call.id)?.item(for: user.id)?.isPaid ?? false
+            }
+
+            if isPaid {
+                NotificationService.notify(
+                    title: tr("Paiement confirmé", "Payment confirmed"),
+                    body: "\(call.label) · \(Fmt.money(call.amountCents))"
+                )
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) { phase = .paid }
+            } else {
+                withAnimation { phase = .ready }
+            }
         }
     }
 

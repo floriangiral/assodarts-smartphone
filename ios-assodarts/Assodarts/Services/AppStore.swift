@@ -1,4 +1,5 @@
 import Foundation
+import Supabase
 import SwiftUI
 
 /// Single source of truth for the whole app: authentication, tenant-isolated
@@ -9,7 +10,19 @@ final class AppStore {
     private static let sessionKey = "assodarts.session.v1"
 
     var db: Database
-    private(set) var currentUserId: UUID?
+    var currentUserId: UUID?
+
+    /// Where the displayed data comes from. `.demo` keeps the app fully usable
+    /// offline; `.live` mirrors the club's Supabase data.
+    var mode: BackendMode = .demo
+    /// True while a full refresh is in flight.
+    var isSyncing: Bool = false
+    /// Last backend failure, already translated for display.
+    var syncError: String?
+    /// True until the stored Supabase session has been checked at launch.
+    var isRestoringSession: Bool = true
+    /// The signed-in member's notification inbox, filled by the server.
+    var notifications: [AppNotification] = []
 
     init() {
         if let data = UserDefaults.standard.data(forKey: Self.storageKey),
@@ -91,7 +104,16 @@ final class AppStore {
     }
 
     func signOut() {
+        let wasLive = mode == .live
         currentUserId = nil
+        syncError = nil
+        notifications = []
+        NotificationService.clearScheduledReminders()
+        if wasLive {
+            db = DemoData.seed()
+            mode = .demo
+            Task { try? await Backend.client.auth.signOut() }
+        }
         save()
     }
 
@@ -289,11 +311,13 @@ final class AppStore {
         )
         db.announcements.insert(announcement, at: 0)
         save()
+        push { try await RemoteRepository.publishAnnouncement(announcement) }
     }
 
     func deleteAnnouncement(_ id: UUID) {
         db.announcements.removeAll { $0.id == id }
         save()
+        push { try await RemoteRepository.deleteAnnouncement(id: id) }
     }
 
     func setAttendance(_ going: Bool?, eventId: UUID, memberId: UUID) {
@@ -361,6 +385,8 @@ final class AppStore {
         updated.updatedById = memberId
         db.clubs[index].bank = updated
         save()
+        let saved = updated
+        push { try await RemoteRepository.upsertBankAccount(saved, clubId: clubId, by: memberId) }
     }
 
     /// Starts the online collection setup: the account goes to verification
@@ -372,6 +398,9 @@ final class AppStore {
         account.stripeAccountId = "acct_" + UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(16)
         db.clubs[index].bank = account
         save()
+        let saved = account
+        let author = currentUserId
+        push { try await RemoteRepository.upsertBankAccount(saved, clubId: clubId, by: author) }
     }
 
     func completeOnlineCollection(for clubId: UUID) {
@@ -380,6 +409,9 @@ final class AppStore {
         account.stripeStatus = .verified
         db.clubs[index].bank = account
         save()
+        let saved = account
+        let author = currentUserId
+        push { try await RemoteRepository.upsertBankAccount(saved, clubId: clubId, by: author) }
     }
 
     func disableOnlineCollection(for clubId: UUID) {
@@ -389,6 +421,9 @@ final class AppStore {
         account.stripeAccountId = nil
         db.clubs[index].bank = account
         save()
+        let saved = account
+        let author = currentUserId
+        push { try await RemoteRepository.upsertBankAccount(saved, clubId: clubId, by: author) }
     }
 
     /// Methods a member of this club can actually use right now.
@@ -401,6 +436,7 @@ final class AppStore {
     func createPaymentCall(_ call: PaymentCall) {
         db.paymentCalls.insert(call, at: 0)
         save()
+        push { try await RemoteRepository.createPaymentCall(call) }
     }
 
     private func itemIndexes(callId: UUID, memberId: UUID) -> (call: Int, item: Int)? {
@@ -416,7 +452,10 @@ final class AppStore {
         db.paymentCalls[index.call].items[index.item].paidAt = .now
         db.paymentCalls[index.call].items[index.item].declaredAt = nil
         if let method { db.paymentCalls[index.call].items[index.item].method = method }
+        let itemId = db.paymentCalls[index.call].items[index.item].id
+        let resolved = db.paymentCalls[index.call].items[index.item].method
         save()
+        push { try await RemoteRepository.markPaid(itemId: itemId, method: resolved) }
     }
 
     /// A member states he has sent a transfer or handed over cash. The line moves
@@ -431,8 +470,11 @@ final class AppStore {
         db.paymentCalls[index.call].items[index.item].method = method
         db.paymentCalls[index.call].items[index.item].declaredAt = .now
         let trimmed = reference?.trimmingCharacters(in: .whitespacesAndNewlines)
-        db.paymentCalls[index.call].items[index.item].reference = (trimmed?.isEmpty ?? true) ? nil : trimmed
+        let cleaned = (trimmed?.isEmpty ?? true) ? nil : trimmed
+        db.paymentCalls[index.call].items[index.item].reference = cleaned
+        let itemId = db.paymentCalls[index.call].items[index.item].id
         save()
+        push { try await RemoteRepository.declarePayment(itemId: itemId, method: method, reference: cleaned) }
     }
 
     /// The bureau confirms the money has been received.
@@ -442,7 +484,9 @@ final class AppStore {
         db.paymentCalls[index.call].items[index.item].paidAt = .now
         db.paymentCalls[index.call].items[index.item].declaredAt = nil
         db.paymentCalls[index.call].items[index.item].validatedById = validatorId
+        let itemId = db.paymentCalls[index.call].items[index.item].id
         save()
+        push { try await RemoteRepository.validatePayment(itemId: itemId) }
     }
 
     /// The declaration is rejected, or cancelled by the member himself: the line
@@ -452,7 +496,9 @@ final class AppStore {
         db.paymentCalls[index.call].items[index.item].declaredAt = nil
         db.paymentCalls[index.call].items[index.item].method = nil
         db.paymentCalls[index.call].items[index.item].reference = nil
+        let itemId = db.paymentCalls[index.call].items[index.item].id
         save()
+        push { try await RemoteRepository.cancelDeclaration(itemId: itemId) }
     }
 
     /// Everything the bureau of a club has to confirm, oldest declaration first.
@@ -473,13 +519,17 @@ final class AppStore {
 
     func remind(callId: UUID, memberIds: [UUID]) {
         guard let callIndex = db.paymentCalls.firstIndex(where: { $0.id == callId }) else { return }
+        var reminded: [UUID] = []
         for itemIndex in db.paymentCalls[callIndex].items.indices
         where memberIds.contains(db.paymentCalls[callIndex].items[itemIndex].memberId)
             && !db.paymentCalls[callIndex].items[itemIndex].isPaid
             && db.paymentCalls[callIndex].items[itemIndex].declaredAt == nil {
             db.paymentCalls[callIndex].items[itemIndex].remindedAt = .now
+            reminded.append(db.paymentCalls[callIndex].items[itemIndex].id)
         }
         save()
+        let ids = reminded
+        push { try await RemoteRepository.remind(itemIds: ids) }
     }
 
     func paymentCall(_ id: UUID) -> PaymentCall? {

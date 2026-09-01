@@ -12,6 +12,8 @@ struct BankSettingsView: View {
     @State private var isVerifying: Bool = false
     @State private var ribURL: URL?
     @State private var didCopyIban: Bool = false
+    @State private var stripeSheet: IdentifiableURL?
+    @State private var stripeError: String?
     @FocusState private var focus: FieldFocus?
 
     private enum FieldFocus: Hashable {
@@ -59,6 +61,18 @@ struct BankSettingsView: View {
             guard !didLoad else { return }
             draft = club?.bank ?? ClubBankAccount()
             didLoad = true
+        }
+        .sheet(item: $stripeSheet, onDismiss: refreshStripeStatus) { sheet in
+            SafariSheet(url: sheet.url)
+                .ignoresSafeArea()
+        }
+        .alert(
+            tr("Activation impossible", "Activation failed"),
+            isPresented: Binding(get: { stripeError != nil }, set: { if !$0 { stripeError = nil } })
+        ) {
+            Button(tr("Fermer", "Close"), role: .cancel) { stripeError = nil }
+        } message: {
+            Text(stripeError ?? "")
         }
     }
 
@@ -113,19 +127,22 @@ struct BankSettingsView: View {
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(Theme.red)
             } else {
-                Text(tr(
-                    "Renseignez le compte du club ci-dessous, puis activez l'encaissement en ligne. "
-                        + "Les fonds sont versés sur ce compte.",
-                    "Fill in the club account below, then activate online collection. "
-                        + "Payouts are sent to that account."
-                ))
+                Text(draft.stripeStatus == .pending
+                     ? tr(
+                        "Stripe vérifie les informations du club. Reprenez le formulaire si des pièces manquent.",
+                        "Stripe is reviewing the club's information. Resume the form if documents are missing."
+                     )
+                     : tr(
+                        "Renseignez le compte du club ci-dessous, puis activez l'encaissement en ligne. "
+                            + "Les fonds sont versés sur ce compte.",
+                        "Fill in the club account below, then activate online collection. "
+                            + "Payouts are sent to that account."
+                     ))
                     .font(.footnote)
                     .foregroundStyle(Theme.inkSecondary)
 
                 PrimaryButton(
-                    title: isVerifying
-                        ? tr("Vérification en cours…", "Verification in progress…")
-                        : tr("Activer l'encaissement en ligne", "Activate online collection"),
+                    title: onlineCallToAction,
                     symbol: isVerifying ? nil : "bolt.fill",
                     isEnabled: draft.isComplete && !isVerifying
                 ) {
@@ -145,8 +162,77 @@ struct BankSettingsView: View {
         .assoCard(padding: 18)
     }
 
+    private var onlineCallToAction: String {
+        if isVerifying {
+            return tr("Ouverture de Stripe…", "Opening Stripe…")
+        }
+        if draft.stripeStatus == .pending {
+            return tr("Reprendre la vérification", "Resume verification")
+        }
+        return tr("Activer l'encaissement en ligne", "Activate online collection")
+    }
+
+    /// Live clubs go through the real Stripe Connect onboarding; the demo mode
+    /// keeps its simulated activation so the app stays explorable offline.
     private func activateOnlineCollection(_ club: Club) {
         store.saveBankAccount(draft, for: club.id, by: store.currentUser?.id)
+
+        guard store.mode == .live else {
+            simulateActivation(club)
+            return
+        }
+
+        isVerifying = true
+        Task {
+            do {
+                let onboarding = try await StripeService.startOnboarding(clubId: club.id)
+                draft.stripeAccountId = onboarding.accountId
+                draft.stripeStatus = onboarding.status
+                stripeSheet = IdentifiableURL(url: onboarding.url)
+            } catch {
+                print("Stripe onboarding failed: \(error)")
+                stripeError = friendlyMessage(for: error)
+            }
+            isVerifying = false
+        }
+    }
+
+    /// Pulls the account state back from Stripe once the bureau closes the
+    /// hosted form.
+    private func refreshStripeStatus() {
+        guard store.mode == .live, let club else { return }
+        isVerifying = true
+        Task {
+            do {
+                let status = try await StripeService.refreshStatus(clubId: club.id)
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
+                    draft.stripeStatus = status
+                }
+                switch status {
+                case .verified:
+                    store.completeOnlineCollection(for: club.id)
+                    NotificationService.notify(
+                        title: tr("Paiements en ligne actifs", "Online payments active"),
+                        body: tr(
+                            "Vos membres peuvent régler par Apple Pay ou carte bancaire.",
+                            "Your members can now pay with Apple Pay or a bank card."
+                        )
+                    )
+                case .pending:
+                    store.startOnlineCollection(for: club.id)
+                case .notConnected:
+                    break
+                }
+                await store.refresh()
+            } catch {
+                print("Stripe status refresh failed: \(error)")
+                stripeError = friendlyMessage(for: error)
+            }
+            isVerifying = false
+        }
+    }
+
+    private func simulateActivation(_ club: Club) {
         store.startOnlineCollection(for: club.id)
         draft.stripeStatus = .pending
         draft.stripeAccountId = store.bankAccount(of: club.id)?.stripeAccountId

@@ -33,32 +33,50 @@ struct DashboardHeader: View {
 
             Spacer(minLength: 8)
 
-            NavigationLink(value: ClubRoute.messages) {
-                ZStack(alignment: .topTrailing) {
-                    Circle()
-                        .fill(Theme.surface)
-                        .frame(width: 44, height: 44)
-                        .overlay { Circle().stroke(Theme.border, lineWidth: 1) }
-                        .overlay {
-                            Image(systemName: "bubble.left.and.bubble.right.fill")
-                                .font(.subheadline)
-                                .foregroundStyle(Theme.navy)
-                        }
+            NavigationLink(value: ClubRoute.notifications) {
+                iconButton(
+                    symbol: "bell.fill",
+                    badge: store.unreadNotificationCount
+                )
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(tr("Notifications", "Notifications"))
 
-                    let unread = store.unreadCount(for: user)
-                    if unread > 0 {
-                        Text("\(unread)")
-                            .font(.caption2.weight(.bold))
-                            .foregroundStyle(.white)
-                            .frame(minWidth: 20, minHeight: 20)
-                            .background(Theme.orange, in: .circle)
-                            .offset(x: 4, y: -4)
-                            .transition(.scale)
-                    }
-                }
+            NavigationLink(value: ClubRoute.messages) {
+                iconButton(
+                    symbol: "bubble.left.and.bubble.right.fill",
+                    badge: store.unreadCount(for: user)
+                )
             }
             .buttonStyle(.plain)
             .accessibilityLabel(tr("Messages", "Messages"))
         }
+    }
+
+    /// Round toolbar button with an optional unread count.
+    private func iconButton(symbol: String, badge: Int) -> some View {
+        ZStack(alignment: .topTrailing) {
+            Circle()
+                .fill(Theme.surface)
+                .frame(width: 44, height: 44)
+                .overlay { Circle().stroke(Theme.border, lineWidth: 1) }
+                .overlay {
+                    Image(systemName: symbol)
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.navy)
+                }
+
+            if badge > 0 {
+                Text(badge > 99 ? "99+" : "\(badge)")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, badge > 9 ? 5 : 0)
+                    .frame(minWidth: 20, minHeight: 20)
+                    .background(Theme.orange, in: .capsule)
+                    .offset(x: 4, y: -4)
+                    .transition(.scale)
+            }
+        }
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: badge)
     }
 }
