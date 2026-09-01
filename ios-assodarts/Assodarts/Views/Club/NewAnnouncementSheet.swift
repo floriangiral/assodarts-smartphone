@@ -6,14 +6,14 @@ struct NewAnnouncementSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var title: String = ""
-    @State private var body_: String = ""
+    @State private var announcementBody: String = ""
     @State private var isPinned: Bool = false
     @State private var notify: Bool = true
     @FocusState private var isEditing: Bool
 
     private var canPublish: Bool {
         !title.trimmingCharacters(in: .whitespaces).isEmpty
-            && !body_.trimmingCharacters(in: .whitespaces).isEmpty
+            && !announcementBody.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
     var body: some View {
@@ -23,7 +23,7 @@ struct NewAnnouncementSheet: View {
                     TextField(tr("Titre de l'annonce", "Announcement title"), text: $title)
                         .keyboardField(.freeText, submit: .next)
                         .focused($isEditing)
-                    TextField(tr("Votre message…", "Your message…"), text: $body_, axis: .vertical)
+                    TextField(tr("Votre message…", "Your message…"), text: $announcementBody, axis: .vertical)
                         .lineLimit(5...10)
                         .keyboardField(.freeText, submit: .return)
                         .focused($isEditing)
@@ -60,7 +60,7 @@ struct NewAnnouncementSheet: View {
 
     private func publish() {
         guard let user = store.currentUser else { return }
-        store.publishAnnouncement(title: title, body: body_, pinned: isPinned, author: user)
+        store.publishAnnouncement(title: title, body: announcementBody, pinned: isPinned, author: user)
         if notify {
             NotificationService.notify(
                 title: store.currentClub?.name ?? tr("Votre club", "Your club"),

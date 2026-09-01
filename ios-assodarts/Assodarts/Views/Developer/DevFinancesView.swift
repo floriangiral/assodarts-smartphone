@@ -70,7 +70,7 @@ struct DevFinancesView: View {
                 .foregroundStyle(Theme.ink)
 
             HStack(alignment: .bottom, spacing: 6) {
-                ForEach(Array(data.enumerated()), id: \.offset) { index, point in
+                ForEach(Array(data.enumerated()), id: \.offset) { _, point in
                     VStack(spacing: 6) {
                         VStack(spacing: 2) {
                             RoundedRectangle(cornerRadius: 3)
