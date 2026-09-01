@@ -29,7 +29,7 @@ jobs:
       SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Validate deployment configuration
         run: |
@@ -37,7 +37,7 @@ jobs:
           test -n "$SUPABASE_PROJECT_REF" || { echo "SUPABASE_PROJECT_REF is not configured"; exit 1; }
 
       - name: Set up Supabase CLI
-        uses: supabase/setup-cli@v1
+        uses: supabase/setup-cli@ab058987d8d6c725971f6cf9d0b5c98467e30bd1 # v1
 
       - name: Prepare Supabase CLI directory
         run: |
