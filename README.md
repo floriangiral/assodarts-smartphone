@@ -212,7 +212,7 @@ For payment integration testing, use Stripe test keys and the Stripe CLI to forw
 
 GitHub Actions configuration is versioned in `.github/`:
 
-- `Quality` runs SwiftLint, iOS build/tests, Deno formatting/lint/type checks, CodeQL, and Gitleaks on pull requests and protected branches.
+- `Quality` runs SwiftLint, iOS build/tests, Deno formatting/lint/type checks, CodeQL, and Gitleaks on `main`, `release-*`, and pull requests targeting those branches.
 - `SonarQube` performs a server-side scan and waits for its Quality Gate when SonarQube is configured.
 - `Deploy Supabase Edge Functions` is a manual, environment-protected deployment workflow for staging and production.
 - Dependabot opens weekly updates for GitHub Actions and Swift Package dependencies.

@@ -7,7 +7,8 @@
 const MESSAGES: Record<string, { title: string; body: string; tone: string }> = {
   paid: {
     title: "Paiement confirmé",
-    body: "Votre paiement a bien été enregistré. Revenez dans Assodarts, votre ligne passe au vert.",
+    body:
+      "Votre paiement a bien été enregistré. Revenez dans Assodarts, votre ligne passe au vert.",
     tone: "#1f9d63",
   },
   cancelled: {
@@ -17,7 +18,8 @@ const MESSAGES: Record<string, { title: string; body: string; tone: string }> = 
   },
   done: {
     title: "Compte transmis à Stripe",
-    body: "Stripe vérifie les informations du club. Revenez dans Assodarts pour suivre l'activation.",
+    body:
+      "Stripe vérifie les informations du club. Revenez dans Assodarts pour suivre l'activation.",
     tone: "#1E3A5F",
   },
   refresh: {
