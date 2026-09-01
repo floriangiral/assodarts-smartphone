@@ -135,11 +135,11 @@ supabase link --project-ref <project-ref>
 supabase functions deploy stripe-connect-onboard
 supabase functions deploy stripe-connect-status
 supabase functions deploy stripe-create-checkout
-supabase functions deploy stripe-return
+supabase functions deploy stripe-return --no-verify-jwt
 supabase functions deploy stripe-webhook --no-verify-jwt
 ```
 
-`stripe-webhook` deliberately accepts requests without a Supabase JWT because Stripe authenticates it with its signed webhook payload. Its signature check is mandatory.
+`stripe-return` and `stripe-webhook` deliberately accept requests without a Supabase JWT. The first only renders a static completion page after a browser redirect; the second authenticates Stripe with a mandatory signed webhook payload.
 
 ### 4. Set Edge Function secrets
 
@@ -207,6 +207,30 @@ xcodebuild test \
 The committed unit-test target currently contains only Xcode's placeholder test. Add focused tests for permission checks, payment state transitions, repository mappings, and tenant boundaries before relying on a production backend.
 
 For payment integration testing, use Stripe test keys and the Stripe CLI to forward events to the deployed webhook endpoint, then confirm that an eligible `payment_call_items` row changes state only after a signed `checkout.session.completed` event.
+
+## CI/CD setup
+
+GitHub Actions configuration is versioned in `.github/`:
+
+- `Quality` runs SwiftLint, iOS build/tests, Deno formatting/lint/type checks, CodeQL, and Gitleaks on pull requests and protected branches.
+- `SonarQube` performs a server-side scan and waits for its Quality Gate when SonarQube is configured.
+- `Deploy Supabase Edge Functions` is a manual, environment-protected deployment workflow for staging and production.
+- Dependabot opens weekly updates for GitHub Actions and Swift Package dependencies.
+
+Before enabling required checks, configure these GitHub Environments:
+
+| Environment | GitHub variable | GitHub secret | Recommendation |
+| --- | --- | --- | --- |
+| `staging` | `SUPABASE_PROJECT_REF` | `SUPABASE_ACCESS_TOKEN` | Allow deployment by maintainers. |
+| `production` | `SUPABASE_PROJECT_REF` | `SUPABASE_ACCESS_TOKEN` | Require one or more reviewers and restrict deployment branches. |
+
+For SonarQube, create a project with the key in `sonar-project.properties` (or change that key), then set the repository variable `SONAR_HOST_URL` and repository secret `SONAR_TOKEN`. Configure the SonarQube Quality Gate before making the workflow a required check.
+
+Protect `develop` in GitHub: require pull requests, require the `Quality` checks, require `SonarQube / Analyze and enforce Quality Gate` after SonarQube is connected, dismiss stale approvals, and restrict direct pushes. Enable GitHub dependency alerts, Dependabot security updates, secret scanning, and push protection. CodeQL result upload for private repositories requires GitHub Advanced Security where applicable.
+
+The deployment workflow intentionally does not apply SQL migrations because this checkout has no versioned migration directory. Add reviewed Supabase migrations before automating database deployment.
+
+When Android is added, extend `Quality` with Gradle build/test, Android Lint, Detekt, Ktlint, and JaCoCo coverage; add `java-kotlin` to CodeQL and include the Android source directories in SonarQube.
 
 ## Repository layout
 
