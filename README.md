@@ -133,11 +133,11 @@ Firestore has no schema enforcement beyond these rules; `backend/types.ts` docum
 
 | Variable | Staging (`assodarts-staging`) | Production (`assodarts`) |
 | --- | --- | --- |
-| `FIREBASE_API_KEY` | `AIzaSyA9Ytv-16YCsaUaBTfLf5qgpZzksg8mZuQ` | *(register the iOS app in the `assodarts` project first)* |
-| `FIREBASE_APP_ID` | `1:189674137376:ios:cfda13b59775fba891d945` | *(register the iOS app in the `assodarts` project first)* |
+| `FIREBASE_API_KEY` | `AIzaSyA9Ytv-16YCsaUaBTfLf5qgpZzksg8mZuQ` | `AIzaSyD9N1fqXevqDQs_BaM6ujJ4SIrhq0wEGhU` |
+| `FIREBASE_APP_ID` | `1:189674137376:ios:cfda13b59775fba891d945` | `1:421200763226:ios:dc9122481d0cf2989c3b63` |
 | `FIREBASE_PROJECT_ID` | `assodarts-staging` | `assodarts` |
 | `FIREBASE_GCM_SENDER_ID` | `189674137376` | `421200763226` |
-| `FIREBASE_STORAGE_BUCKET` | `assodarts-staging.firebasestorage.app` | *(register the iOS app in the `assodarts` project first)* |
+| `FIREBASE_STORAGE_BUCKET` | `assodarts-staging.firebasestorage.app` | `assodarts.firebasestorage.app` |
 
 These are public client identifiers, not secrets — but never put a Firebase Admin service-account key or the Stripe secret key into the app, project file, or source-controlled configuration.
 

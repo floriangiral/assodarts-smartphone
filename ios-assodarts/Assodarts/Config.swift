@@ -11,11 +11,11 @@ import Foundation
 
 enum Config {
     #if PRODUCTION
-    static let FIREBASE_API_KEY = ""
-    static let FIREBASE_APP_ID = ""
+    static let FIREBASE_API_KEY = "AIzaSyD9N1fqXevqDQs_BaM6ujJ4SIrhq0wEGhU"
+    static let FIREBASE_APP_ID = "1:421200763226:ios:dc9122481d0cf2989c3b63"
     static let FIREBASE_PROJECT_ID = "assodarts"
     static let FIREBASE_GCM_SENDER_ID = "421200763226"
-    static let FIREBASE_STORAGE_BUCKET = ""
+    static let FIREBASE_STORAGE_BUCKET = "assodarts.firebasestorage.app"
     #else
     static let FIREBASE_API_KEY = "AIzaSyA9Ytv-16YCsaUaBTfLf5qgpZzksg8mZuQ"
     static let FIREBASE_APP_ID = "1:189674137376:ios:cfda13b59775fba891d945"
