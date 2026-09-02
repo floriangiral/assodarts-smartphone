@@ -129,7 +129,7 @@ Firestore has no schema enforcement beyond these rules; `backend/types.ts` docum
 
 ### 2. Supply iOS public configuration
 
-Provide these build-time values through the Rork/Xcode environment-injection mechanism that generates `ios-assodarts/Assodarts/Config.swift`, taken from the target Firebase project's iOS app settings (**Project settings → General → Your apps**):
+`ios-assodarts/Assodarts/Config.swift` holds these build-time values directly, selected at compile time by the active build configuration (Debug → staging, Release → production) via `SWIFT_ACTIVE_COMPILATION_CONDITIONS`. Update it from the target Firebase project's iOS app settings (**Project settings → General → Your apps**):
 
 | Variable | Staging (`assodarts-staging`) | Production (`assodarts`) |
 | --- | --- | --- |
@@ -141,7 +141,7 @@ Provide these build-time values through the Rork/Xcode environment-injection mec
 
 These are public client identifiers, not secrets — but never put a Firebase Admin service-account key or the Stripe secret key into the app, project file, or source-controlled configuration.
 
-The Xcode project's `PRODUCT_BUNDLE_IDENTIFIER` is `com.assodarts.app`, matching the bundle ID registered for the staging iOS app in Firebase. Provisioning profiles and the App Store Connect record must use the same identifier — the Rork-generated placeholder (`app.rork.7gw1xciehw04gk04twk1b`) is no longer used.
+The Xcode project's `PRODUCT_BUNDLE_IDENTIFIER` is `com.assodarts.app`, matching the bundle ID registered for the staging iOS app in Firebase. Provisioning profiles and the App Store Connect record must use the same identifier.
 
 ### 3. Deploy Cloud Functions
 
@@ -227,7 +227,6 @@ cd .. && firebase emulators:start --only functions,firestore
 
 ```text
 .
-├── rork.json                         # Rork application manifest
 ├── backend/
 │   ├── types.ts                       # Hand-maintained Firestore document types
 │   ├── firebase.json                  # Firebase project configuration

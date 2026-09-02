@@ -2,8 +2,6 @@
 //  AssodartsUITestsLaunchTests.swift
 //  AssodartsUITests
 //
-//  Created by Rork on August 31, 2026.
-//
 
 import XCTest
 
