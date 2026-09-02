@@ -3,3 +3,6 @@ node_modules
 .expo
 .rork
 backend/functions/lib/
+firebase-service-account*.json
+.firebase/
+.firebaserc

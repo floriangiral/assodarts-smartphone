@@ -116,6 +116,8 @@ firebase use --add                 # link the Firebase project, from backend/
 firebase deploy --only firestore:rules,firestore:indexes
 ```
 
+`.firebaserc` is intentionally not committed (`.gitignore`) since it is a per-developer project alias; `deploy-firebase.yml` passes `--project` explicitly instead of relying on it.
+
 Firestore has no schema enforcement beyond these rules; `backend/types.ts` documents the expected document shape for every collection (`clubs`, `memberships`, `members`, `announcements`, `events`, `event_registrations`, `payment_calls`, `payment_call_items`, `club_bank_accounts`, `notifications`, `device_push_tokens`). Keep it in sync by hand with `backend/functions/src` and `RemoteModels.swift`.
 
 ### 2. Supply iOS public configuration
@@ -234,6 +236,25 @@ cd .. && firebase emulators:start --only functions,firestore
     ├── AssodartsTests/                # Unit-test target
     └── AssodartsUITests/              # UI-test target
 ```
+
+## CI/CD setup
+
+`.github/workflows/deploy-firebase.yml` is a manual, environment-protected workflow that deploys Firestore rules/indexes and Cloud Functions. Before running it, configure these GitHub Environments (**Settings → Environments**):
+
+| Environment | GitHub variable | GitHub secret | Recommendation |
+| --- | --- | --- | --- |
+| `staging` | `FIREBASE_PROJECT_ID` | `FIREBASE_SERVICE_ACCOUNT` | Allow deployment by maintainers. |
+| `production` | `FIREBASE_PROJECT_ID` | `FIREBASE_SERVICE_ACCOUNT` | Require one or more reviewers and restrict deployment branches. |
+
+To create the service account key for `FIREBASE_SERVICE_ACCOUNT`:
+
+1. In the [Google Cloud console](https://console.cloud.google.com/iam-admin/serviceaccounts), for the Firebase project, create (or reuse) a service account with the **Firebase Admin SDK Administrator Service Agent**, **Cloud Functions Admin**, and **Firebase Rules Admin** roles (or `roles/owner` for a quick start in a non-production project).
+2. Generate a JSON key for that service account.
+3. Paste the entire JSON key content as the `FIREBASE_SERVICE_ACCOUNT` secret. Never commit this file — `.gitignore` already excludes `firebase-service-account*.json`.
+
+Dependabot (`.github/dependabot.yml`) opens weekly updates for GitHub Actions and the Cloud Functions npm dependencies.
+
+There is no automated quality/lint/test pipeline in this checkout yet (`npm run build` / `npm run lint` in `backend/functions`, and `swiftlint`/`xcodebuild test` for the iOS app, are currently run manually). Add a `Quality` workflow before making any check required in branch protection.
 
 ## Operational notes
 
