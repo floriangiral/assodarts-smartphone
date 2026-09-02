@@ -141,7 +141,7 @@ Provide these build-time values through the Rork/Xcode environment-injection mec
 
 These are public client identifiers, not secrets — but never put a Firebase Admin service-account key or the Stripe secret key into the app, project file, or source-controlled configuration.
 
-⚠️ The staging iOS app is registered in Firebase with bundle ID `com.assodarts.app`, but the Xcode project's `PRODUCT_BUNDLE_IDENTIFIER` is still the Rork-generated placeholder `app.rork.7gw1xciehw04gk04twk1b`. Either register the iOS app in Firebase with the placeholder bundle ID instead, or update `PRODUCT_BUNDLE_IDENTIFIER` in the Xcode project (and its provisioning/App Store Connect record) to `com.assodarts.app` before relying on this configuration.
+The Xcode project's `PRODUCT_BUNDLE_IDENTIFIER` is `com.assodarts.app`, matching the bundle ID registered for the staging iOS app in Firebase. Provisioning profiles and the App Store Connect record must use the same identifier — the Rork-generated placeholder (`app.rork.7gw1xciehw04gk04twk1b`) is no longer used.
 
 ### 3. Deploy Cloud Functions
 
