@@ -59,7 +59,9 @@ async function memberDisplayName(memberId: string): Promise<string | undefined> 
 }
 
 /** A member declared a payment (notify the board), or the board validated one (notify the member). */
-export const onPaymentItemWritten = onDocumentWritten("payment_call_items/{itemId}", async (event) => {
+export const onPaymentItemWritten = onDocumentWritten(
+  { document: "payment_call_items/{itemId}", region: "europe-west9" },
+  async (event) => {
   const before = event.data?.before.data();
   const after = event.data?.after.data();
   if (!after) return;
@@ -98,7 +100,9 @@ export const onPaymentItemWritten = onDocumentWritten("payment_call_items/{itemI
 });
 
 /** A board member just published an announcement — notify every active member. */
-export const onAnnouncementCreated = onDocumentCreated("announcements/{announcementId}", async (event) => {
+export const onAnnouncementCreated = onDocumentCreated(
+  { document: "announcements/{announcementId}", region: "europe-west9" },
+  async (event) => {
   const announcement = event.data?.data();
   if (!announcement?.publishedAt) return;
 
@@ -118,7 +122,9 @@ export const onAnnouncementCreated = onDocumentCreated("announcements/{announcem
 });
 
 /** Pushes every notification the moment it is written, to every device of that member. */
-export const onNotificationCreated = onDocumentCreated("notifications/{notificationId}", async (event) => {
+export const onNotificationCreated = onDocumentCreated(
+  { document: "notifications/{notificationId}", region: "europe-west9" },
+  async (event) => {
   const notification = event.data?.data();
   if (!notification) return;
 
