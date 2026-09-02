@@ -21,7 +21,7 @@ enum Config {
     static let FIREBASE_APP_ID = "1:189674137376:ios:cfda13b59775fba891d945"
     static let FIREBASE_PROJECT_ID = "assodarts-staging"
     static let FIREBASE_GCM_SENDER_ID = "189674137376"
-    static let FIREBASE_STORAGE_BUCKET = ""
+    static let FIREBASE_STORAGE_BUCKET = "assodarts-staging.firebasestorage.app"
     #endif
 
     static let allValues: [String: String] = [
