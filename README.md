@@ -106,30 +106,37 @@ Adjust the destination to a simulator installed on the machine.
 
 ## Configure the live backend
 
+Two Firebase projects back the two environments:
+
+| Environment | Firebase project ID |
+| --- | --- |
+| `staging` | `assodarts-staging` |
+| `production` | `assodarts` |
+
+`backend/.firebaserc` maps these to the `staging`/`production` aliases, so `firebase use staging` or `firebase use production` (run from `backend/`) selects the right one without re-linking.
+
 ### 1. Provision Firestore
 
-This repository contains `backend/firestore.rules` and `backend/firestore.indexes.json` — deploy them to the linked Firebase project:
+This repository contains `backend/firestore.rules` and `backend/firestore.indexes.json` — deploy them to the target project:
 
 ```sh
 firebase login
-firebase use --add                 # link the Firebase project, from backend/
+firebase use staging                 # or: firebase use production — from backend/
 firebase deploy --only firestore:rules,firestore:indexes
 ```
-
-`.firebaserc` is intentionally not committed (`.gitignore`) since it is a per-developer project alias; `deploy-firebase.yml` passes `--project` explicitly instead of relying on it.
 
 Firestore has no schema enforcement beyond these rules; `backend/types.ts` documents the expected document shape for every collection (`clubs`, `memberships`, `members`, `announcements`, `events`, `event_registrations`, `payment_calls`, `payment_call_items`, `club_bank_accounts`, `notifications`, `device_push_tokens`). Keep it in sync by hand with `backend/functions/src` and `RemoteModels.swift`.
 
 ### 2. Supply iOS public configuration
 
-Provide these build-time values through the Rork/Xcode environment-injection mechanism that generates `ios-assodarts/Assodarts/Config.swift`, taken from the Firebase project's iOS app settings:
+Provide these build-time values through the Rork/Xcode environment-injection mechanism that generates `ios-assodarts/Assodarts/Config.swift`, taken from the target Firebase project's iOS app settings (**Project settings → General → Your apps**):
 
 | Variable | Value |
 | --- | --- |
 | `FIREBASE_API_KEY` | iOS app API key |
 | `FIREBASE_APP_ID` | iOS app ID (`1:...:ios:...`) |
-| `FIREBASE_PROJECT_ID` | Firebase project ID |
-| `FIREBASE_GCM_SENDER_ID` | Sender ID (used by FCM) |
+| `FIREBASE_PROJECT_ID` | `assodarts-staging` or `assodarts` |
+| `FIREBASE_GCM_SENDER_ID` | Sender ID (used by FCM) — the project number shown in **Project settings** (`189674137376` for staging, `421200763226` for production) |
 | `FIREBASE_STORAGE_BUCKET` | Default storage bucket |
 
 These are public client identifiers, not secrets — but never put a Firebase Admin service-account key or the Stripe secret key into the app, project file, or source-controlled configuration.
@@ -222,6 +229,7 @@ cd .. && firebase emulators:start --only functions,firestore
 ├── backend/
 │   ├── types.ts                       # Hand-maintained Firestore document types
 │   ├── firebase.json                  # Firebase project configuration
+│   ├── .firebaserc                    # staging/production project aliases
 │   ├── firestore.rules                # Security rules (tenant isolation, roles)
 │   ├── firestore.indexes.json         # Composite indexes
 │   └── functions/                     # Firebase Cloud Functions (Node/TypeScript)
@@ -243,8 +251,8 @@ cd .. && firebase emulators:start --only functions,firestore
 
 | Environment | GitHub variable | GitHub secret | Recommendation |
 | --- | --- | --- | --- |
-| `staging` | `FIREBASE_PROJECT_ID` | `FIREBASE_SERVICE_ACCOUNT` | Allow deployment by maintainers. |
-| `production` | `FIREBASE_PROJECT_ID` | `FIREBASE_SERVICE_ACCOUNT` | Require one or more reviewers and restrict deployment branches. |
+| `staging` | `FIREBASE_PROJECT_ID` = `assodarts-staging` | `FIREBASE_SERVICE_ACCOUNT` | Allow deployment by maintainers. |
+| `production` | `FIREBASE_PROJECT_ID` = `assodarts` | `FIREBASE_SERVICE_ACCOUNT` | Require one or more reviewers and restrict deployment branches. |
 
 To create the service account key for `FIREBASE_SERVICE_ACCOUNT`:
 

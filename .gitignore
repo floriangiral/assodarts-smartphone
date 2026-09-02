@@ -5,4 +5,3 @@ node_modules
 backend/functions/lib/
 firebase-service-account*.json
 .firebase/
-.firebaserc
