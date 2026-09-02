@@ -1,0 +1,101 @@
+rules_version = '2';
+
+// Mirrors the tenant isolation and role checks that Postgres RLS used to
+// enforce: a member only ever sees data of clubs they belong to, and only an
+// active admin/board membership can write club-wide or money-moving data.
+// Payment-state transitions (declare/validate/cancel) and anything Stripe or
+// notification related are intentionally NOT writable by clients — they go
+// through the Cloud Functions in `functions/src`, which use the Admin SDK and
+// bypass these rules the same way the old Postgres RPCs did.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function membership(clubId) {
+      return get(/databases/$(database)/documents/memberships/$(clubId + '_' + request.auth.uid)).data;
+    }
+
+    function isActiveMember(clubId) {
+      return isSignedIn() && membership(clubId).status == 'active';
+    }
+
+    function isBoard(clubId) {
+      return isActiveMember(clubId) && membership(clubId).role in ['admin', 'board'];
+    }
+
+    match /clubs/{clubId} {
+      allow read: if isActiveMember(clubId);
+      allow write: if isBoard(clubId);
+    }
+
+    match /memberships/{membershipId} {
+      allow read: if isSignedIn()
+        && (resource.data.memberId == request.auth.uid || isBoard(resource.data.clubId));
+      allow create, update: if isBoard(request.resource.data.clubId);
+      allow delete: if isBoard(resource.data.clubId);
+    }
+
+    match /members/{memberId} {
+      // `clubId` is null until the member accepts a club invitation, so only
+      // the member themselves can read/write their own doc until then.
+      allow read: if isSignedIn()
+        && (memberId == request.auth.uid
+            || (resource.data.clubId != null && isActiveMember(resource.data.clubId)));
+      allow create: if isSignedIn() && memberId == request.auth.uid;
+      allow update: if isSignedIn()
+        && (memberId == request.auth.uid
+            || (resource.data.clubId != null && isBoard(resource.data.clubId)));
+    }
+
+    match /club_bank_accounts/{clubId} {
+      allow read: if isActiveMember(clubId);
+      allow write: if isBoard(clubId);
+    }
+
+    match /announcements/{announcementId} {
+      allow read: if isActiveMember(resource.data.clubId);
+      allow create: if isBoard(request.resource.data.clubId);
+      allow update, delete: if isBoard(resource.data.clubId);
+    }
+
+    match /events/{eventId} {
+      allow read: if isActiveMember(resource.data.clubId);
+      allow write: if isBoard(request.resource.data.clubId);
+    }
+
+    match /event_registrations/{registrationId} {
+      allow read: if isActiveMember(resource.data.clubId);
+      allow create: if isActiveMember(request.resource.data.clubId)
+        && request.resource.data.memberId == request.auth.uid;
+      allow update, delete: if resource.data.memberId == request.auth.uid
+        || isBoard(resource.data.clubId);
+    }
+
+    match /payment_calls/{callId} {
+      allow read: if isActiveMember(resource.data.clubId);
+      allow write: if isBoard(request.resource.data.clubId);
+    }
+
+    match /payment_call_items/{itemId} {
+      allow read: if isSignedIn()
+        && (resource.data.memberId == request.auth.uid || isBoard(resource.data.clubId));
+      // `markPaid` (cash/transfer) and `remind` are the only direct client
+      // writes; declare/validate/cancel and Stripe updates go through
+      // Cloud Functions with the Admin SDK.
+      allow update: if isBoard(resource.data.clubId);
+    }
+
+    match /notifications/{notificationId} {
+      allow read, update, delete: if isSignedIn() && resource.data.memberId == request.auth.uid;
+      // Created only by Cloud Function triggers (Admin SDK).
+      allow create: if false;
+    }
+
+    match /device_push_tokens/{token} {
+      allow create, update: if isSignedIn() && request.resource.data.memberId == request.auth.uid;
+      allow read, delete: if false;
+    }
+  }
+}

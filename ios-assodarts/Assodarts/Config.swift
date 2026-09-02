@@ -10,11 +10,17 @@
 import Foundation
 
 enum Config {
-    static let EXPO_PUBLIC_SUPABASE_ANON_KEY = ""
-    static let EXPO_PUBLIC_SUPABASE_URL = ""
+    static let FIREBASE_API_KEY = ""
+    static let FIREBASE_APP_ID = ""
+    static let FIREBASE_PROJECT_ID = ""
+    static let FIREBASE_GCM_SENDER_ID = ""
+    static let FIREBASE_STORAGE_BUCKET = ""
 
     static let allValues: [String: String] = [
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": EXPO_PUBLIC_SUPABASE_ANON_KEY,
-        "EXPO_PUBLIC_SUPABASE_URL": EXPO_PUBLIC_SUPABASE_URL,
+        "FIREBASE_API_KEY": FIREBASE_API_KEY,
+        "FIREBASE_APP_ID": FIREBASE_APP_ID,
+        "FIREBASE_PROJECT_ID": FIREBASE_PROJECT_ID,
+        "FIREBASE_GCM_SENDER_ID": FIREBASE_GCM_SENDER_ID,
+        "FIREBASE_STORAGE_BUCKET": FIREBASE_STORAGE_BUCKET,
     ]
 }

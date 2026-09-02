@@ -1,5 +1,5 @@
+import FirebaseAuth
 import Foundation
-import Supabase
 import SwiftUI
 
 /// Single source of truth for the whole app: authentication, tenant-isolated
@@ -13,13 +13,13 @@ final class AppStore {
     var currentUserId: UUID?
 
     /// Where the displayed data comes from. `.demo` keeps the app fully usable
-    /// offline; `.live` mirrors the club's Supabase data.
+    /// offline; `.live` mirrors the club's Firebase data.
     var mode: BackendMode = .demo
     /// True while a full refresh is in flight.
     var isSyncing: Bool = false
     /// Last backend failure, already translated for display.
     var syncError: String?
-    /// True until the stored Supabase session has been checked at launch.
+    /// True until the stored Firebase session has been checked at launch.
     var isRestoringSession: Bool = true
     /// The signed-in member's notification inbox, filled by the server.
     var notifications: [AppNotification] = []
@@ -112,7 +112,7 @@ final class AppStore {
         if wasLive {
             db = DemoData.seed()
             mode = .demo
-            Task { try? await Backend.client.auth.signOut() }
+            try? Backend.auth.signOut()
         }
         save()
     }

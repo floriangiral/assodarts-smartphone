@@ -1,7 +1,7 @@
+import FirebaseAuth
 import Foundation
-import Supabase
 
-/// Everything that connects the in-memory `AppStore` to the live Supabase club.
+/// Everything that connects the in-memory `AppStore` to the live Firebase club.
 ///
 /// The app keeps a single local `Database` as its source of truth so every
 /// screen works unchanged. Reads replace that database wholesale; writes are
@@ -10,7 +10,7 @@ import Supabase
 extension AppStore {
     // MARK: - Session
 
-    /// Restores a stored Supabase session at launch. Falls back to demo mode
+    /// Restores a stored Firebase session at launch. Falls back to demo mode
     /// when nobody is signed in or the device is offline.
     func restoreSession() async {
         guard Backend.isConfigured else {
@@ -18,24 +18,29 @@ extension AppStore {
             return
         }
 
-        do {
-            let session = try await Backend.client.auth.session
-            _ = await loadRemote(userId: session.user.id)
-        } catch {
+        if let user = Backend.auth.currentUser, let userId = UUID(uuidString: user.uid) {
+            _ = await loadRemote(userId: userId)
+        } else {
             mode = .demo
         }
         isRestoringSession = false
     }
 
-    /// Signs a member in against Supabase.
+    /// Signs a member in against Firebase.
     /// - Returns: `nil` on success, otherwise a message ready to display.
     func signInRemote(email: String, password: String) async -> String? {
         guard Backend.isConfigured else { return BackendError.notConfigured.errorDescription }
         let normalized = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
 
         do {
-            let session = try await Backend.client.auth.signIn(email: normalized, password: password)
-            return await loadRemote(userId: session.user.id)
+            let result = try await Backend.auth.signIn(withEmail: normalized, password: password)
+            guard let userId = UUID(uuidString: result.user.uid) else {
+                return friendlyMessage(for: BackendError.message(tr(
+                    "Compte invalide. Contactez le support.",
+                    "Invalid account. Contact support."
+                )))
+            }
+            return await loadRemote(userId: userId)
         } catch {
             print("Sign-in failed: \(error)")
             return friendlyMessage(for: error)
@@ -67,24 +72,22 @@ extension AppStore {
         }
 
         do {
-            let response = try await Backend.client.auth.signUp(email: normalized, password: password)
-
-            // No session means Supabase is waiting for an email confirmation.
-            guard let session = response.session else {
-                return tr(
-                    "Compte créé. Confirmez votre adresse email, puis connectez-vous.",
-                    "Account created. Confirm your email address, then sign in."
-                )
+            let result = try await Backend.auth.createUser(withEmail: normalized, password: password)
+            guard let userId = UUID(uuidString: result.user.uid) else {
+                return friendlyMessage(for: BackendError.message(tr(
+                    "Compte invalide. Contactez le support.",
+                    "Invalid account. Contact support."
+                )))
             }
 
             try await RemoteRepository.createSelfMember(
-                userId: session.user.id,
+                userId: userId,
                 firstName: first,
                 lastName: last,
                 email: normalized,
                 phone: phone.isEmpty ? nil : phone
             )
-            return await loadRemote(userId: session.user.id)
+            return await loadRemote(userId: userId)
         } catch {
             print("Sign-up failed: \(error)")
             return friendlyMessage(for: error)
@@ -102,7 +105,7 @@ extension AppStore {
         }
 
         do {
-            try await Backend.client.auth.resetPasswordForEmail(normalized)
+            try await Backend.auth.sendPasswordReset(withEmail: normalized)
             return tr(
                 "Un lien de réinitialisation vient de vous être envoyé.",
                 "A reset link has just been sent to you."
@@ -163,9 +166,9 @@ extension AppStore {
     }
 
     func loadNotifications() async {
-        guard mode == .live else { return }
+        guard mode == .live, let userId = currentUserId else { return }
         do {
-            notifications = try await NotificationsRepository.load()
+            notifications = try await NotificationsRepository.load(memberId: userId)
         } catch {
             print("Notification inbox failed to load: \(error)")
         }
@@ -174,11 +177,11 @@ extension AppStore {
     /// Marks the whole inbox as read, optimistically.
     func markAllNotificationsRead() {
         let unread = notifications.filter(\.isUnread).map(\.id)
-        guard !unread.isEmpty else { return }
+        guard !unread.isEmpty, let userId = currentUserId else { return }
         for index in notifications.indices where notifications[index].isUnread {
             notifications[index].readAt = .now
         }
-        push { try await NotificationsRepository.markAllRead() }
+        push { try await NotificationsRepository.markAllRead(memberId: userId) }
     }
 
     func markNotificationRead(_ id: UUID) {
@@ -194,7 +197,7 @@ extension AppStore {
         push { try await NotificationsRepository.delete(id: id) }
     }
 
-    /// Stores the APNs token for this device so real push can be switched on
+    /// Stores the FCM token for this device so real push can be switched on
     /// without asking members to do anything.
     func registerPushToken(_ token: String) {
         guard mode == .live, let memberId = currentUserId else { return }

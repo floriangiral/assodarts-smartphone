@@ -1,3 +1,5 @@
+import { onRequest } from "firebase-functions/v2/https";
+
 /**
  * Landing page Stripe redirects to after hosted onboarding or Checkout.
  *
@@ -27,8 +29,8 @@ const MESSAGES: Record<string, { title: string; body: string; tone: string }> = 
   },
 };
 
-Deno.serve((req) => {
-  const state = new URL(req.url).searchParams.get("state") ?? "done";
+export const stripeReturn = onRequest((req, res) => {
+  const state = (req.query.state as string) ?? "done";
   const message = MESSAGES[state] ?? MESSAGES.done;
 
   const html = `<!doctype html>
@@ -65,7 +67,6 @@ Deno.serve((req) => {
 </body>
 </html>`;
 
-  return new Response(html, {
-    headers: { "Content-Type": "text/html; charset=utf-8" },
-  });
+  res.set("Content-Type", "text/html; charset=utf-8");
+  res.send(html);
 });
