@@ -131,15 +131,17 @@ Firestore has no schema enforcement beyond these rules; `backend/types.ts` docum
 
 Provide these build-time values through the Rork/Xcode environment-injection mechanism that generates `ios-assodarts/Assodarts/Config.swift`, taken from the target Firebase project's iOS app settings (**Project settings → General → Your apps**):
 
-| Variable | Value |
-| --- | --- |
-| `FIREBASE_API_KEY` | iOS app API key |
-| `FIREBASE_APP_ID` | iOS app ID (`1:...:ios:...`) |
-| `FIREBASE_PROJECT_ID` | `assodarts-staging` or `assodarts` |
-| `FIREBASE_GCM_SENDER_ID` | Sender ID (used by FCM) — the project number shown in **Project settings** (`189674137376` for staging, `421200763226` for production) |
-| `FIREBASE_STORAGE_BUCKET` | Default storage bucket |
+| Variable | Staging (`assodarts-staging`) | Production (`assodarts`) |
+| --- | --- | --- |
+| `FIREBASE_API_KEY` | *(see the app's config in Firebase console)* | *(see the app's config in Firebase console)* |
+| `FIREBASE_APP_ID` | `1:189674137376:ios:cfda13b59775fba891d945` | *(register the iOS app in the `assodarts` project first)* |
+| `FIREBASE_PROJECT_ID` | `assodarts-staging` | `assodarts` |
+| `FIREBASE_GCM_SENDER_ID` | `189674137376` | `421200763226` |
+| `FIREBASE_STORAGE_BUCKET` | *(see the app's config in Firebase console)* | *(see the app's config in Firebase console)* |
 
 These are public client identifiers, not secrets — but never put a Firebase Admin service-account key or the Stripe secret key into the app, project file, or source-controlled configuration.
+
+⚠️ The staging iOS app is registered in Firebase with bundle ID `com.assodarts.app`, but the Xcode project's `PRODUCT_BUNDLE_IDENTIFIER` is still the Rork-generated placeholder `app.rork.7gw1xciehw04gk04twk1b`. Either register the iOS app in Firebase with the placeholder bundle ID instead, or update `PRODUCT_BUNDLE_IDENTIFIER` in the Xcode project (and its provisioning/App Store Connect record) to `com.assodarts.app` before relying on this configuration.
 
 ### 3. Deploy Cloud Functions
 
