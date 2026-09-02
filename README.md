@@ -212,8 +212,8 @@ For payment integration testing, use Stripe test keys and the Stripe CLI to forw
 
 GitHub Actions configuration is versioned in `.github/`:
 
-- `Quality` runs SwiftLint, iOS build/tests, Deno formatting/lint/type checks, CodeQL, and Gitleaks on `main`, `release-*`, and pull requests targeting those branches.
-- `SonarQube` performs a server-side scan and waits for its Quality Gate when SonarQube is configured.
+- `Quality` runs SwiftLint, iOS build/tests, Deno formatting/lint/type checks, CodeQL, and Gitleaks on `main`, `release-*`, and pull requests targeting those branches. The iOS and Edge Functions jobs collect real code coverage (Xcode coverage converted to SonarQube's generic format, and Deno's LCOV output) and publish it as artifacts.
+- Its `Analyze and enforce Quality Gate` job downloads those coverage artifacts and runs the SonarQube scan, waiting for its Quality Gate, when SonarQube is configured. It still runs even if the iOS or Edge Functions jobs fail, just without their coverage data.
 - `Deploy Supabase Edge Functions` is a manual, environment-protected deployment workflow for staging and production.
 - Dependabot opens weekly updates for GitHub Actions and Swift Package dependencies.
 
@@ -226,7 +226,7 @@ Before enabling required checks, configure these GitHub Environments:
 
 For SonarQube, create a project with the key in `sonar-project.properties` (or change that key), then set the repository variable `SONAR_HOST_URL` and repository secret `SONAR_TOKEN`. Configure the SonarQube Quality Gate before making the workflow a required check.
 
-Protect `develop` in GitHub: require pull requests, require the `Quality` checks, require `SonarQube / Analyze and enforce Quality Gate` after SonarQube is connected, dismiss stale approvals, and restrict direct pushes. Enable GitHub dependency alerts, Dependabot security updates, secret scanning, and push protection. CodeQL result upload for private repositories requires GitHub Advanced Security where applicable.
+Protect `develop` in GitHub: require pull requests, require the `Quality` checks, require `Quality / Analyze and enforce Quality Gate` after SonarQube is connected, dismiss stale approvals, and restrict direct pushes. Enable GitHub dependency alerts, Dependabot security updates, secret scanning, and push protection. CodeQL result upload for private repositories requires GitHub Advanced Security where applicable.
 
 The deployment workflow intentionally does not apply SQL migrations because this checkout has no versioned migration directory. Add reviewed Supabase migrations before automating database deployment.
 

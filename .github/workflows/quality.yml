@@ -58,7 +58,19 @@ jobs:
           -project ios-assodarts/Assodarts.xcodeproj
           -scheme Assodarts
           -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest'
+          -enableCodeCoverage YES
+          -resultBundlePath TestResults.xcresult
           CODE_SIGNING_ALLOWED=NO
+
+      - name: Export code coverage for SonarQube
+        run: python3 .github/scripts/xccov_to_sonar_generic.py TestResults.xcresult ios-coverage.xml "$GITHUB_WORKSPACE"
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ios-coverage
+          path: ios-coverage.xml
+          retention-days: 1
 
       - name: Upload CodeQL results
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
@@ -97,6 +109,29 @@ jobs:
       - name: Type-check Edge Functions
         run: deno check --config backend/deno.json backend/functions/**/index.ts
 
+      - name: Run tests with coverage
+        run: |
+          if find backend/functions -name '*.test.ts' -o -name '*_test.ts' | grep -q .; then
+            deno test --coverage=cov_profile --config backend/deno.json backend/functions
+          else
+            echo "No Deno test files found; skipping coverage collection."
+          fi
+
+      - name: Export coverage report
+        run: |
+          if [ -d cov_profile ]; then
+            deno coverage cov_profile --lcov --output=edge-coverage.lcov
+          else
+            : > edge-coverage.lcov
+          fi
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: edge-coverage
+          path: edge-coverage.lcov
+          retention-days: 1
+
       - name: Upload CodeQL results
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         uses: github/codeql-action/analyze@5ba2889ada762081db2c4f32a729827dce632c7b # v3
@@ -120,3 +155,42 @@ jobs:
         uses: gitleaks/gitleaks-action@dcedce43c6f43de0b836d1fe38946645c9c638dc # v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  sonarqube:
+    name: Analyze and enforce Quality Gate
+    needs: [ios, edge-functions]
+    if: >-
+      always() &&
+      vars.SONAR_HOST_URL != '' &&
+      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out full history
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Download iOS coverage report
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: ios-coverage
+          path: .
+        continue-on-error: true
+
+      - name: Download Edge Functions coverage report
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: edge-coverage
+          path: .
+        continue-on-error: true
+
+      - name: Scan with SonarQube
+        uses: SonarSource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602 # v6
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
+        with:
+          args: >-
+            -Dsonar.qualitygate.wait=true
+            -Dsonar.qualitygate.timeout=300
