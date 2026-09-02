@@ -140,3 +140,19 @@ export interface DevicePushTokenDoc {
   environment: string;
   locale: string;
 }
+
+/**
+ * Document ID is `${clubId}_${email}`. Not readable/writable by clients —
+ * created by `createInvitation`, consumed by `acceptInvitation`.
+ */
+export interface InvitationDoc {
+  clubId: string;
+  email: string;
+  role: "admin" | "board" | "member";
+  licenseNumber: string | null;
+  status: "pending" | "accepted";
+  invitedByMemberId: string;
+  createdAt: FirebaseFirestore.Timestamp;
+  acceptedAt: FirebaseFirestore.Timestamp | null;
+  acceptedByMemberId: string | null;
+}

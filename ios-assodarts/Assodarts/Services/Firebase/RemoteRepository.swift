@@ -366,4 +366,36 @@ enum RemoteRepository {
             .document(userId.uuidString)
             .setData(from: payload, merge: true)
     }
+
+    // MARK: - Invitations
+
+    /// The board invites someone by email; the membership is only created once
+    /// that person signs up or signs in with the same address.
+    static func inviteMember(clubId: UUID, email: String, role: Role, licenseNumber: String?) async throws {
+        _ = try await Backend.functions.httpsCallable("createInvitation").call([
+            "clubId": clubId.uuidString,
+            "email": email,
+            "role": role.remoteValue,
+            "licenseNumber": licenseNumber as Any,
+        ])
+    }
+
+    /// The board withdraws a pending invitation before it is accepted.
+    static func revokeInvitation(clubId: UUID, email: String) async throws {
+        _ = try await Backend.functions.httpsCallable("revokeInvitation").call([
+            "clubId": clubId.uuidString,
+            "email": email,
+        ])
+    }
+
+    /// Joins every club that invited the signed-in member's email, if any.
+    /// Called right after sign-in/sign-up, before the first snapshot load.
+    @discardableResult
+    static func acceptPendingInvitation() async throws -> UUID? {
+        let result = try await Backend.functions.httpsCallable("acceptInvitation").call([String: Any]())
+        guard let data = result.data as? [String: Any], let clubId = data["joinedClubId"] as? String else {
+            return nil
+        }
+        return UUID(uuidString: clubId)
+    }
 }

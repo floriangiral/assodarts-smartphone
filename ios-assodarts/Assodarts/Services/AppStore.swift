@@ -340,9 +340,20 @@ final class AppStore {
         save()
     }
 
+    /// Adds a member locally; in demo mode this is the whole story. In live
+    /// mode it also sends a real invitation — the row shown here is only a
+    /// placeholder until that person actually signs up and joins the club.
     func addMember(_ member: Member) {
         db.members.append(member)
         save()
+        push {
+            try await RemoteRepository.inviteMember(
+                clubId: member.clubId,
+                email: member.email,
+                role: member.role,
+                licenseNumber: member.isLicensed ? member.licenceNumber : nil
+            )
+        }
     }
 
     func addTournament(_ tournament: Tournament) {

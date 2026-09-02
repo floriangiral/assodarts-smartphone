@@ -124,7 +124,7 @@ extension AppStore {
         defer { isSyncing = false }
 
         do {
-            let snapshot = try await RemoteRepository.loadSnapshot(for: userId)
+            let snapshot = try await loadSnapshotAcceptingInvitations(for: userId)
             db = snapshot.database
             currentUserId = snapshot.currentMemberId
             mode = .live
@@ -136,6 +136,20 @@ extension AppStore {
         } catch {
             print("Club sync failed: \(error)")
             return friendlyMessage(for: error)
+        }
+    }
+
+    /// Loads the club snapshot, first accepting any pending invitation for
+    /// this member's email so a first-time sign-in lands straight in their
+    /// club instead of surfacing "no membership".
+    private func loadSnapshotAcceptingInvitations(for userId: UUID) async throws -> RemoteRepository.Snapshot {
+        do {
+            return try await RemoteRepository.loadSnapshot(for: userId)
+        } catch BackendError.noMembership {
+            guard try await RemoteRepository.acceptPendingInvitation() != nil else {
+                throw BackendError.noMembership
+            }
+            return try await RemoteRepository.loadSnapshot(for: userId)
         }
     }
 

@@ -175,6 +175,8 @@ The flow is intentionally server controlled: Checkout reloads the payment amount
 | `stripeReturn` | HTTP | Public (browser redirect) | Returns an HTML completion, cancellation, or refresh response after hosted Stripe navigation. |
 | `stripeWebhook` | HTTP | Stripe signature | Mirrors completed payments, refunds, and connected-account status into Firestore. |
 | `declarePayment` / `validatePayment` / `cancelPaymentDeclaration` | Callable | Firebase Auth (+ board for validation) | Payment-state transitions, replacing the former Postgres RPCs. |
+| `createInvitation` / `revokeInvitation` | Callable | Firebase Auth + active board/admin membership | Invites a member by email with a role, or withdraws a pending invitation. |
+| `acceptInvitation` | Callable | Firebase Auth | Joins every club that invited the signed-in member's email; called automatically right after sign-in/sign-up. |
 | `onPaymentItemWritten` / `onAnnouncementCreated` | Firestore trigger | Admin SDK only | Fan out `notifications` documents for board/member events. |
 | `onNotificationCreated` | Firestore trigger | Admin SDK only | Sends the FCM push for every new notification. |
 
@@ -239,7 +241,7 @@ cd .. && firebase emulators:start --only functions,firestore
 - The local store uses `UserDefaults`; resetting demo data clears its persisted local application state.
 - Build push notification capability, provisioning, and APNs-to-FCM bridging (already wired in `AssodartsApp.swift`) before expecting production push delivery.
 - The backend directory has no separate migration tooling — Firestore has no schema to migrate, but `firestore.rules` and `firestore.indexes.json` must stay deployed and versioned alongside the collections they protect.
-- Members are not yet linked to a club automatically; `members.clubId` stays `null` until a board member assigns one (the invite flow is not implemented yet).
+- Club invitations: the board invites a member by email (`InviteMemberSheet`), which creates an `invitations` document. `members.clubId` and the matching `memberships` document are only created once that email actually signs up or signs in — the app calls `acceptInvitation` automatically at that point. Until then, the invited row shown to the board is a local placeholder that disappears if the invite hasn't been accepted by the next refresh.
 
 ## License
 

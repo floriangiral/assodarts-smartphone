@@ -97,5 +97,11 @@ service cloud.firestore {
       allow create, update: if isSignedIn() && request.resource.data.memberId == request.auth.uid;
       allow read, delete: if false;
     }
+
+    match /invitations/{invitationId} {
+      // Created by `createInvitation`, consumed by `acceptInvitation` — both
+      // Cloud Functions using the Admin SDK, which bypasses these rules.
+      allow read, write: if false;
+    }
   }
 }
