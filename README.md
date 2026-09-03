@@ -64,7 +64,10 @@ At launch, the app checks whether the Firebase configuration values were injecte
 - **Demo mode:** one or more values are absent. `DemoData.seed()` supplies local data and the app remains usable offline.
 - **Live mode:** all values are present. The app uses native Firebase Auth with email and password; the Firebase SDK owns refresh-token handling.
 
-`Config.swift` is generated during the iOS build. Its checked-in values are intentionally empty, so credentials must never be committed there.
+The environment setup, bundle identifiers, Firebase plist placement, and CI
+secrets are documented in [`SETUP.md`](SETUP.md). Firebase client identifiers
+are public by design; certificates, provisioning profiles, service accounts,
+and environment plist files remain outside version control.
 
 ## Requirements
 
@@ -129,7 +132,11 @@ Firestore has no schema enforcement beyond these rules; `backend/types.ts` docum
 
 ### 2. Supply iOS public configuration
 
-`ios-assodarts/Assodarts/Config.swift` holds these build-time values directly, selected at compile time by the active build configuration (Debug → staging, Release → production) via `SWIFT_ACTIVE_COMPILATION_CONDITIONS`. Update it from the target Firebase project's iOS app settings (**Project settings → General → Your apps**):
+The Xcode configurations and schemes select staging or production. When
+present, the matching `GoogleService-Info.plist` is loaded from the app bundle;
+local builds without a plist use the public compile-time fallback in
+`Config.swift`. Obtain values from the target Firebase project's iOS app
+settings (**Project settings → General → Your apps**):
 
 | Variable | Staging (`assodarts-staging`) | Production (`assodarts`) |
 | --- | --- | --- |
@@ -141,7 +148,9 @@ Firestore has no schema enforcement beyond these rules; `backend/types.ts` docum
 
 These are public client identifiers, not secrets — but never put a Firebase Admin service-account key or the Stripe secret key into the app, project file, or source-controlled configuration.
 
-The Xcode project's `PRODUCT_BUNDLE_IDENTIFIER` is `com.assodarts.app`, matching the bundle ID registered for the staging iOS app in Firebase. Provisioning profiles and the App Store Connect record must use the same identifier.
+The production target uses `com.assodarts.app`; the `Staging` scheme uses
+`com.assodarts.app.staging`. Provisioning profiles and App Store Connect
+records must use the matching identifier for each environment.
 
 ### 3. Deploy Cloud Functions
 
