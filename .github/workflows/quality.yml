@@ -9,6 +9,7 @@ name: Quality
     branches:
       - main
       - "release-*"
+      - staging
   workflow_dispatch:
 
 permissions:
@@ -198,3 +199,134 @@ jobs:
           args: >-
             -Dsonar.qualitygate.wait=true
             -Dsonar.qualitygate.timeout=300
+
+  staging-distribute:
+    name: Archive and distribute iOS staging build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/staging'
+    needs: [ios, backend, sonarqube]
+    runs-on: macos-15
+    environment: staging
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+      FIREBASE_IOS_APP_ID: ${{ vars.FIREBASE_IOS_APP_ID }}
+      FIREBASE_TESTER_GROUP: ${{ secrets.FIREBASE_TESTER_GROUP }}
+      GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/firebase-service-account.json
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Validate staging configuration
+        run: |
+          test -n "$FIREBASE_PROJECT_ID" || { echo "FIREBASE_PROJECT_ID is not configured"; exit 1; }
+          test -n "$FIREBASE_IOS_APP_ID" || { echo "FIREBASE_IOS_APP_ID is not configured"; exit 1; }
+          test -n "$FIREBASE_TESTER_GROUP" || { echo "FIREBASE_TESTER_GROUP is not configured"; exit 1; }
+          test -n "$APPLE_TEAM_ID" || { echo "APPLE_TEAM_ID is not configured"; exit 1; }
+          test -n "$APPLE_CERTIFICATE_P12_BASE64" || { echo "APPLE_CERTIFICATE_P12_BASE64 is not configured"; exit 1; }
+          test -n "$APPLE_CERTIFICATE_PASSWORD" || { echo "APPLE_CERTIFICATE_PASSWORD is not configured"; exit 1; }
+          test -n "$APPLE_PROVISIONING_PROFILE_BASE64" || { echo "APPLE_PROVISIONING_PROFILE_BASE64 is not configured"; exit 1; }
+          test -n "$GOOGLE_SERVICE_INFO_PLIST_STAGING_BASE64" || { echo "GOOGLE_SERVICE_INFO_PLIST_STAGING_BASE64 is not configured"; exit 1; }
+          test -n "$FIREBASE_SERVICE_ACCOUNT" || { echo "FIREBASE_SERVICE_ACCOUNT is not configured"; exit 1; }
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_PROVISIONING_PROFILE_BASE64: ${{ secrets.APPLE_PROVISIONING_PROFILE_BASE64 }}
+          GOOGLE_SERVICE_INFO_PLIST_STAGING_BASE64: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST_STAGING_BASE64 }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      - name: Install Apple signing certificate
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
+          p12-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+
+      - name: Install staging provisioning profile
+        run: |
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          echo "$APPLE_PROVISIONING_PROFILE_BASE64" | base64 --decode > "$RUNNER_TEMP/staging.mobileprovision"
+          profile_uuid=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin < <(security cms -D -i "$RUNNER_TEMP/staging.mobileprovision"))
+          cp "$RUNNER_TEMP/staging.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/$profile_uuid.mobileprovision"
+        env:
+          APPLE_PROVISIONING_PROFILE_BASE64: ${{ secrets.APPLE_PROVISIONING_PROFILE_BASE64 }}
+
+      - name: Write staging Firebase configuration
+        run: |
+          mkdir -p ios-assodarts/Config/Firebase/Staging
+          echo "$GOOGLE_SERVICE_INFO_PLIST_STAGING_BASE64" | base64 --decode > ios-assodarts/Config/Firebase/Staging/GoogleService-Info.plist
+        env:
+          GOOGLE_SERVICE_INFO_PLIST_STAGING_BASE64: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST_STAGING_BASE64 }}
+
+      - name: Write Firebase service account
+        run: |
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$GOOGLE_APPLICATION_CREDENTIALS"
+          chmod 600 "$GOOGLE_APPLICATION_CREDENTIALS"
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      - name: Archive staging app
+        run: >-
+          xcodebuild archive
+          -project ios-assodarts/Assodarts.xcodeproj
+          -scheme Staging
+          -configuration Staging
+          -archivePath "$RUNNER_TEMP/Assodarts-Staging.xcarchive"
+          -allowProvisioningUpdates
+          DEVELOPMENT_TEAM="$APPLE_TEAM_ID"
+          CODE_SIGN_STYLE=Automatic
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Create export options
+        run: |
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+          <key>method</key><string>app-store</string>
+          <key>signingStyle</key><string>automatic</string>
+          <key>teamID</key><string>__APPLE_TEAM_ID__</string>
+          <key>destination</key><string>export</string>
+          </dict></plist>
+          PLIST
+          sed -i '' "s/__APPLE_TEAM_ID__/$APPLE_TEAM_ID/" "$RUNNER_TEMP/ExportOptions.plist"
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Export IPA
+        run: >-
+          xcodebuild -exportArchive
+          -archivePath "$RUNNER_TEMP/Assodarts-Staging.xcarchive"
+          -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist"
+          -exportPath "$RUNNER_TEMP/Assodarts-Staging-export"
+          -allowProvisioningUpdates
+
+      - name: Upload to Firebase App Distribution
+        run: |
+          npx --yes firebase-tools@15.29.0 appdistribution:distribute \
+            "$RUNNER_TEMP/Assodarts-Staging-export/Assodarts.ipa" \
+            --app "$FIREBASE_IOS_APP_ID" \
+            --groups "$FIREBASE_TESTER_GROUP" \
+            --project "$FIREBASE_PROJECT_ID" \
+            --non-interactive 2>&1 | tee "$RUNNER_TEMP/firebase-distribution.log"
+
+      - name: Publish staging build summary
+        if: always()
+        run: |
+          version=$(xcodebuild -showBuildSettings -project ios-assodarts/Assodarts.xcodeproj -scheme Staging -configuration Staging 2>/dev/null | awk -F ' = ' '/MARKETING_VERSION/ { print $2; exit }')
+          build=$(xcodebuild -showBuildSettings -project ios-assodarts/Assodarts.xcodeproj -scheme Staging -configuration Staging 2>/dev/null | awk -F ' = ' '/CURRENT_PROJECT_VERSION/ { print $2; exit }')
+          {
+            echo "## Assodarts Staging"
+            echo "- Version: ${version:-unknown} (${build:-unknown})"
+            if [ -f "$RUNNER_TEMP/firebase-distribution.log" ]; then
+              grep -Eo 'https?://[^ ]+' "$RUNNER_TEMP/firebase-distribution.log" | tail -1 | sed 's/^/- Tester link: /' || true
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove credentials and staging plist
+        if: always()
+        run: |
+          rm -f "$GOOGLE_APPLICATION_CREDENTIALS"
+          rm -f ios-assodarts/Config/Firebase/Staging/GoogleService-Info.plist
