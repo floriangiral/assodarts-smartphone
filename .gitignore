@@ -2,5 +2,6 @@ node_modules
 .env
 .expo
 backend/functions/lib/
+backend/functions/coverage/
 firebase-service-account*.json
 .firebase/

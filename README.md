@@ -255,15 +255,38 @@ cd .. && firebase emulators:start --only functions,firestore
 | `staging` | `FIREBASE_PROJECT_ID` = `assodarts-staging` | `FIREBASE_SERVICE_ACCOUNT` | Allow deployment by maintainers. |
 | `production` | `FIREBASE_PROJECT_ID` = `assodarts` | `FIREBASE_SERVICE_ACCOUNT` | Require one or more reviewers and restrict deployment branches. |
 
-To create the service account key for `FIREBASE_SERVICE_ACCOUNT`:
+To create the service account key for `FIREBASE_SERVICE_ACCOUNT`, in the [Google Cloud console](https://console.cloud.google.com/iam-admin/serviceaccounts) for the Firebase project:
 
-1. In the [Google Cloud console](https://console.cloud.google.com/iam-admin/serviceaccounts), for the Firebase project, create (or reuse) a service account with the **Firebase Admin SDK Administrator Service Agent**, **Cloud Functions Admin**, and **Firebase Rules Admin** roles (or `roles/owner` for a quick start in a non-production project).
-2. Generate a JSON key for that service account.
-3. Paste the entire JSON key content as the `FIREBASE_SERVICE_ACCOUNT` secret. Never commit this file — `.gitignore` already excludes `firebase-service-account*.json`.
+1. Create (or reuse) a service account.
+2. Grant it these roles (verified by an actual first-time deployment — the commonly documented 2-3 role minimum is not sufficient for 2nd-gen functions with Firestore triggers, secrets, and Stripe):
+   - Firebase Rules Admin (`roles/firebaserules.admin`)
+   - Cloud Datastore Index Admin (`roles/datastore.indexAdmin`)
+   - Service Usage Consumer (`roles/serviceusage.serviceUsageConsumer`)
+   - Cloud Functions Admin (`roles/cloudfunctions.admin`)
+   - Cloud Run Admin (`roles/run.admin`)
+   - Eventarc Admin (`roles/eventarc.admin`)
+   - Cloud Build Editor (`roles/cloudbuild.builds.editor`)
+   - Artifact Registry Administrator (`roles/artifactregistry.admin`)
+   - Service Account User (`roles/iam.serviceAccountUser`)
+   - Storage Admin (`roles/storage.admin`)
+   - Secret Manager Admin (`roles/secretmanager.admin`)
+   - Firebase Extensions Viewer (`roles/firebaseextensions.viewer`)
+   - Logs Viewer (`roles/logging.viewer`), useful for troubleshooting a failed deployment
+3. Generate a JSON key for that service account and paste its entire content as the `FIREBASE_SERVICE_ACCOUNT` secret. Never commit this file — `.gitignore` already excludes `firebase-service-account*.json`.
+
+Before the first deployment to a given project, a project **owner** (not the service account above) must also, one time:
+
+1. Confirm the project is on the **Blaze** (pay-as-you-go) plan with billing enabled — 2nd-gen Cloud Functions require it.
+2. Enable these APIs (**APIs & Services → Library**): Cloud Functions, Cloud Build, Artifact Registry, Eventarc, Cloud Run, Pub/Sub, Secret Manager, Firebase Extensions, Cloud Billing.
+3. Grant two Google-managed service agents access, in **IAM → Grant access** (these accounts are not visible under "Service accounts", but IAM accepts them as principals):
+   - `service-<PROJECT_NUMBER>@gcp-sa-pubsub.iam.gserviceaccount.com` → Service Account Token Creator (`roles/iam.serviceAccountTokenCreator`)
+   - `<PROJECT_NUMBER>-compute@developer.gserviceaccount.com` → Cloud Run Invoker (`roles/run.invoker`) and Eventarc Event Receiver (`roles/eventarc.eventReceiver`)
 
 Dependabot (`.github/dependabot.yml`) opens weekly updates for GitHub Actions and the Cloud Functions npm dependencies.
 
-There is no automated quality/lint/test pipeline in this checkout yet (`npm run build` / `npm run lint` in `backend/functions`, and `swiftlint`/`xcodebuild test` for the iOS app, are currently run manually). Add a `Quality` workflow before making any check required in branch protection.
+`backend/functions/.npmrc` pins the public npm registry (`registry.npmjs.org`). This matters if you develop behind a corporate npm proxy/Artifactory mirror: without it, your local `package-lock.json` can end up with `resolved` URLs pointing at an internal-only registry that GitHub-hosted runners cannot reach, breaking `npm ci` in CI.
+
+`deploy-firebase.yml` runs `npm test` (Jest, fully mocked — no network access needed) before building and deploying, so a broken Cloud Function fails the workflow before it reaches Firebase. There is still no separate `Quality` workflow for lint/SwiftLint/xcodebuild in this checkout (those are run manually); add one before making any check required in branch protection.
 
 ## Operational notes
 
