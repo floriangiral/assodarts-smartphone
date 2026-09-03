@@ -5,7 +5,7 @@ export const stripeSecretKey = defineSecret("STRIPE_SECRET_KEY");
 export const stripeWebhookSecret = defineSecret("STRIPE_WEBHOOK_SECRET");
 
 export function stripeClient(secretValue: string): Stripe {
-  return new Stripe(secretValue, { apiVersion: "2024-06-20" });
+  return new Stripe(secretValue, { apiVersion: "2026-08-26.dahlia" });
 }
 
 /**
@@ -21,7 +21,9 @@ export function functionsBaseUrl(): string {
  * A connected account can collect money once Stripe has enabled charges and
  * the onboarding form is complete.
  */
-export function accountStatus(account: Stripe.Account): "not_connected" | "pending" | "verified" {
+export function accountStatus(
+  account: Stripe.Account,
+): "not_connected" | "pending" | "verified" {
   if (account.charges_enabled && account.details_submitted) return "verified";
   return "pending";
 }

@@ -6,51 +6,58 @@ const VALID_ROLES = ["admin", "board", "member"];
 
 /** The board invites someone by email, with the role they'll join with. */
 export const createInvitation = onCall(async (request) => {
-  if (!request.auth) throw new HttpsError("unauthenticated", "Sign-in required");
+  if (!request.auth)
+    throw new HttpsError("unauthenticated", "Sign-in required");
 
   const clubId = request.data?.clubId as string | undefined;
   const rawEmail = request.data?.email as string | undefined;
   const role = (request.data?.role as string | undefined) ?? "member";
-  const licenseNumber = (request.data?.licenseNumber as string | undefined) ?? null;
+  const licenseNumber =
+    (request.data?.licenseNumber as string | undefined) ?? null;
 
-  if (!clubId || !rawEmail) throw new HttpsError("invalid-argument", "clubId and email are required");
+  if (!clubId || !rawEmail)
+    throw new HttpsError("invalid-argument", "clubId and email are required");
   const email = rawEmail.trim().toLowerCase();
-  if (!email.includes("@")) throw new HttpsError("invalid-argument", "A valid email is required");
-  if (!VALID_ROLES.includes(role)) throw new HttpsError("invalid-argument", "Invalid role");
+  if (!email.includes("@"))
+    throw new HttpsError("invalid-argument", "A valid email is required");
+  if (!VALID_ROLES.includes(role))
+    throw new HttpsError("invalid-argument", "Invalid role");
 
   await requireClubBoard(clubId, request.auth.uid);
 
-  await getFirestore()
-    .collection("invitations")
-    .doc(`${clubId}_${email}`)
-    .set(
-      {
-        clubId,
-        email,
-        role,
-        licenseNumber,
-        status: "pending",
-        invitedByMemberId: request.auth.uid,
-        createdAt: FieldValue.serverTimestamp(),
-        acceptedAt: null,
-        acceptedByMemberId: null,
-      },
-      { merge: true },
-    );
+  await getFirestore().collection("invitations").doc(`${clubId}_${email}`).set(
+    {
+      clubId,
+      email,
+      role,
+      licenseNumber,
+      status: "pending",
+      invitedByMemberId: request.auth.uid,
+      createdAt: FieldValue.serverTimestamp(),
+      acceptedAt: null,
+      acceptedByMemberId: null,
+    },
+    { merge: true },
+  );
 });
 
 /** The board withdraws a pending invitation before it is accepted. */
 export const revokeInvitation = onCall(async (request) => {
-  if (!request.auth) throw new HttpsError("unauthenticated", "Sign-in required");
+  if (!request.auth)
+    throw new HttpsError("unauthenticated", "Sign-in required");
 
   const clubId = request.data?.clubId as string | undefined;
   const rawEmail = request.data?.email as string | undefined;
-  if (!clubId || !rawEmail) throw new HttpsError("invalid-argument", "clubId and email are required");
+  if (!clubId || !rawEmail)
+    throw new HttpsError("invalid-argument", "clubId and email are required");
 
   await requireClubBoard(clubId, request.auth.uid);
 
   const email = rawEmail.trim().toLowerCase();
-  await getFirestore().collection("invitations").doc(`${clubId}_${email}`).delete();
+  await getFirestore()
+    .collection("invitations")
+    .doc(`${clubId}_${email}`)
+    .delete();
 });
 
 /**
@@ -59,7 +66,8 @@ export const revokeInvitation = onCall(async (request) => {
  * the member isn't already linked to a club.
  */
 export const acceptInvitation = onCall(async (request) => {
-  if (!request.auth) throw new HttpsError("unauthenticated", "Sign-in required");
+  if (!request.auth)
+    throw new HttpsError("unauthenticated", "Sign-in required");
 
   const email = request.auth.token.email as string | undefined;
   if (!email) return { joinedClubId: null };
@@ -96,13 +104,18 @@ export const acceptInvitation = onCall(async (request) => {
       );
 
     await doc.ref.set(
-      { status: "accepted", acceptedAt: FieldValue.serverTimestamp(), acceptedByMemberId: request.auth.uid },
+      {
+        status: "accepted",
+        acceptedAt: FieldValue.serverTimestamp(),
+        acceptedByMemberId: request.auth.uid,
+      },
       { merge: true },
     );
   }
 
   const memberRef = db.collection("members").doc(request.auth.uid);
-  const existingClubId = (await memberRef.get()).data()?.clubId as string | null | undefined;
+  const existingClubId = (await memberRef.get()).data()?.clubId as
+    string | null | undefined;
   if (!existingClubId) {
     await memberRef.set({ clubId: firstClubId }, { merge: true });
   }

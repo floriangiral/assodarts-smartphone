@@ -1,7 +1,11 @@
 import { onRequest } from "firebase-functions/v2/https";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import Stripe from "stripe";
-import { stripeClient, stripeSecretKey, stripeWebhookSecret } from "./shared/stripe";
+import {
+  stripeClient,
+  stripeSecretKey,
+  stripeWebhookSecret,
+} from "./shared/stripe";
 
 /**
  * Stripe webhook — the only place a payment is actually marked as settled.
@@ -22,7 +26,11 @@ export const stripeWebhook = onRequest(
 
     let event: Stripe.Event;
     try {
-      event = stripe.webhooks.constructEvent(req.rawBody, signature, stripeWebhookSecret.value());
+      event = stripe.webhooks.constructEvent(
+        req.rawBody,
+        signature,
+        stripeWebhookSecret.value(),
+      );
     } catch (err) {
       console.error("Invalid Stripe signature", err);
       res.status(400).json({ error: "Invalid signature" });
@@ -50,7 +58,7 @@ export const stripeWebhook = onRequest(
                 stripePaymentIntentId:
                   typeof session.payment_intent === "string"
                     ? session.payment_intent
-                    : session.payment_intent?.id ?? null,
+                    : (session.payment_intent?.id ?? null),
                 updatedAt: FieldValue.serverTimestamp(),
               },
               { merge: true },
@@ -65,16 +73,23 @@ export const stripeWebhook = onRequest(
           const itemId = charge.metadata?.item_id;
           if (!itemId) break;
 
-          await db
-            .collection("payment_call_items")
-            .doc(itemId)
-            .set({ isPaid: false, paidAt: null, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+          await db.collection("payment_call_items").doc(itemId).set(
+            {
+              isPaid: false,
+              paidAt: null,
+              updatedAt: FieldValue.serverTimestamp(),
+            },
+            { merge: true },
+          );
           break;
         }
 
         case "account.updated": {
           const account = event.data.object as Stripe.Account;
-          const status = account.charges_enabled && account.details_submitted ? "verified" : "pending";
+          const status =
+            account.charges_enabled && account.details_submitted
+              ? "verified"
+              : "pending";
 
           const bankAccounts = await db
             .collection("club_bank_accounts")

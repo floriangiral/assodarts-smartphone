@@ -6,28 +6,29 @@ import { onRequest } from "firebase-functions/v2/https";
  * It is intentionally public and does nothing but tell the person they can go
  * back to Assodarts — the real state change happens through the webhook.
  */
-const MESSAGES: Record<string, { title: string; body: string; tone: string }> = {
-  paid: {
-    title: "Paiement confirmé",
-    body: "Votre paiement a bien été enregistré. Revenez dans Assodarts, votre ligne passe au vert.",
-    tone: "#1f9d63",
-  },
-  cancelled: {
-    title: "Paiement annulé",
-    body: "Aucun montant n'a été débité. Vous pouvez réessayer depuis l'application.",
-    tone: "#c2410c",
-  },
-  done: {
-    title: "Compte transmis à Stripe",
-    body: "Stripe vérifie les informations du club. Revenez dans Assodarts pour suivre l'activation.",
-    tone: "#1E3A5F",
-  },
-  refresh: {
-    title: "Lien expiré",
-    body: "Relancez l'activation depuis Assodarts pour obtenir un nouveau lien sécurisé.",
-    tone: "#c2410c",
-  },
-};
+const MESSAGES: Record<string, { title: string; body: string; tone: string }> =
+  {
+    paid: {
+      title: "Paiement confirmé",
+      body: "Votre paiement a bien été enregistré. Revenez dans Assodarts, votre ligne passe au vert.",
+      tone: "#1f9d63",
+    },
+    cancelled: {
+      title: "Paiement annulé",
+      body: "Aucun montant n'a été débité. Vous pouvez réessayer depuis l'application.",
+      tone: "#c2410c",
+    },
+    done: {
+      title: "Compte transmis à Stripe",
+      body: "Stripe vérifie les informations du club. Revenez dans Assodarts pour suivre l'activation.",
+      tone: "#1E3A5F",
+    },
+    refresh: {
+      title: "Lien expiré",
+      body: "Relancez l'activation depuis Assodarts pour obtenir un nouveau lien sécurisé.",
+      tone: "#c2410c",
+    },
+  };
 
 export const stripeReturn = onRequest((req, res) => {
   const state = (req.query.state as string) ?? "done";
