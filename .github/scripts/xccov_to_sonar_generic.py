@@ -48,7 +48,7 @@ def file_line_coverage(xcresult_path: str, file_path: str) -> list:
             continue
         line_number_str, _, rest = raw_line.partition(":")
         line_number_str = line_number_str.strip()
-        if not line_number_str.isdigit():
+        if not line_number_str.isdigit() or int(line_number_str) <= 0:
             continue
         rest = rest.strip()
         if rest == "" or rest.lower() == "*":

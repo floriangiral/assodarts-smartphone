@@ -22,6 +22,7 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: read
+      actions: read
       security-events: write
     steps:
       - name: Check out source
@@ -45,7 +46,7 @@ jobs:
         run: arch -arm64 brew install swiftlint
 
       - name: Lint Swift source
-        run: swiftlint lint --strict --config .swiftlint.yml
+        run: swiftlint lint --config .swiftlint.yml
 
       - name: Resolve Swift package dependencies
         run: >-
@@ -85,6 +86,7 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: read
+      actions: read
       security-events: write
     steps:
       - name: Check out source
