@@ -286,7 +286,9 @@ Dependabot (`.github/dependabot.yml`) opens weekly updates for GitHub Actions an
 
 `backend/functions/.npmrc` pins the public npm registry (`registry.npmjs.org`). This matters if you develop behind a corporate npm proxy/Artifactory mirror: without it, your local `package-lock.json` can end up with `resolved` URLs pointing at an internal-only registry that GitHub-hosted runners cannot reach, breaking `npm ci` in CI.
 
-`deploy-firebase.yml` runs `npm test` (Jest, fully mocked — no network access needed) before building and deploying, so a broken Cloud Function fails the workflow before it reaches Firebase. There is still no separate `Quality` workflow for lint/SwiftLint/xcodebuild in this checkout (those are run manually); add one before making any check required in branch protection.
+`deploy-firebase.yml` runs lint, format check, `npm audit`, and `npm test` (Jest, fully mocked — no network access needed) before building and deploying, so a broken or vulnerable Cloud Function fails the workflow before it reaches Firebase.
+
+`.github/workflows/quality.yml` runs on every pull request and push to `main`/`release-*`: an iOS job (SwiftLint, `xcodebuild test` with coverage, CodeQL for Swift), a backend job (ESLint, Prettier, `npm audit`, `tsc`, Jest with coverage, CodeQL for JavaScript/TypeScript), a Gitleaks secret scan, and — when `SONAR_HOST_URL` is configured — a SonarQube quality-gate check combining both coverage reports.
 
 ## Operational notes
 

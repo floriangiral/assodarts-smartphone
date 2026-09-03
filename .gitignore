@@ -5,3 +5,4 @@ backend/functions/lib/
 backend/functions/coverage/
 firebase-service-account*.json
 .firebase/
+__pycache__/
