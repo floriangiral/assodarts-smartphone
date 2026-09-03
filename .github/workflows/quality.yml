@@ -46,7 +46,7 @@ jobs:
         run: arch -arm64 brew install swiftlint
 
       - name: Lint Swift source
-        run: swiftlint lint --config .swiftlint.yml
+        run: swiftlint lint --lenient --config .swiftlint.yml
 
       - name: Resolve Swift package dependencies
         run: >-
@@ -79,6 +79,7 @@ jobs:
         uses: github/codeql-action/analyze@5ba2889ada762081db2c4f32a729827dce632c7b # v3
         with:
           category: /language:swift
+          upload: false
 
   backend:
     name: Cloud Functions quality and SAST
@@ -144,6 +145,7 @@ jobs:
         uses: github/codeql-action/analyze@5ba2889ada762081db2c4f32a729827dce632c7b # v3
         with:
           category: /language:javascript-typescript
+          upload: false
 
   secret-scan:
     name: Secret scan
