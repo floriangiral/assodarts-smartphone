@@ -23,7 +23,6 @@ jobs:
     permissions:
       contents: read
       actions: read
-      security-events: write
     steps:
       - name: Check out source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -79,7 +78,26 @@ jobs:
         uses: github/codeql-action/analyze@5ba2889ada762081db2c4f32a729827dce632c7b # v3
         with:
           category: /language:swift
-          upload: false
+          upload: never
+          output: ${{ github.workspace }}/codeql-results/ios
+
+      - name: Summarize iOS CodeQL results
+        if: >-
+          always() &&
+          (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        run: |
+          python3 .github/scripts/summarize_codeql_sarif.py \
+            "${{ github.workspace }}/codeql-results/ios" \
+            "${{ github.workspace }}/codeql-results/ios.sarif" \
+            "iOS"
+
+      - name: Upload iOS CodeQL SARIF
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: codeql-sarif-ios
+          path: ${{ github.workspace }}/codeql-results/ios.sarif
+          retention-days: 30
 
   backend:
     name: Cloud Functions quality and SAST
@@ -88,7 +106,6 @@ jobs:
     permissions:
       contents: read
       actions: read
-      security-events: write
     steps:
       - name: Check out source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -145,7 +162,26 @@ jobs:
         uses: github/codeql-action/analyze@5ba2889ada762081db2c4f32a729827dce632c7b # v3
         with:
           category: /language:javascript-typescript
-          upload: false
+          upload: never
+          output: ${{ github.workspace }}/codeql-results/backend
+
+      - name: Summarize backend CodeQL results
+        if: >-
+          always() &&
+          (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        run: |
+          python3 .github/scripts/summarize_codeql_sarif.py \
+            "${{ github.workspace }}/codeql-results/backend" \
+            "${{ github.workspace }}/codeql-results/backend.sarif" \
+            "Backend"
+
+      - name: Upload backend CodeQL SARIF
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: codeql-sarif-backend
+          path: ${{ github.workspace }}/codeql-results/backend.sarif
+          retention-days: 30
 
   secret-scan:
     name: Secret scan

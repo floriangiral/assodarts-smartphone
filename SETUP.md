@@ -76,6 +76,32 @@ single-line encoded value. Restrict the service account to the Firebase
 App Distribution and deployment permissions it actually needs, and rotate
 the key if it is ever exposed.
 
+## CodeQL security scanning
+
+The repository is private and belongs to an individual GitHub account. Native
+SARIF upload to the Security tab is therefore disabled with `upload: never`,
+so the workflow does not require the GitHub Code Security/GHAS plan.
+
+Each CodeQL job still runs the official analysis locally. It writes a complete
+SARIF artifact and produces a severity summary in the GitHub Actions Job
+Summary. Download one of these 30-day artifacts from the workflow run:
+
+| Job     | Artifact               | File            |
+| ------- | ---------------------- | --------------- |
+| iOS     | `codeql-sarif-ios`     | `ios.sarif`     |
+| Backend | `codeql-sarif-backend` | `backend.sarif` |
+
+The SARIF file can be inspected with the VS Code **SARIF Viewer** extension or
+the `sarif-web-component`. The local threshold fails a CodeQL job when an
+`error` result is found; `warning` and `note` results are reported but do not
+fail the job.
+
+If the repository becomes public or GitHub Code Security is enabled, restore
+native upload in both CodeQL steps by changing `upload: never` to
+`upload: always` and adding `security-events: write` to the corresponding job
+permissions. Keep the local artifact and summary steps so results remain
+available for manual inspection.
+
 ## Manual checklist
 
 - [ ] Create/confirm the staging iOS app in Firebase with bundle ID `com.assodarts.app`.
