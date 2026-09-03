@@ -47,15 +47,15 @@ The project is split into a native SwiftUI application and Firebase Cloud Functi
                                                                     +-----------+
 ```
 
-| Area | Location | Responsibility |
-| --- | --- | --- |
-| App entry and session routing | `ios-assodarts/Assodarts/AssodartsApp.swift`, `ContentView.swift` | Starts the observable store, restores a session, registers push tokens, and routes to login, club, or developer UI. |
-| Domain models | `ios-assodarts/Assodarts/Models/` | Swift models for clubs, members, events, tournaments, payments, conversations, and notifications. |
-| State and demo mode | `ios-assodarts/Assodarts/Services/AppStore.swift`, `DemoData.swift` | Local persistence, optimistic UI mutations, demo seed data, and session state. |
-| Firebase integration | `ios-assodarts/Assodarts/Services/Firebase/` | Native auth, Firestore repositories, mappings, push token persistence, and Cloud Function calls. |
-| User interface | `ios-assodarts/Assodarts/Views/` | Authentication, club, messages, notifications, payments, profile, and developer screens. |
-| Database contract | `backend/types.ts` | Hand-maintained TypeScript description of the Firestore document shapes. Keep in sync with `functions/src` and `RemoteModels.swift`. |
-| Secure payment backend | `backend/functions/` | Firebase Cloud Functions (Node/TypeScript) for Stripe Connect, Checkout, return handling, webhooks, payment-state transitions, and notification/FCM fan-out. |
+| Area                          | Location                                                            | Responsibility                                                                                                                                               |
+| ----------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| App entry and session routing | `ios-assodarts/Assodarts/AssodartsApp.swift`, `ContentView.swift`   | Starts the observable store, restores a session, registers push tokens, and routes to login, club, or developer UI.                                          |
+| Domain models                 | `ios-assodarts/Assodarts/Models/`                                   | Swift models for clubs, members, events, tournaments, payments, conversations, and notifications.                                                            |
+| State and demo mode           | `ios-assodarts/Assodarts/Services/AppStore.swift`, `DemoData.swift` | Local persistence, optimistic UI mutations, demo seed data, and session state.                                                                               |
+| Firebase integration          | `ios-assodarts/Assodarts/Services/Firebase/`                        | Native auth, Firestore repositories, mappings, push token persistence, and Cloud Function calls.                                                             |
+| User interface                | `ios-assodarts/Assodarts/Views/`                                    | Authentication, club, messages, notifications, payments, profile, and developer screens.                                                                     |
+| Database contract             | `backend/types.ts`                                                  | Hand-maintained TypeScript description of the Firestore document shapes. Keep in sync with `functions/src` and `RemoteModels.swift`.                         |
+| Secure payment backend        | `backend/functions/`                                                | Firebase Cloud Functions (Node/TypeScript) for Stripe Connect, Checkout, return handling, webhooks, payment-state transitions, and notification/FCM fan-out. |
 
 ### Runtime modes
 
@@ -111,10 +111,10 @@ Adjust the destination to a simulator installed on the machine.
 
 Two Firebase projects back the two environments:
 
-| Environment | Firebase project ID |
-| --- | --- |
-| `staging` | `assodarts-staging` |
-| `production` | `assodarts` |
+| Environment  | Firebase project ID |
+| ------------ | ------------------- |
+| `staging`    | `assodarts-staging` |
+| `production` | `assodarts`         |
 
 `backend/.firebaserc` maps these to the `staging`/`production` aliases, so `firebase use staging` or `firebase use production` (run from `backend/`) selects the right one without re-linking.
 
@@ -138,19 +138,20 @@ local builds without a plist use the public compile-time fallback in
 `Config.swift`. Obtain values from the target Firebase project's iOS app
 settings (**Project settings → General → Your apps**):
 
-| Variable | Staging (`assodarts-staging`) | Production (`assodarts`) |
-| --- | --- | --- |
-| `FIREBASE_API_KEY` | `AIzaSyA9Ytv-16YCsaUaBTfLf5qgpZzksg8mZuQ` | `AIzaSyD9N1fqXevqDQs_BaM6ujJ4SIrhq0wEGhU` |
-| `FIREBASE_APP_ID` | `1:189674137376:ios:cfda13b59775fba891d945` | `1:421200763226:ios:dc9122481d0cf2989c3b63` |
-| `FIREBASE_PROJECT_ID` | `assodarts-staging` | `assodarts` |
-| `FIREBASE_GCM_SENDER_ID` | `189674137376` | `421200763226` |
-| `FIREBASE_STORAGE_BUCKET` | `assodarts-staging.firebasestorage.app` | `assodarts.firebasestorage.app` |
+| Variable                  | Staging (`assodarts-staging`)               | Production (`assodarts`)                    |
+| ------------------------- | ------------------------------------------- | ------------------------------------------- |
+| `FIREBASE_API_KEY`        | `AIzaSyA9Ytv-16YCsaUaBTfLf5qgpZzksg8mZuQ`   | `AIzaSyD9N1fqXevqDQs_BaM6ujJ4SIrhq0wEGhU`   |
+| `FIREBASE_APP_ID`         | `1:189674137376:ios:cfda13b59775fba891d945` | `1:421200763226:ios:dc9122481d0cf2989c3b63` |
+| `FIREBASE_PROJECT_ID`     | `assodarts-staging`                         | `assodarts`                                 |
+| `FIREBASE_GCM_SENDER_ID`  | `189674137376`                              | `421200763226`                              |
+| `FIREBASE_STORAGE_BUCKET` | `assodarts-staging.firebasestorage.app`     | `assodarts.firebasestorage.app`             |
 
 These are public client identifiers, not secrets — but never put a Firebase Admin service-account key or the Stripe secret key into the app, project file, or source-controlled configuration.
 
-The production target uses `com.assodarts.app`; the `Staging` scheme uses
-`com.assodarts.app.staging`. Provisioning profiles and App Store Connect
-records must use the matching identifier for each environment.
+Both the production target and the `Staging` scheme use `com.assodarts.app`.
+They cannot be installed side by side on one device; the active Firebase
+project is selected by scheme/configuration. The provisioning profile and App
+Store Connect record must use this shared identifier.
 
 ### 3. Deploy Cloud Functions
 
@@ -168,10 +169,10 @@ firebase functions:secrets:set STRIPE_SECRET_KEY
 firebase functions:secrets:set STRIPE_WEBHOOK_SECRET
 ```
 
-| Secret | Used by | Purpose |
-| --- | --- | --- |
-| `STRIPE_SECRET_KEY` | All Stripe functions | Server-side Stripe API access. |
-| `STRIPE_WEBHOOK_SECRET` | `stripeWebhook` | Verifies the `Stripe-Signature` header. |
+| Secret                  | Used by              | Purpose                                 |
+| ----------------------- | -------------------- | --------------------------------------- |
+| `STRIPE_SECRET_KEY`     | All Stripe functions | Server-side Stripe API access.          |
+| `STRIPE_WEBHOOK_SECRET` | `stripeWebhook`      | Verifies the `Stripe-Signature` header. |
 
 Do not include any of these values in Git, issue comments, or application logs.
 
@@ -187,18 +188,18 @@ The flow is intentionally server controlled: Checkout reloads the payment amount
 
 ## Cloud Functions
 
-| Function | Type | Authentication | Description |
-| --- | --- | --- | --- |
-| `stripeConnectOnboard` | Callable | Firebase Auth + active board/admin membership | Creates or resumes an Express connected account and returns its short-lived onboarding URL. |
-| `stripeConnectStatus` | Callable | Firebase Auth + active board/admin membership | Refreshes the connected account status in `club_bank_accounts`. |
-| `stripeCreateCheckout` | Callable | Firebase Auth + ownership of the payment item | Creates a Stripe Checkout URL for one unpaid member payment line. |
-| `stripeReturn` | HTTP | Public (browser redirect) | Returns an HTML completion, cancellation, or refresh response after hosted Stripe navigation. |
-| `stripeWebhook` | HTTP | Stripe signature | Mirrors completed payments, refunds, and connected-account status into Firestore. |
-| `declarePayment` / `validatePayment` / `cancelPaymentDeclaration` | Callable | Firebase Auth (+ board for validation) | Payment-state transitions, replacing the former Postgres RPCs. |
-| `createInvitation` / `revokeInvitation` | Callable | Firebase Auth + active board/admin membership | Invites a member by email with a role, or withdraws a pending invitation. |
-| `acceptInvitation` | Callable | Firebase Auth | Joins every club that invited the signed-in member's email; called automatically right after sign-in/sign-up. |
-| `onPaymentItemWritten` / `onAnnouncementCreated` | Firestore trigger | Admin SDK only | Fan out `notifications` documents for board/member events. |
-| `onNotificationCreated` | Firestore trigger | Admin SDK only | Sends the FCM push for every new notification. |
+| Function                                                          | Type              | Authentication                                | Description                                                                                                   |
+| ----------------------------------------------------------------- | ----------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `stripeConnectOnboard`                                            | Callable          | Firebase Auth + active board/admin membership | Creates or resumes an Express connected account and returns its short-lived onboarding URL.                   |
+| `stripeConnectStatus`                                             | Callable          | Firebase Auth + active board/admin membership | Refreshes the connected account status in `club_bank_accounts`.                                               |
+| `stripeCreateCheckout`                                            | Callable          | Firebase Auth + ownership of the payment item | Creates a Stripe Checkout URL for one unpaid member payment line.                                             |
+| `stripeReturn`                                                    | HTTP              | Public (browser redirect)                     | Returns an HTML completion, cancellation, or refresh response after hosted Stripe navigation.                 |
+| `stripeWebhook`                                                   | HTTP              | Stripe signature                              | Mirrors completed payments, refunds, and connected-account status into Firestore.                             |
+| `declarePayment` / `validatePayment` / `cancelPaymentDeclaration` | Callable          | Firebase Auth (+ board for validation)        | Payment-state transitions, replacing the former Postgres RPCs.                                                |
+| `createInvitation` / `revokeInvitation`                           | Callable          | Firebase Auth + active board/admin membership | Invites a member by email with a role, or withdraws a pending invitation.                                     |
+| `acceptInvitation`                                                | Callable          | Firebase Auth                                 | Joins every club that invited the signed-in member's email; called automatically right after sign-in/sign-up. |
+| `onPaymentItemWritten` / `onAnnouncementCreated`                  | Firestore trigger | Admin SDK only                                | Fan out `notifications` documents for board/member events.                                                    |
+| `onNotificationCreated`                                           | Firestore trigger | Admin SDK only                                | Sends the FCM push for every new notification.                                                                |
 
 ## Security model
 
@@ -259,10 +260,10 @@ cd .. && firebase emulators:start --only functions,firestore
 
 `.github/workflows/deploy-firebase.yml` is a manual, environment-protected workflow that deploys Firestore rules/indexes and Cloud Functions. Before running it, configure these GitHub Environments (**Settings → Environments**):
 
-| Environment | GitHub variable | GitHub secret | Recommendation |
-| --- | --- | --- | --- |
-| `staging` | `FIREBASE_PROJECT_ID` = `assodarts-staging` | `FIREBASE_SERVICE_ACCOUNT` | Allow deployment by maintainers. |
-| `production` | `FIREBASE_PROJECT_ID` = `assodarts` | `FIREBASE_SERVICE_ACCOUNT` | Require one or more reviewers and restrict deployment branches. |
+| Environment  | GitHub variable                             | GitHub secret              | Recommendation                                                  |
+| ------------ | ------------------------------------------- | -------------------------- | --------------------------------------------------------------- |
+| `staging`    | `FIREBASE_PROJECT_ID` = `assodarts-staging` | `FIREBASE_SERVICE_ACCOUNT` | Allow deployment by maintainers.                                |
+| `production` | `FIREBASE_PROJECT_ID` = `assodarts`         | `FIREBASE_SERVICE_ACCOUNT` | Require one or more reviewers and restrict deployment branches. |
 
 To create the service account key for `FIREBASE_SERVICE_ACCOUNT`, in the [Google Cloud console](https://console.cloud.google.com/iam-admin/serviceaccounts) for the Firebase project:
 

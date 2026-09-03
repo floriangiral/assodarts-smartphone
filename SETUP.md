@@ -2,15 +2,16 @@
 
 ## Environments
 
-| Build configuration | Scheme      | Bundle identifier           | Firebase project    | Display name        |
-| ------------------- | ----------- | --------------------------- | ------------------- | ------------------- |
-| `Debug`             | `Assodarts` | `com.assodarts.app`         | `assodarts-staging` | `Assodarts Staging` |
-| `Staging`           | `Staging`   | `com.assodarts.app.staging` | `assodarts-staging` | `Assodarts Staging` |
-| `Release`           | `Assodarts` | `com.assodarts.app`         | `assodarts`         | `Assodarts`         |
+| Build configuration | Scheme      | Bundle identifier   | Firebase project    | Display name        |
+| ------------------- | ----------- | ------------------- | ------------------- | ------------------- |
+| `Debug`             | `Assodarts` | `com.assodarts.app` | `assodarts-staging` | `Assodarts Staging` |
+| `Staging`           | `Staging`   | `com.assodarts.app` | `assodarts-staging` | `Assodarts Staging` |
+| `Release`           | `Assodarts` | `com.assodarts.app` | `assodarts`         | `Assodarts`         |
 
 `Debug` remains the local, simulator-friendly configuration. `Staging` is the
-signed build distributed to pilot clubs and can be installed alongside
-production. `Release` is reserved for production distribution.
+signed build distributed to pilot clubs. Because staging and production share
+the same bundle identifier, they cannot be installed alongside each other on
+one device. `Release` is reserved for production distribution.
 
 The project uses `Config/Debug.xcconfig`, `Config/Staging.xcconfig`, and
 `Config/Release.xcconfig` for environment-specific build values. Firebase
@@ -33,8 +34,8 @@ staging file from the GitHub Actions secret and removes it in an `always()`
 cleanup step.
 
 Download each plist from Firebase Console > Project settings > General > Your
-apps. The iOS app bundle IDs must be `com.assodarts.app.staging` for staging
-and `com.assodarts.app` for production.
+apps. The iOS app bundle ID must be `com.assodarts.app` in both staging and
+production. The Firebase project and plist remain environment-specific.
 
 ## Staging distribution
 
@@ -53,15 +54,15 @@ GitHub `staging` environment. Configure the following secrets in that same
 environment. The workflow uses no signing or service-account file from the
 repository.
 
-| Name                                       | Purpose                                                                       | How to obtain it                                                                                                                    |
-| ------------------------------------------ | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `APPLE_TEAM_ID`                            | Apple Developer team used for signing                                         | Apple Developer account > Membership details                                                                                        |
-| `APPLE_CERTIFICATE_P12_BASE64`             | Base64 encoded iOS distribution certificate and private key                   | Export the distribution certificate as `.p12` from Keychain Access, then run `base64 -i distribution.p12`                           |
-| `APPLE_CERTIFICATE_PASSWORD`               | Password protecting the `.p12` file                                           | Password chosen during the Keychain export                                                                                          |
-| `APPLE_PROVISIONING_PROFILE_BASE64`        | Base64 encoded App Store provisioning profile for `com.assodarts.app.staging` | Create/download the profile in Apple Developer > Certificates, Identifiers & Profiles, then run `base64 -i profile.mobileprovision` |
-| `GOOGLE_SERVICE_INFO_PLIST_STAGING_BASE64` | Staging Firebase iOS client configuration                                     | Download the staging app plist from Firebase Console, then run `base64 -i GoogleService-Info.plist`                                 |
-| `FIREBASE_SERVICE_ACCOUNT`                 | JSON credentials used by Firebase CLI/App Distribution                        | Create a least-privilege service account key in Google Cloud IAM for `assodarts-staging`; store the complete JSON value             |
-| `FIREBASE_TESTER_GROUP`                    | App Distribution tester group alias, for example `pilot-clubs`                | Firebase Console > App Distribution > Testers & Groups; use the exact group alias                                                   |
+| Name                                       | Purpose                                                               | How to obtain it                                                                                                                    |
+| ------------------------------------------ | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `APPLE_TEAM_ID`                            | Apple Developer team used for signing                                 | Apple Developer account > Membership details                                                                                        |
+| `APPLE_CERTIFICATE_P12_BASE64`             | Base64 encoded iOS distribution certificate and private key           | Export the distribution certificate as `.p12` from Keychain Access, then run `base64 -i distribution.p12`                           |
+| `APPLE_CERTIFICATE_PASSWORD`               | Password protecting the `.p12` file                                   | Password chosen during the Keychain export                                                                                          |
+| `APPLE_PROVISIONING_PROFILE_BASE64`        | Base64 encoded App Store provisioning profile for `com.assodarts.app` | Create/download the profile in Apple Developer > Certificates, Identifiers & Profiles, then run `base64 -i profile.mobileprovision` |
+| `GOOGLE_SERVICE_INFO_PLIST_STAGING_BASE64` | Staging Firebase iOS client configuration                             | Download the staging app plist from Firebase Console, then run `base64 -i GoogleService-Info.plist`                                 |
+| `FIREBASE_SERVICE_ACCOUNT`                 | JSON credentials used by Firebase CLI/App Distribution                | Create a least-privilege service account key in Google Cloud IAM for `assodarts-staging`; store the complete JSON value             |
+| `FIREBASE_TESTER_GROUP`                    | App Distribution tester group alias, for example `pilot-clubs`        | Firebase Console > App Distribution > Testers & Groups; use the exact group alias                                                   |
 
 The workflow also requires these non-secret GitHub environment variables:
 
@@ -77,12 +78,12 @@ the key if it is ever exposed.
 
 ## Manual checklist
 
-- [ ] Create/confirm the staging iOS app in Firebase with bundle ID `com.assodarts.app.staging`.
-- [ ] Confirm the production iOS app remains `com.assodarts.app` in the production Firebase project.
+- [ ] Create/confirm the staging iOS app in Firebase with bundle ID `com.assodarts.app`.
+- [ ] Confirm the production iOS app also uses `com.assodarts.app` in the production Firebase project.
 - [ ] Download both Firebase plists and place them in the paths above locally; add only the staging plist as the CI secret.
-- [ ] Register the staging bundle ID, distribution certificate, and App Store provisioning profile in Apple Developer.
-- [ ] Enable automatic signing for the staging target/team in Xcode, or confirm the imported profile is valid for the staging bundle ID.
+- [ ] Register the shared bundle ID, distribution certificate, and App Store provisioning profile in Apple Developer.
+- [ ] Enable automatic signing for the staging target/team in Xcode, or confirm the imported profile is valid for `com.assodarts.app`.
 - [ ] Enable Firebase App Distribution and create the pilot-club tester group.
 - [ ] Create the Firebase service account/key, grant the required staging-project permissions, and add it as `FIREBASE_SERVICE_ACCOUNT`.
 - [ ] Add all GitHub `staging` environment variables and secrets listed above.
-- [ ] Protect the `staging` branch and verify the first workflow run's IPA, bundle ID, Firebase project, and tester invitation.
+- [ ] Protect the `staging` branch and verify the first workflow run's IPA, shared bundle ID, Firebase project, and tester invitation.
