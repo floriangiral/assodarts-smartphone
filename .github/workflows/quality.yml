@@ -80,6 +80,7 @@ jobs:
           category: /language:swift
           upload: never
           output: ${{ github.workspace }}/codeql-results/ios
+          post-processed-sarif-path: ${{ github.workspace }}/codeql-results/ios-final
 
       - name: Summarize iOS CodeQL results
         if: >-
@@ -87,7 +88,7 @@ jobs:
           (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         run: |
           python3 .github/scripts/summarize_codeql_sarif.py \
-            "${{ github.workspace }}/codeql-results/ios" \
+            "${{ github.workspace }}/codeql-results/ios-final" \
             "${{ github.workspace }}/codeql-results/ios.sarif" \
             "iOS"
 
@@ -164,6 +165,7 @@ jobs:
           category: /language:javascript-typescript
           upload: never
           output: ${{ github.workspace }}/codeql-results/backend
+          post-processed-sarif-path: ${{ github.workspace }}/codeql-results/backend-final
 
       - name: Summarize backend CodeQL results
         if: >-
@@ -171,7 +173,7 @@ jobs:
           (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         run: |
           python3 .github/scripts/summarize_codeql_sarif.py \
-            "${{ github.workspace }}/codeql-results/backend" \
+            "${{ github.workspace }}/codeql-results/backend-final" \
             "${{ github.workspace }}/codeql-results/backend.sarif" \
             "Backend"
 

@@ -35,7 +35,7 @@ def main():
     sarif_dir = Path(sys.argv[1])
     output_path = Path(sys.argv[2])
     label = sys.argv[3]
-    files = sorted(sarif_dir.glob("*.sarif"))
+    files = sorted(sarif_dir.rglob("*.sarif"))
 
     if not files:
         print(f"CodeQL {label}: no SARIF file produced", file=sys.stderr)
