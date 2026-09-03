@@ -1,0 +1,3 @@
+// Debug uses the staging Firebase project for local development.
+FIREBASE_ENVIRONMENT = Staging
+INFOPLIST_KEY_CFBundleDisplayName = Assodarts Staging

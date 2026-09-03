@@ -4,13 +4,18 @@ import FirebaseFirestore
 import FirebaseFunctions
 import Foundation
 
-/// The project's Firebase handles, configured once at app launch from
-/// `Config.swift` values injected at build time.
+/// The project's Firebase handles, configured once at app launch from the
+/// environment-specific plist when available, with a compile-time fallback.
 enum Backend {
     /// Configures Firebase. Safe to call once; `AssodartsApp` does this at
     /// launch before any screen touches `Backend`.
     static func configure() {
         guard isConfigured, FirebaseApp.app() == nil else { return }
+        if let plistPath = Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist"),
+           let options = FirebaseOptions(contentsOfFile: plistPath) {
+            FirebaseApp.configure(options: options)
+            return
+        }
         let options = FirebaseOptions(
             googleAppID: Config.FIREBASE_APP_ID,
             gcmSenderID: Config.FIREBASE_GCM_SENDER_ID

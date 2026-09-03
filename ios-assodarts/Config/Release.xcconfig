@@ -1,0 +1,3 @@
+// Release uses the production Firebase project.
+FIREBASE_ENVIRONMENT = Production
+INFOPLIST_KEY_CFBundleDisplayName = Assodarts

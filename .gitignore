@@ -5,4 +5,6 @@ backend/functions/lib/
 backend/functions/coverage/
 firebase-service-account*.json
 .firebase/
+ios-assodarts/Config/Firebase/*/GoogleService-Info.plist
+ios-assodarts/Config/Firebase/*.plist
 __pycache__/
