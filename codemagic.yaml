@@ -1,0 +1,41 @@
+# Triggered exclusively by .github/workflows/quality.yml (staging-distribute) through the Codemagic API.
+workflows:
+  ios-staging-distribute:
+    name: iOS Staging Distribution
+    max_build_duration: 30
+    instance_type: mac_mini_m2
+    integrations:
+      # Apple Developer Team ID: 2N85N9TL32
+      app_store_connect: codemagic-assodarts
+    environment:
+      groups:
+        - staging
+      ios_signing:
+        distribution_type: ad_hoc
+        bundle_identifier: com.assodarts.app.staging
+      vars:
+        XCODE_PROJECT: "ios-assodarts/Assodarts.xcodeproj"
+        XCODE_SCHEME: "Staging"
+      xcode: latest
+    scripts:
+      - name: Decode staging Firebase configuration
+        script: |
+          mkdir -p "$CM_BUILD_DIR/ios-assodarts/Config/Firebase/Staging"
+          echo "$GOOGLE_SERVICE_INFO_PLIST_STAGING_BASE64" | base64 --decode > "$CM_BUILD_DIR/ios-assodarts/Config/Firebase/Staging/GoogleService-Info.plist"
+      - name: Set up code signing settings on Xcode project
+        script: xcode-project use-profiles
+      - name: Build ipa for distribution
+        script: |
+          xcode-project build-ipa \
+            --project "$CM_BUILD_DIR/$XCODE_PROJECT" \
+            --scheme "$XCODE_SCHEME"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      firebase:
+        firebase_service_account: $FIREBASE_SERVICE_ACCOUNT
+        ios:
+          app_id: $FIREBASE_IOS_APP_ID
+          groups:
+            - REPLACE_WITH_FIREBASE_TESTER_GROUP
