@@ -268,7 +268,7 @@
 			name = "Copy Firebase configuration";
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "\"${SRCROOT}/Config/copy-firebase-plist.sh\"\n";
+			shellScript = "sh \"${SRCROOT}/Config/copy-firebase-plist.sh\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
