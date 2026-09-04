@@ -1,0 +1,75 @@
+# Triggered exclusively by .github/workflows/quality.yml (staging-distribute) through the Codemagic API. Distributes to TestFlight group beta-clubs with an automatically incremented build number.
+workflows:
+  ios-staging-distribute:
+    name: iOS Staging Distribution
+    max_build_duration: 30
+    instance_type: mac_mini_m2
+    integrations:
+      # Apple Developer Team ID: 2N85N9TL32
+      app_store_connect: codemagic-assodarts
+    environment:
+      groups:
+        - staging
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.assodarts.app.staging
+      vars:
+        XCODE_PROJECT: "ios-assodarts/Assodarts.xcodeproj"
+        XCODE_SCHEME: "Staging"
+        APP_STORE_APPLE_ID: 6808560869
+      xcode: latest
+    cache:
+      cache_paths:
+        - ~/Library/Developer/Xcode/DerivedData/CompilationCache.noindex
+    scripts:
+      - name: Decode staging Firebase configuration
+        script: |
+          mkdir -p "$CM_BUILD_DIR/ios-assodarts/Config/Firebase/Staging"
+          echo "$GOOGLE_SERVICE_INFO_PLIST_STAGING_BASE64" | base64 --decode > "$CM_BUILD_DIR/ios-assodarts/Config/Firebase/Staging/GoogleService-Info.plist"
+      - name: Set up code signing settings on Xcode project
+        script: xcode-project use-profiles
+      - name: Increment build number
+        script: |
+          if ! LATEST_BUILD_NUMBER=$(app-store-connect get-latest-testflight-build-number --all-versions "$APP_STORE_APPLE_ID"); then
+            echo "Unable to retrieve the latest TestFlight build number"
+            exit 1
+          fi
+          case "$LATEST_BUILD_NUMBER" in
+            '')
+              NEXT_BUILD_NUMBER=1
+              ;;
+            *[!0-9]*)
+              echo "Unable to retrieve a numeric TestFlight build number"
+              exit 1
+              ;;
+            *)
+              NEXT_BUILD_NUMBER=$((LATEST_BUILD_NUMBER + 1))
+              ;;
+          esac
+          echo "Setting build number to $NEXT_BUILD_NUMBER (previous: ${LATEST_BUILD_NUMBER:-none})"
+          sed -i '' \
+            "/F60718293A4B5C6D7E8F9012 \/\* Staging \*\//,/name = Staging;/ s/CURRENT_PROJECT_VERSION = [^;]*/CURRENT_PROJECT_VERSION = $NEXT_BUILD_NUMBER/" \
+            "$CM_BUILD_DIR/$XCODE_PROJECT/project.pbxproj"
+      - name: Build ipa for distribution
+        script: |
+          xcode-project build-ipa \
+            --project "$CM_BUILD_DIR/$XCODE_PROJECT" \
+            --scheme "$XCODE_SCHEME" \
+            --archive-xcargs "COMPILATION_CACHE_ENABLE_CACHING=True"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    # Automatic TestFlight release_notes.txt handling is not configured; verify it before adding release notes.
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        expire_build_submitted_for_review: true
+        beta_groups:
+          - beta-clubs-ext
+      email:
+        recipients:
+          - zontave@gmail.com
+        notify:
+          success: true
+          failure: true

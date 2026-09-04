@@ -72,6 +72,7 @@ struct NewPaymentCallSheet: View {
                         .keyboardField(.freeText, submit: .next)
                         .focused($focusedField, equals: .label)
                         .onSubmit { focusedField = .amount }
+                        .foregroundStyle(Theme.ink)
 
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
@@ -104,6 +105,7 @@ struct NewPaymentCallSheet: View {
                             .focused($focusedField, equals: .amount)
                             .multilineTextAlignment(.trailing)
                             .monospacedDigit()
+                            .foregroundStyle(Theme.ink)
                             .frame(maxWidth: 110)
                         Text("€")
                             .foregroundStyle(Theme.inkSecondary)
@@ -153,6 +155,7 @@ struct NewPaymentCallSheet: View {
                         TextField(tr("Rechercher un membre", "Search for a member"), text: $search)
                             .keyboardField(.name, submit: .search)
                             .focused($focusedField, equals: .search)
+                            .foregroundStyle(Theme.ink)
 
                         ForEach(members) { member in
                             Button {

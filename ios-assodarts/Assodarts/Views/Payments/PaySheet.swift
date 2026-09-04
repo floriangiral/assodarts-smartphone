@@ -375,6 +375,7 @@ struct PaySheet: View {
             .lineLimit(1...3)
             .keyboardField(.freeText, submit: .done)
             .focused($isEditingReference)
+            .foregroundStyle(Theme.ink)
             .padding(12)
             .background(Theme.canvas, in: .rect(cornerRadius: 10))
     }

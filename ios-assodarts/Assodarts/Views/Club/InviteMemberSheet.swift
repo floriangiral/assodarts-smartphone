@@ -35,14 +35,17 @@ struct InviteMemberSheet: View {
                         .keyboardField(.name, submit: .next)
                         .focused($focusedField, equals: .firstName)
                         .onSubmit { focusedField = .lastName }
+                        .foregroundStyle(Theme.ink)
                     TextField(tr("Nom", "Last name"), text: $lastName)
                         .keyboardField(.name, submit: .next)
                         .focused($focusedField, equals: .lastName)
                         .onSubmit { focusedField = .email }
+                        .foregroundStyle(Theme.ink)
                     TextField(tr("Email", "Email"), text: $email)
                         .keyboardField(.email, submit: .done)
                         .focused($focusedField, equals: .email)
                         .onSubmit { focusedField = nil }
+                        .foregroundStyle(Theme.ink)
                 }
 
                 Section(tr("Licence", "Licence")) {
@@ -51,6 +54,7 @@ struct InviteMemberSheet: View {
                         TextField(tr("N° de licence", "Licence number"), text: $licenceNumber)
                             .keyboardField(.licence, submit: .done)
                             .focused($focusedField, equals: .licence)
+                            .foregroundStyle(Theme.ink)
                     }
                 }
 

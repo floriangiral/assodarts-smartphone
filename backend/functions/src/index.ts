@@ -22,3 +22,4 @@ export {
   revokeInvitation,
   acceptInvitation,
 } from "./invitations";
+export { createClub } from "./createClub";

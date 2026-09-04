@@ -1,25 +1,27 @@
 import SwiftUI
+import UIKit
 
 /// Central design system for Assodarts — bright modern SaaS built on the club's
 /// navy / orange logo identity.
 enum Theme {
-    static let canvas = Color(hex: 0xF6F7F4)
-    static let surface = Color.white
-    static let border = Color(hex: 0xE6E9E4)
-    static let ink = Color(hex: 0x17233A)
-    static let inkSecondary = Color(hex: 0x66716A)
-    static let navy = Color(hex: 0x1C3660)
-    static let navyDeep = Color(hex: 0x132743)
-    static let navyTint = Color(hex: 0xE8EDF5)
-    static let orange = Color(hex: 0xF5990B)
-    static let orangeTint = Color(hex: 0xFDF0DF)
+    static let canvas = Color(hex: 0xF6F7F4, dark: 0x0F1720)
+    static let surface = Color(hex: 0xFFFFFF, dark: 0x1B2432)
+    static let border = Color(hex: 0xE6E9E4, dark: 0x2A3441)
+    static let ink = Color(hex: 0x17233A, dark: 0xF2F4F7)
+    static let inkSecondary = Color(hex: 0x66716A, dark: 0x9AA5B1)
+    static let navy = Color(hex: 0x1C3660, dark: 0x1C3660)
+    static let navyText = Color(hex: 0x1C3660, dark: 0x9FC1F3)
+    static let navyDeep = Color(hex: 0x132743, dark: 0x132743)
+    static let navyTint = Color(hex: 0xE8EDF5, dark: 0x24344C)
+    static let orange = Color(hex: 0xF5990B, dark: 0xF5990B)
+    static let orangeTint = Color(hex: 0xFDF0DF, dark: 0x3D2E12)
 
-    static let green = Color(hex: 0x0E8A6D)
-    static let greenTint = Color(hex: 0xE3F2ED)
-    static let amber = Color(hex: 0xB45309)
-    static let amberTint = Color(hex: 0xFDF0DF)
-    static let red = Color(hex: 0xC0362C)
-    static let redTint = Color(hex: 0xFBE9E7)
+    static let green = Color(hex: 0x0E8A6D, dark: 0x2FBF9A)
+    static let greenTint = Color(hex: 0xE3F2ED, dark: 0x123A2E)
+    static let amber = Color(hex: 0xB45309, dark: 0xE39A4A)
+    static let amberTint = Color(hex: 0xFDF0DF, dark: 0x3D2E12)
+    static let red = Color(hex: 0xC0362C, dark: 0xEA746B)
+    static let redTint = Color(hex: 0xFBE9E7, dark: 0x3D1613)
 
     static let cardRadius: CGFloat = 16
 }
@@ -34,6 +36,15 @@ extension Color {
             blue: Double(hex & 0xFF) / 255,
             opacity: 1
         )
+    }
+
+    /// Adaptive color: resolves dynamically with the current system appearance.
+    init(hex light: UInt32, dark: UInt32) {
+        self.init(uiColor: UIColor { traits in
+            traits.userInterfaceStyle == .dark
+                ? UIColor(Color(hex: dark))
+                : UIColor(Color(hex: light))
+        })
     }
 }
 

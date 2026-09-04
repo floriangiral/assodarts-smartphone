@@ -9,17 +9,42 @@ import Foundation
 /// actually belongs to, so no `clubId` filter is duplicated here as a
 /// security measure — it is only here to shape the query itself.
 enum RemoteRepository {
+    /// A club the signed-in member belongs to, for the active-club switcher.
+    struct AvailableClub: Identifiable, Hashable, Sendable {
+        let id: String
+        let name: String
+    }
+
     /// Everything the app needs for one signed-in member, already mapped onto
     /// the local models so the whole UI keeps working unchanged.
     struct Snapshot: Sendable {
         var database: Database
         var currentMemberId: UUID
         var activeClubId: UUID
+        /// The real Firestore club id backing `activeClubId`, needed to
+        /// persist the active-club selection and to switch clubs later.
+        var activeClubRemoteId: String
+        /// Every club the member has an active membership in.
+        var availableClubs: [AvailableClub]
     }
 
     // MARK: - Loading
 
-    static func loadSnapshot(for userId: UUID) async throws -> Snapshot {
+    /// Firebase Auth UIDs are opaque strings; app data keeps UUID member IDs.
+    /// Resolve the profile link rather than trying to parse an Auth UID as UUID.
+    static func memberId(forAuthUid authUid: String) async throws -> UUID? {
+        let snapshot = try await Backend.firestore.collection("members")
+            .whereField("authUid", isEqualTo: authUid)
+            .limit(to: 1)
+            .getDocuments()
+        guard let document = snapshot.documents.first else { return nil }
+        return UUID(uuidString: document.documentID)
+    }
+
+    /// - Parameter preferredClubId: The club to make active, when the member
+    ///   belongs to several. Falls back to the member's stored
+    ///   `defaultClubId`, then to the club they hold the highest role in.
+    static func loadSnapshot(for userId: UUID, preferredClubId: String? = nil) async throws -> Snapshot {
         let db = Backend.firestore
 
         let mineSnap = try await db.collection("memberships")
@@ -27,13 +52,22 @@ enum RemoteRepository {
             .whereField("status", isEqualTo: "active")
             .getDocuments()
         let mine = mineSnap.documents.compactMap { try? $0.data(as: RemoteMembership.self) }
+        guard !mine.isEmpty else { throw BackendError.noMembership }
 
-        // Admins and bureau land on the club they manage first.
-        let ordered = mine.sorted { rank($0.role) > rank($1.role) }
-        guard let activeMembership = ordered.first else {
-            throw BackendError.noMembership
+        let membershipClubIds = Set(mine.map(\.clubId))
+        let storedDefaultClubId = try? (await db.collection("members").document(userId.uuidString).getDocument())
+            .data(as: RemoteMember.self).defaultClubId
+
+        let clubId: String
+        if let preferredClubId, membershipClubIds.contains(preferredClubId) {
+            clubId = preferredClubId
+        } else if let storedDefaultClubId, membershipClubIds.contains(storedDefaultClubId) {
+            clubId = storedDefaultClubId
+        } else {
+            // Admins and bureau land on the club they manage first.
+            let ordered = mine.sorted { rank($0.role) > rank($1.role) }
+            clubId = ordered[0].clubId
         }
-        let clubId = activeMembership.clubId
 
         guard let remoteClub = try? (await db.collection("clubs").document(clubId).getDocument())
             .data(as: RemoteClub.self)
@@ -82,6 +116,36 @@ enum RemoteRepository {
             .whereField("clubId", isEqualTo: clubId)
             .getDocuments()
         let remoteItems = itemsSnap.documents.compactMap { try? $0.data(as: RemotePaymentItem.self) }
+
+        let tournamentsSnap = try await db.collection("tournaments")
+            .whereField("clubId", isEqualTo: clubId)
+            .getDocuments()
+        let remoteTournaments = tournamentsSnap.documents.compactMap { try? $0.data(as: RemoteTournament.self) }
+
+        let tournamentEntriesSnap = try await db.collection("tournament_entries")
+            .whereField("clubId", isEqualTo: clubId)
+            .getDocuments()
+        let remoteTournamentEntries = tournamentEntriesSnap.documents.compactMap {
+            try? $0.data(as: RemoteTournamentEntry.self)
+        }
+
+        let conversationsSnap = try await db.collection("conversations")
+            .whereField("clubId", isEqualTo: clubId)
+            .getDocuments()
+        let remoteConversations = conversationsSnap.documents.compactMap {
+            try? $0.data(as: RemoteConversation.self)
+        }
+        var messagesByConversation: [String: [RemoteMessage]] = [:]
+        for conversation in remoteConversations {
+            guard let conversationId = conversation.id else { continue }
+            let messagesSnap = try await db.collection("conversations").document(conversationId)
+                .collection("messages")
+                .order(by: "sentAt")
+                .getDocuments()
+            messagesByConversation[conversationId] = messagesSnap.documents.compactMap {
+                try? $0.data(as: RemoteMessage.self)
+            }
+        }
 
         // MARK: Mapping
 
@@ -192,14 +256,72 @@ enum RemoteRepository {
             )
         }
 
+        let entriesByTournament = Dictionary(grouping: remoteTournamentEntries, by: \.tournamentId)
+        let tournaments: [Tournament] = remoteTournaments.map { remote in
+            let tournamentId = remote.id ?? ""
+            return Tournament(
+                id: remoteId(remote.id),
+                clubId: clubUUID,
+                name: remote.name,
+                date: remote.date,
+                location: remote.location,
+                markerIds: remote.markerIds.map(remoteId),
+                entries: (entriesByTournament[tournamentId] ?? []).map { entry in
+                    TournamentEntry(
+                        id: remoteId(entry.id),
+                        tableau: entry.tableau,
+                        tour: entry.tour,
+                        playerA: entry.playerA,
+                        playerB: entry.playerB,
+                        scoreA: entry.scoreA,
+                        scoreB: entry.scoreB,
+                        note: entry.note,
+                        recordedById: remoteId(entry.recordedByMemberId),
+                        recordedAt: entry.recordedAt
+                    )
+                },
+                isFinished: remote.isFinished
+            )
+        }
+
+        let conversations: [Conversation] = remoteConversations.compactMap { remote in
+            guard let conversationId = remote.id,
+                  let kind = ConversationKind(rawValue: remote.kind) else { return nil }
+            return Conversation(
+                id: remoteId(conversationId),
+                clubId: clubUUID,
+                kind: kind,
+                participantIds: remote.participantIds.map(remoteId),
+                messages: (messagesByConversation[conversationId] ?? []).map { message in
+                    Message(
+                        id: remoteId(message.id),
+                        senderId: remoteId(message.senderId),
+                        text: message.text,
+                        sentAt: message.sentAt,
+                        readBy: message.readBy.map(remoteId)
+                    )
+                }
+            )
+        }
+
         var database = Database()
         database.clubs = [club]
         database.members = members
         database.announcements = announcements
         database.events = events
+        database.tournaments = tournaments
         database.paymentCalls = paymentCalls
+        database.conversations = conversations
 
-        return Snapshot(database: database, currentMemberId: userId, activeClubId: clubUUID)
+        let availableClubs = try await loadAvailableClubs(clubIds: membershipClubIds, activeClub: remoteClub, activeClubId: clubId, in: db)
+
+        return Snapshot(
+            database: database,
+            currentMemberId: userId,
+            activeClubId: clubUUID,
+            activeClubRemoteId: clubId,
+            availableClubs: availableClubs
+        )
     }
 
     /// Admin first, then bureau, then plain members.
@@ -209,6 +331,28 @@ enum RemoteRepository {
         case "board": 1
         default: 0
         }
+    }
+
+    /// Names of every club the member belongs to, for the active-club switcher.
+    private static func loadAvailableClubs(
+        clubIds: Set<String>,
+        activeClub: RemoteClub,
+        activeClubId: String,
+        in db: Firestore
+    ) async throws -> [AvailableClub] {
+        var result = [AvailableClub(id: activeClubId, name: activeClub.name)]
+        let otherIds = Array(clubIds.subtracting([activeClubId]))
+        guard !otherIds.isEmpty else { return result }
+
+        for chunk in stride(from: 0, to: otherIds.count, by: 30).map({ Array(otherIds[$0..<min($0 + 30, otherIds.count)]) }) {
+            let snap = try await db.collection("clubs")
+                .whereField(FieldPath.documentID(), in: chunk)
+                .getDocuments()
+            result.append(contentsOf: snap.documents.compactMap { doc in
+                (doc.data()["name"] as? String).map { AvailableClub(id: doc.documentID, name: $0) }
+            })
+        }
+        return result.sorted { $0.name < $1.name }
     }
 
     /// Firestore's `in` operator caps at 30 values per query.
@@ -225,6 +369,15 @@ enum RemoteRepository {
     }
 
     // MARK: - Writes
+
+    /// Persists the member's active-club choice. `clubId` is a historical
+    /// marker frozen at the member's first club and must never be touched
+    /// here — only `defaultClubId` tracks which club is currently active.
+    /// Security rules only accept clubs the member holds an active membership for.
+    static func setDefaultClub(memberId: UUID, clubId: String) async throws {
+        try await Backend.firestore.collection("members").document(memberId.uuidString)
+            .setData(["defaultClubId": clubId], merge: true)
+    }
 
     static func upsertBankAccount(_ account: ClubBankAccount, clubId: UUID, by memberId: UUID?) async throws {
         let payload = BankAccountUpsert(
@@ -342,17 +495,110 @@ enum RemoteRepository {
         try await Backend.firestore.collection("announcements").document(id.uuidString).delete()
     }
 
+    static func createEvent(_ event: ClubEvent) async throws {
+        let payload = EventInsert(
+            clubId: event.clubId.uuidString,
+            title: event.title,
+            description: event.details,
+            startsAt: event.date,
+            location: event.location,
+            category: event.kind.remoteValue
+        )
+        try Backend.firestore.collection("events").document(event.id.uuidString).setData(from: payload)
+    }
+
+    static func setEventAttendance(_ response: Bool?, eventId: UUID, clubId: UUID, memberId: UUID) async throws {
+        let registration = Backend.firestore.collection("event_registrations")
+            .document("\(eventId.uuidString)_\(memberId.uuidString)")
+        guard let response else {
+            try await registration.delete()
+            return
+        }
+        let payload = EventRegistrationInsert(
+            clubId: clubId.uuidString,
+            eventId: eventId.uuidString,
+            memberId: memberId.uuidString,
+            status: response ? "going" : "declined"
+        )
+        try registration.setData(from: payload)
+    }
+
+    static func createTournament(_ tournament: Tournament) async throws {
+        let payload = TournamentInsert(
+            clubId: tournament.clubId.uuidString,
+            name: tournament.name,
+            date: tournament.date,
+            location: tournament.location,
+            markerIds: tournament.markerIds.map(\.uuidString),
+            isFinished: tournament.isFinished
+        )
+        try Backend.firestore.collection("tournaments").document(tournament.id.uuidString).setData(from: payload)
+    }
+
+    static func addTournamentEntry(_ entry: TournamentEntry, tournamentId: UUID, clubId: UUID) async throws {
+        let payload = TournamentEntryInsert(
+            clubId: clubId.uuidString,
+            tournamentId: tournamentId.uuidString,
+            tableau: entry.tableau,
+            tour: entry.tour,
+            playerA: entry.playerA,
+            playerB: entry.playerB,
+            scoreA: entry.scoreA,
+            scoreB: entry.scoreB,
+            note: entry.note,
+            recordedByMemberId: entry.recordedById.uuidString,
+            recordedAt: entry.recordedAt
+        )
+        try Backend.firestore.collection("tournament_entries").document(entry.id.uuidString).setData(from: payload)
+    }
+
+    static func deleteTournamentEntry(id: UUID) async throws {
+        try await Backend.firestore.collection("tournament_entries").document(id.uuidString).delete()
+    }
+
+    static func createConversation(_ conversation: Conversation) async throws {
+        let payload = ConversationInsert(
+            clubId: conversation.clubId.uuidString,
+            kind: conversation.kind.rawValue,
+            participantIds: conversation.participantIds.map(\.uuidString)
+        )
+        try Backend.firestore.collection("conversations").document(conversation.id.uuidString).setData(from: payload)
+    }
+
+    static func sendMessage(_ message: Message, conversationId: UUID) async throws {
+        let payload = MessageInsert(
+            senderId: message.senderId.uuidString,
+            text: message.text,
+            sentAt: message.sentAt,
+            readBy: message.readBy.map(\.uuidString)
+        )
+        try Backend.firestore.collection("conversations").document(conversationId.uuidString)
+            .collection("messages").document(message.id.uuidString).setData(from: payload)
+    }
+
+    static func markConversationRead(conversationId: UUID, messageIds: [UUID], by memberId: UUID) async throws {
+        let batch = Backend.firestore.batch()
+        for messageId in messageIds {
+            let ref = Backend.firestore.collection("conversations").document(conversationId.uuidString)
+                .collection("messages").document(messageId.uuidString)
+            batch.updateData(["readBy": FieldValue.arrayUnion([memberId.uuidString])], forDocument: ref)
+        }
+        try await batch.commit()
+    }
+
     /// Creates the `members` document that mirrors a freshly created auth
     /// user. `clubId` starts `nil`: the board links it to a club membership
     /// once the invite flow assigns one.
     static func createSelfMember(
         userId: UUID,
+        authUid: String,
         firstName: String,
         lastName: String,
         email: String,
         phone: String?
     ) async throws {
         let payload = MemberSelfInsert(
+            authUid: authUid,
             clubId: nil,
             firstName: firstName,
             lastName: lastName,
@@ -390,12 +636,11 @@ enum RemoteRepository {
 
     /// Joins every club that invited the signed-in member's email, if any.
     /// Called right after sign-in/sign-up, before the first snapshot load.
+    /// - Returns: The real Firestore id of the first club joined, if any.
     @discardableResult
-    static func acceptPendingInvitation() async throws -> UUID? {
+    static func acceptPendingInvitation() async throws -> String? {
         let result = try await Backend.functions.httpsCallable("acceptInvitation").call([String: Any]())
-        guard let data = result.data as? [String: Any], let clubId = data["joinedClubId"] as? String else {
-            return nil
-        }
-        return UUID(uuidString: clubId)
+        guard let data = result.data as? [String: Any] else { return nil }
+        return data["joinedClubId"] as? String
     }
 }

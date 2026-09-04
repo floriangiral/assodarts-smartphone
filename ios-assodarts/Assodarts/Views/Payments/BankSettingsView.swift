@@ -279,6 +279,7 @@ struct BankSettingsView: View {
                     .font(.subheadline.monospaced())
                     .keyboardField(.code, submit: .next)
                     .focused($focus, equals: .iban)
+                    .foregroundStyle(Theme.ink)
                     .padding(12)
                     .background(Theme.canvas, in: .rect(cornerRadius: 10))
                     .overlay {
@@ -349,6 +350,7 @@ struct BankSettingsView: View {
                 .font(.subheadline)
                 .keyboardField(kind, submit: .next)
                 .focused($focus, equals: focusValue)
+                .foregroundStyle(Theme.ink)
                 .padding(12)
                 .background(Theme.canvas, in: .rect(cornerRadius: 10))
         }
@@ -386,6 +388,7 @@ struct BankSettingsView: View {
                     .lineLimit(2...4)
                     .keyboardField(.freeText, submit: .return)
                     .focused($focus, equals: .transferNote)
+                    .foregroundStyle(Theme.ink)
                     .padding(12)
                     .background(Theme.canvas, in: .rect(cornerRadius: 10))
             }
@@ -417,6 +420,7 @@ struct BankSettingsView: View {
                     .lineLimit(2...4)
                     .keyboardField(.freeText, submit: .return)
                     .focused($focus, equals: .cashNote)
+                    .foregroundStyle(Theme.ink)
                     .padding(12)
                     .background(Theme.canvas, in: .rect(cornerRadius: 10))
             }

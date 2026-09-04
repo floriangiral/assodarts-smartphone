@@ -28,10 +28,12 @@ struct NewTournamentSheet: View {
                     TextField(tr("Nom du tournoi", "Tournament name"), text: $name)
                         .keyboardField(.freeText, submit: .next)
                         .focused($isEditing)
+                        .foregroundStyle(Theme.ink)
                     DatePicker(tr("Date", "Date"), selection: $date, displayedComponents: .date)
                     TextField(tr("Lieu", "Location"), text: $location)
                         .keyboardField(.freeText, submit: .done)
                         .focused($isEditing)
+                        .foregroundStyle(Theme.ink)
                 }
 
                 Section {

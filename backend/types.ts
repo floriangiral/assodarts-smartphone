@@ -12,20 +12,24 @@ export interface ClubDoc {
   trialEndsAt: FirebaseFirestore.Timestamp | null;
 }
 
-/** Document ID is `${clubId}_${memberId}` so security rules can `get()` it directly. */
+/** Document ID is `${clubId}_${authUid}` so security rules can `get()` it directly. */
 export interface MembershipDoc {
   clubId: string;
   memberId: string;
+  authUid: string;
   role: "admin" | "board" | "member";
   status: "active" | "invited" | "inactive";
   joinDate: FirebaseFirestore.Timestamp;
   licenseNumber: string | null;
 }
 
-/** Document ID is the Firebase Auth uid. */
+/** Document ID is the application UUID; `authUid` links it to Firebase Auth. */
 export interface MemberDoc {
+  authUid: string;
   /** Null until a board member links this profile to a club membership. */
   clubId: string | null;
+  /** The club the app opens on when the member belongs to several. */
+  defaultClubId: string | null;
   firstName: string;
   lastName: string;
   displayName: string;
@@ -78,6 +82,42 @@ export interface EventRegistrationDoc {
   eventId: string;
   memberId: string;
   status: string;
+}
+
+export interface TournamentDoc {
+  clubId: string;
+  name: string;
+  date: FirebaseFirestore.Timestamp;
+  location: string;
+  markerIds: string[];
+  isFinished: boolean;
+}
+
+export interface TournamentEntryDoc {
+  clubId: string;
+  tournamentId: string;
+  tableau: string;
+  tour: string;
+  playerA: string;
+  playerB: string;
+  scoreA: number;
+  scoreB: number;
+  note: string;
+  recordedByMemberId: string;
+  recordedAt: FirebaseFirestore.Timestamp;
+}
+
+export interface ConversationDoc {
+  clubId: string;
+  kind: "bureau" | "direct";
+  participantIds: string[];
+}
+
+export interface MessageDoc {
+  senderId: string;
+  text: string;
+  sentAt: FirebaseFirestore.Timestamp;
+  readBy: string[];
 }
 
 export interface PaymentCallDoc {

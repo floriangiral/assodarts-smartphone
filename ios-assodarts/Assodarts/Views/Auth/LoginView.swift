@@ -105,6 +105,7 @@ struct LoginView: View {
                         TextField(tr("Camille", "Alex"), text: $firstName)
                             .textContentType(.givenName)
                             .focused($focusedField, equals: .firstName)
+                            .foregroundStyle(Theme.ink)
                             .padding(14)
                             .background(Theme.canvas, in: .rect(cornerRadius: 12))
                     }
@@ -113,6 +114,7 @@ struct LoginView: View {
                         TextField(tr("Dupont", "Smith"), text: $lastName)
                             .textContentType(.familyName)
                             .focused($focusedField, equals: .lastName)
+                            .foregroundStyle(Theme.ink)
                             .padding(14)
                             .background(Theme.canvas, in: .rect(cornerRadius: 12))
                     }
@@ -126,6 +128,7 @@ struct LoginView: View {
                     .keyboardField(.email, submit: .next)
                     .focused($focusedField, equals: .email)
                     .onSubmit { focusedField = .password }
+                    .foregroundStyle(Theme.ink)
                     .padding(14)
                     .background(Theme.canvas, in: .rect(cornerRadius: 12))
             }
@@ -137,6 +140,7 @@ struct LoginView: View {
                         .keyboardType(.phonePad)
                         .textContentType(.telephoneNumber)
                         .focused($focusedField, equals: .phone)
+                        .foregroundStyle(Theme.ink)
                         .padding(14)
                         .background(Theme.canvas, in: .rect(cornerRadius: 12))
                 }
@@ -149,6 +153,7 @@ struct LoginView: View {
                     .keyboardField(.password, submit: .go)
                     .focused($focusedField, equals: .password)
                     .onSubmit(submit)
+                    .foregroundStyle(Theme.ink)
                     .padding(14)
                     .background(Theme.canvas, in: .rect(cornerRadius: 12))
                 if intent == .signUp {

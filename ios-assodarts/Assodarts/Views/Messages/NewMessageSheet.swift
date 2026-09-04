@@ -69,6 +69,7 @@ struct NewMessageSheet: View {
                         TextField(tr("Rechercher…", "Search…"), text: $search)
                             .keyboardField(.name, submit: .search)
                             .focused($isEditing)
+                            .foregroundStyle(Theme.ink)
 
                         ForEach(candidates) { member in
                             Button {
@@ -107,6 +108,7 @@ struct NewMessageSheet: View {
                         .lineLimit(4...10)
                         .keyboardField(.freeText, submit: .return)
                         .focused($isEditing)
+                        .foregroundStyle(Theme.ink)
                 } header: {
                     Text(tr("Votre message", "Your message"))
                 } footer: {

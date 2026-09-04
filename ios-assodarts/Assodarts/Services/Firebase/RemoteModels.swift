@@ -8,7 +8,7 @@ import Foundation
 // convert with `UUID(uuidString:)` at the mapping boundary in
 // `RemoteRepository`.
 
-nonisolated struct RemoteClub: Codable, Sendable {
+struct RemoteClub: Codable {
     @DocumentID var id: String?
     let name: String
     let address: String?
@@ -18,7 +18,7 @@ nonisolated struct RemoteClub: Codable, Sendable {
     let trialEndsAt: Date?
 }
 
-nonisolated struct RemoteMembership: Codable, Sendable {
+struct RemoteMembership: Codable {
     @DocumentID var id: String?
     let clubId: String
     let memberId: String
@@ -28,9 +28,11 @@ nonisolated struct RemoteMembership: Codable, Sendable {
     let licenseNumber: String?
 }
 
-nonisolated struct RemoteMember: Codable, Sendable {
+struct RemoteMember: Codable {
     @DocumentID var id: String?
+    let authUid: String
     let clubId: String?
+    let defaultClubId: String?
     let firstName: String
     let lastName: String
     let email: String
@@ -38,7 +40,7 @@ nonisolated struct RemoteMember: Codable, Sendable {
     let status: String
 }
 
-nonisolated struct RemoteBankAccount: Codable, Sendable {
+struct RemoteBankAccount: Codable {
     @DocumentID var id: String?
     let clubId: String
     let holder: String
@@ -55,7 +57,7 @@ nonisolated struct RemoteBankAccount: Codable, Sendable {
     let updatedByMemberId: String?
 }
 
-nonisolated struct RemoteAnnouncement: Codable, Sendable {
+struct RemoteAnnouncement: Codable {
     @DocumentID var id: String?
     let clubId: String
     let createdByMemberId: String
@@ -66,7 +68,7 @@ nonisolated struct RemoteAnnouncement: Codable, Sendable {
     let createdAt: Date
 }
 
-nonisolated struct RemoteEvent: Codable, Sendable {
+struct RemoteEvent: Codable {
     @DocumentID var id: String?
     let clubId: String
     let title: String
@@ -76,7 +78,7 @@ nonisolated struct RemoteEvent: Codable, Sendable {
     let category: String
 }
 
-nonisolated struct RemoteEventRegistration: Codable, Sendable {
+struct RemoteEventRegistration: Codable {
     @DocumentID var id: String?
     let clubId: String
     let eventId: String
@@ -84,7 +86,7 @@ nonisolated struct RemoteEventRegistration: Codable, Sendable {
     let status: String
 }
 
-nonisolated struct RemotePaymentCall: Codable, Sendable {
+struct RemotePaymentCall: Codable {
     @DocumentID var id: String?
     let clubId: String
     let title: String
@@ -96,7 +98,7 @@ nonisolated struct RemotePaymentCall: Codable, Sendable {
     let createdAt: Date
 }
 
-nonisolated struct RemotePaymentItem: Codable, Sendable {
+struct RemotePaymentItem: Codable {
     @DocumentID var id: String?
     let paymentCallId: String
     let clubId: String
@@ -108,6 +110,46 @@ nonisolated struct RemotePaymentItem: Codable, Sendable {
     let reference: String?
     let validatedByMemberId: String?
     let remindedAt: Date?
+}
+
+struct RemoteTournament: Codable {
+    @DocumentID var id: String?
+    let clubId: String
+    let name: String
+    let date: Date
+    let location: String
+    let markerIds: [String]
+    let isFinished: Bool
+}
+
+struct RemoteTournamentEntry: Codable {
+    @DocumentID var id: String?
+    let clubId: String
+    let tournamentId: String
+    let tableau: String
+    let tour: String
+    let playerA: String
+    let playerB: String
+    let scoreA: Int
+    let scoreB: Int
+    let note: String
+    let recordedByMemberId: String
+    let recordedAt: Date
+}
+
+struct RemoteConversation: Codable {
+    @DocumentID var id: String?
+    let clubId: String
+    let kind: String
+    let participantIds: [String]
+}
+
+struct RemoteMessage: Codable {
+    @DocumentID var id: String?
+    let senderId: String
+    let text: String
+    let sentAt: Date
+    let readBy: [String]
 }
 
 // MARK: - Write models
@@ -158,6 +200,7 @@ nonisolated struct AnnouncementInsert: Encodable, Sendable {
 }
 
 nonisolated struct MemberSelfInsert: Encodable, Sendable {
+    let authUid: String
     let clubId: String?
     let firstName: String
     let lastName: String
@@ -165,6 +208,58 @@ nonisolated struct MemberSelfInsert: Encodable, Sendable {
     let email: String
     let phone: String?
     let status: String
+}
+
+nonisolated struct EventInsert: Encodable, Sendable {
+    let clubId: String
+    let title: String
+    let description: String
+    let startsAt: Date
+    let location: String
+    let category: String
+}
+
+nonisolated struct EventRegistrationInsert: Encodable, Sendable {
+    let clubId: String
+    let eventId: String
+    let memberId: String
+    let status: String
+}
+
+nonisolated struct TournamentInsert: Encodable, Sendable {
+    let clubId: String
+    let name: String
+    let date: Date
+    let location: String
+    let markerIds: [String]
+    let isFinished: Bool
+}
+
+nonisolated struct TournamentEntryInsert: Encodable, Sendable {
+    let clubId: String
+    let tournamentId: String
+    let tableau: String
+    let tour: String
+    let playerA: String
+    let playerB: String
+    let scoreA: Int
+    let scoreB: Int
+    let note: String
+    let recordedByMemberId: String
+    let recordedAt: Date
+}
+
+nonisolated struct ConversationInsert: Encodable, Sendable {
+    let clubId: String
+    let kind: String
+    let participantIds: [String]
+}
+
+nonisolated struct MessageInsert: Encodable, Sendable {
+    let senderId: String
+    let text: String
+    let sentAt: Date
+    let readBy: [String]
 }
 
 // MARK: - Mapping to app models
@@ -230,6 +325,25 @@ extension StripeAccountStatus {
         case .pending: "pending"
         case .verified: "verified"
         }
+    }
+}
+
+extension ClubBankAccount {
+    nonisolated init(remote: RemoteBankAccount) {
+        self.init(
+            holder: remote.holder,
+            iban: remote.iban,
+            bic: remote.bic,
+            bankName: remote.bankName,
+            stripeStatus: .fromRemote(remote.stripeStatus),
+            stripeAccountId: remote.stripeAccountId,
+            acceptsTransfer: remote.acceptsTransfer,
+            acceptsCash: remote.acceptsCash,
+            transferNote: remote.transferNote,
+            cashNote: remote.cashNote,
+            updatedAt: remote.updatedAt,
+            updatedById: remote.updatedByMemberId.map(remoteId)
+        )
     }
 }
 

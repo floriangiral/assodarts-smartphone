@@ -49,6 +49,7 @@ struct DevBroadcastView: View {
                 .font(.headline)
                 .keyboardField(.freeText, submit: .next)
                 .focused($isEditing)
+                .foregroundStyle(Theme.ink)
                 .padding(12)
                 .background(Theme.canvas, in: .rect(cornerRadius: 10))
 
@@ -56,6 +57,7 @@ struct DevBroadcastView: View {
                 .lineLimit(4...8)
                 .keyboardField(.freeText, submit: .return)
                 .focused($isEditing)
+                .foregroundStyle(Theme.ink)
                 .padding(12)
                 .background(Theme.canvas, in: .rect(cornerRadius: 10))
 

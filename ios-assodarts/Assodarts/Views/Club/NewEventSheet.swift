@@ -24,6 +24,7 @@ struct NewEventSheet: View {
                     TextField(tr("Titre", "Title"), text: $title)
                         .keyboardField(.freeText, submit: .next)
                         .focused($isEditing)
+                        .foregroundStyle(Theme.ink)
                     Picker(tr("Type", "Type"), selection: $kind) {
                         ForEach(EventKind.allCases) { kind in
                             Text(kind.label).tag(kind)
@@ -33,6 +34,7 @@ struct NewEventSheet: View {
                     TextField(tr("Lieu", "Location"), text: $location)
                         .keyboardField(.freeText, submit: .next)
                         .focused($isEditing)
+                        .foregroundStyle(Theme.ink)
                 }
 
                 Section(tr("Détails", "Details")) {
@@ -40,6 +42,7 @@ struct NewEventSheet: View {
                         .lineLimit(4...8)
                         .keyboardField(.freeText, submit: .return)
                         .focused($isEditing)
+                        .foregroundStyle(Theme.ink)
                 }
             }
             .scrollContentBackground(.hidden)

@@ -163,6 +163,7 @@ struct MemberProfileView: View {
                         .keyboardField(.licence, submit: .done)
                         .focused($isEditingLicence)
                         .monospacedDigit()
+                        .foregroundStyle(Theme.ink)
                         .padding(12)
                         .background(Theme.canvas, in: .rect(cornerRadius: 10))
                         .onSubmit(saveLicence)
