@@ -35,12 +35,17 @@ workflows:
             exit 1
           fi
           case "$LATEST_BUILD_NUMBER" in
-            ''|*[!0-9]*)
+            '')
+              NEXT_BUILD_NUMBER="$BUILD_NUMBER"
+              ;;
+            *[!0-9]*)
               echo "Unable to retrieve a numeric App Store Connect build number"
               exit 1
               ;;
+            *)
+              NEXT_BUILD_NUMBER=$((LATEST_BUILD_NUMBER + 1))
+              ;;
           esac
-          NEXT_BUILD_NUMBER=$((LATEST_BUILD_NUMBER + 1))
           sed -i '' \
             "/F60718293A4B5C6D7E8F9012 \/\* Staging \*\//,/name = Staging;/ s/CURRENT_PROJECT_VERSION = [^;]*/CURRENT_PROJECT_VERSION = $NEXT_BUILD_NUMBER/" \
             "$CM_BUILD_DIR/$XCODE_PROJECT/project.pbxproj"
