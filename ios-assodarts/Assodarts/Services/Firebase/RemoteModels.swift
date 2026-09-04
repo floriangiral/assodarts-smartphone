@@ -30,6 +30,7 @@ struct RemoteMembership: Codable {
 
 struct RemoteMember: Codable {
     @DocumentID var id: String?
+    let authUid: String
     let clubId: String?
     let firstName: String
     let lastName: String
@@ -158,6 +159,7 @@ nonisolated struct AnnouncementInsert: Encodable, Sendable {
 }
 
 nonisolated struct MemberSelfInsert: Encodable, Sendable {
+    let authUid: String
     let clubId: String?
     let firstName: String
     let lastName: String

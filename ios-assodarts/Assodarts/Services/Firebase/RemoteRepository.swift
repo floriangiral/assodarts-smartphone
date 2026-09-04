@@ -19,6 +19,17 @@ enum RemoteRepository {
 
     // MARK: - Loading
 
+    /// Firebase Auth UIDs are opaque strings; app data keeps UUID member IDs.
+    /// Resolve the profile link rather than trying to parse an Auth UID as UUID.
+    static func memberId(forAuthUid authUid: String) async throws -> UUID? {
+        let snapshot = try await Backend.firestore.collection("members")
+            .whereField("authUid", isEqualTo: authUid)
+            .limit(to: 1)
+            .getDocuments()
+        guard let document = snapshot.documents.first else { return nil }
+        return UUID(uuidString: document.documentID)
+    }
+
     static func loadSnapshot(for userId: UUID) async throws -> Snapshot {
         let db = Backend.firestore
 
@@ -347,12 +358,14 @@ enum RemoteRepository {
     /// once the invite flow assigns one.
     static func createSelfMember(
         userId: UUID,
+        authUid: String,
         firstName: String,
         lastName: String,
         email: String,
         phone: String?
     ) async throws {
         let payload = MemberSelfInsert(
+            authUid: authUid,
             clubId: nil,
             firstName: firstName,
             lastName: lastName,

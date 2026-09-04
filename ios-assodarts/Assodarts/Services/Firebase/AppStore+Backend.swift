@@ -18,9 +18,21 @@ extension AppStore {
             return
         }
 
-        if let user = Backend.auth.currentUser, let userId = UUID(uuidString: user.uid) {
+        guard let user = Backend.auth.currentUser else {
+            mode = .demo
+            isRestoringSession = false
+            return
+        }
+
+        do {
+            guard let userId = try await RemoteRepository.memberId(forAuthUid: user.uid) else {
+                mode = .demo
+                isRestoringSession = false
+                return
+            }
             _ = await loadRemote(userId: userId)
-        } else {
+        } catch {
+            print("Session restore failed: \(error)")
             mode = .demo
         }
         isRestoringSession = false
@@ -34,10 +46,10 @@ extension AppStore {
 
         do {
             let result = try await Backend.auth.signIn(withEmail: normalized, password: password)
-            guard let userId = UUID(uuidString: result.user.uid) else {
+            guard let userId = try await RemoteRepository.memberId(forAuthUid: result.user.uid) else {
                 return friendlyMessage(for: BackendError.message(tr(
-                    "Compte invalide. Contactez le support.",
-                    "Invalid account. Contact support."
+                    "Profil introuvable. Contactez le support.",
+                    "Profile not found. Contact support."
                 )))
             }
             return await loadRemote(userId: userId)
@@ -73,15 +85,11 @@ extension AppStore {
 
         do {
             let result = try await Backend.auth.createUser(withEmail: normalized, password: password)
-            guard let userId = UUID(uuidString: result.user.uid) else {
-                return friendlyMessage(for: BackendError.message(tr(
-                    "Compte invalide. Contactez le support.",
-                    "Invalid account. Contact support."
-                )))
-            }
+            let userId = UUID()
 
             try await RemoteRepository.createSelfMember(
                 userId: userId,
+                authUid: result.user.uid,
                 firstName: first,
                 lastName: last,
                 email: normalized,

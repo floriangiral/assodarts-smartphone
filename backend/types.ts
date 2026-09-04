@@ -12,18 +12,20 @@ export interface ClubDoc {
   trialEndsAt: FirebaseFirestore.Timestamp | null;
 }
 
-/** Document ID is `${clubId}_${memberId}` so security rules can `get()` it directly. */
+/** Document ID is `${clubId}_${authUid}` so security rules can `get()` it directly. */
 export interface MembershipDoc {
   clubId: string;
   memberId: string;
+  authUid: string;
   role: "admin" | "board" | "member";
   status: "active" | "invited" | "inactive";
   joinDate: FirebaseFirestore.Timestamp;
   licenseNumber: string | null;
 }
 
-/** Document ID is the Firebase Auth uid. */
+/** Document ID is the application UUID; `authUid` links it to Firebase Auth. */
 export interface MemberDoc {
+  authUid: string;
   /** Null until a board member links this profile to a club membership. */
   clubId: string | null;
   firstName: string;

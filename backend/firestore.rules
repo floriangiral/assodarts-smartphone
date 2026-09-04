@@ -32,7 +32,7 @@ service cloud.firestore {
 
     match /memberships/{membershipId} {
       allow read: if isSignedIn()
-        && (resource.data.memberId == request.auth.uid || isBoard(resource.data.clubId));
+        && (resource.data.authUid == request.auth.uid || isBoard(resource.data.clubId));
       allow create, update: if isBoard(request.resource.data.clubId);
       allow delete: if isBoard(resource.data.clubId);
     }
@@ -41,11 +41,13 @@ service cloud.firestore {
       // `clubId` is null until the member accepts a club invitation, so only
       // the member themselves can read/write their own doc until then.
       allow read: if isSignedIn()
-        && (memberId == request.auth.uid
+        && (resource.data.authUid == request.auth.uid
             || (resource.data.clubId != null && isActiveMember(resource.data.clubId)));
-      allow create: if isSignedIn() && memberId == request.auth.uid;
+      allow create: if isSignedIn()
+        && request.resource.data.authUid == request.auth.uid;
       allow update: if isSignedIn()
-        && (memberId == request.auth.uid
+        && ((resource.data.authUid == request.auth.uid
+              && request.resource.data.authUid == resource.data.authUid)
             || (resource.data.clubId != null && isBoard(resource.data.clubId)));
     }
 

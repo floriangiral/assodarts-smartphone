@@ -81,6 +81,16 @@ export const acceptInvitation = onCall(async (request) => {
 
   if (pending.empty) return { joinedClubId: null };
 
+  const memberSnapshot = await db
+    .collection("members")
+    .where("authUid", "==", request.auth.uid)
+    .limit(1)
+    .get();
+  const member = memberSnapshot.docs[0];
+  if (!member)
+    throw new HttpsError("failed-precondition", "Member profile not found");
+  const memberId = member.id;
+
   let firstClubId: string | null = null;
 
   for (const doc of pending.docs) {
@@ -94,7 +104,8 @@ export const acceptInvitation = onCall(async (request) => {
       .set(
         {
           clubId,
-          memberId: request.auth.uid,
+          memberId,
+          authUid: request.auth.uid,
           role: invitation.role,
           status: "active",
           joinDate: FieldValue.serverTimestamp(),
@@ -113,11 +124,10 @@ export const acceptInvitation = onCall(async (request) => {
     );
   }
 
-  const memberRef = db.collection("members").doc(request.auth.uid);
-  const existingClubId = (await memberRef.get()).data()?.clubId as
+  const existingClubId = member.data()?.clubId as
     string | null | undefined;
   if (!existingClubId) {
-    await memberRef.set({ clubId: firstClubId }, { merge: true });
+    await member.ref.set({ clubId: firstClubId }, { merge: true });
   }
 
   return { joinedClubId: firstClubId };
