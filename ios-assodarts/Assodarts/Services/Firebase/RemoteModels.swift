@@ -32,6 +32,7 @@ struct RemoteMember: Codable {
     @DocumentID var id: String?
     let authUid: String
     let clubId: String?
+    let defaultClubId: String?
     let firstName: String
     let lastName: String
     let email: String

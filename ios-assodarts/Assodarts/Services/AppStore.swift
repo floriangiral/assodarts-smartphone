@@ -23,6 +23,13 @@ final class AppStore {
     var isRestoringSession: Bool = true
     /// The signed-in member's notification inbox, filled by the server.
     var notifications: [AppNotification] = []
+    /// Every club the signed-in member belongs to (`.live` mode only).
+    var availableClubs: [RemoteRepository.AvailableClub] = []
+    /// The real Firestore club id backing `currentClub`, needed to switch clubs.
+    var activeClubRemoteId: String?
+    /// Set when accepting a pending invitation just joined a club other than
+    /// the currently active one, so the UI can offer an immediate switch.
+    var pendingClubSwitchOffer: RemoteRepository.AvailableClub?
 
     init() {
         if let data = UserDefaults.standard.data(forKey: Self.storageKey),
@@ -108,6 +115,9 @@ final class AppStore {
         currentUserId = nil
         syncError = nil
         notifications = []
+        availableClubs = []
+        activeClubRemoteId = nil
+        pendingClubSwitchOffer = nil
         NotificationService.clearScheduledReminders()
         if wasLive {
             db = DemoData.seed()

@@ -9,12 +9,23 @@ import Foundation
 /// actually belongs to, so no `clubId` filter is duplicated here as a
 /// security measure — it is only here to shape the query itself.
 enum RemoteRepository {
+    /// A club the signed-in member belongs to, for the active-club switcher.
+    struct AvailableClub: Identifiable, Hashable, Sendable {
+        let id: String
+        let name: String
+    }
+
     /// Everything the app needs for one signed-in member, already mapped onto
     /// the local models so the whole UI keeps working unchanged.
     struct Snapshot: Sendable {
         var database: Database
         var currentMemberId: UUID
         var activeClubId: UUID
+        /// The real Firestore club id backing `activeClubId`, needed to
+        /// persist the active-club selection and to switch clubs later.
+        var activeClubRemoteId: String
+        /// Every club the member has an active membership in.
+        var availableClubs: [AvailableClub]
     }
 
     // MARK: - Loading
@@ -30,7 +41,10 @@ enum RemoteRepository {
         return UUID(uuidString: document.documentID)
     }
 
-    static func loadSnapshot(for userId: UUID) async throws -> Snapshot {
+    /// - Parameter preferredClubId: The club to make active, when the member
+    ///   belongs to several. Falls back to the member's stored
+    ///   `defaultClubId`, then to the club they hold the highest role in.
+    static func loadSnapshot(for userId: UUID, preferredClubId: String? = nil) async throws -> Snapshot {
         let db = Backend.firestore
 
         let mineSnap = try await db.collection("memberships")
@@ -38,13 +52,22 @@ enum RemoteRepository {
             .whereField("status", isEqualTo: "active")
             .getDocuments()
         let mine = mineSnap.documents.compactMap { try? $0.data(as: RemoteMembership.self) }
+        guard !mine.isEmpty else { throw BackendError.noMembership }
 
-        // Admins and bureau land on the club they manage first.
-        let ordered = mine.sorted { rank($0.role) > rank($1.role) }
-        guard let activeMembership = ordered.first else {
-            throw BackendError.noMembership
+        let membershipClubIds = Set(mine.map(\.clubId))
+        let storedDefaultClubId = try? (await db.collection("members").document(userId.uuidString).getDocument())
+            .data(as: RemoteMember.self).defaultClubId
+
+        let clubId: String
+        if let preferredClubId, membershipClubIds.contains(preferredClubId) {
+            clubId = preferredClubId
+        } else if let storedDefaultClubId, membershipClubIds.contains(storedDefaultClubId) {
+            clubId = storedDefaultClubId
+        } else {
+            // Admins and bureau land on the club they manage first.
+            let ordered = mine.sorted { rank($0.role) > rank($1.role) }
+            clubId = ordered[0].clubId
         }
-        let clubId = activeMembership.clubId
 
         guard let remoteClub = try? (await db.collection("clubs").document(clubId).getDocument())
             .data(as: RemoteClub.self)
@@ -290,7 +313,15 @@ enum RemoteRepository {
         database.paymentCalls = paymentCalls
         database.conversations = conversations
 
-        return Snapshot(database: database, currentMemberId: userId, activeClubId: clubUUID)
+        let availableClubs = try await loadAvailableClubs(clubIds: membershipClubIds, activeClub: remoteClub, activeClubId: clubId, in: db)
+
+        return Snapshot(
+            database: database,
+            currentMemberId: userId,
+            activeClubId: clubUUID,
+            activeClubRemoteId: clubId,
+            availableClubs: availableClubs
+        )
     }
 
     /// Admin first, then bureau, then plain members.
@@ -300,6 +331,28 @@ enum RemoteRepository {
         case "board": 1
         default: 0
         }
+    }
+
+    /// Names of every club the member belongs to, for the active-club switcher.
+    private static func loadAvailableClubs(
+        clubIds: Set<String>,
+        activeClub: RemoteClub,
+        activeClubId: String,
+        in db: Firestore
+    ) async throws -> [AvailableClub] {
+        var result = [AvailableClub(id: activeClubId, name: activeClub.name)]
+        let otherIds = Array(clubIds.subtracting([activeClubId]))
+        guard !otherIds.isEmpty else { return result }
+
+        for chunk in stride(from: 0, to: otherIds.count, by: 30).map({ Array(otherIds[$0..<min($0 + 30, otherIds.count)]) }) {
+            let snap = try await db.collection("clubs")
+                .whereField(FieldPath.documentID(), in: chunk)
+                .getDocuments()
+            result.append(contentsOf: snap.documents.compactMap { doc in
+                (doc.data()["name"] as? String).map { AvailableClub(id: doc.documentID, name: $0) }
+            })
+        }
+        return result.sorted { $0.name < $1.name }
     }
 
     /// Firestore's `in` operator caps at 30 values per query.
@@ -316,6 +369,13 @@ enum RemoteRepository {
     }
 
     // MARK: - Writes
+
+    /// Persists the member's active-club choice. Security rules only accept
+    /// clubs the member holds an active membership for.
+    static func setDefaultClub(memberId: UUID, clubId: String) async throws {
+        try await Backend.firestore.collection("members").document(memberId.uuidString)
+            .setData(["clubId": clubId, "defaultClubId": clubId], merge: true)
+    }
 
     static func upsertBankAccount(_ account: ClubBankAccount, clubId: UUID, by memberId: UUID?) async throws {
         let payload = BankAccountUpsert(
@@ -574,12 +634,11 @@ enum RemoteRepository {
 
     /// Joins every club that invited the signed-in member's email, if any.
     /// Called right after sign-in/sign-up, before the first snapshot load.
+    /// - Returns: The real Firestore id of the first club joined, if any.
     @discardableResult
-    static func acceptPendingInvitation() async throws -> UUID? {
+    static func acceptPendingInvitation() async throws -> String? {
         let result = try await Backend.functions.httpsCallable("acceptInvitation").call([String: Any]())
-        guard let data = result.data as? [String: Any], let clubId = data["joinedClubId"] as? String else {
-            return nil
-        }
-        return UUID(uuidString: clubId)
+        guard let data = result.data as? [String: Any] else { return nil }
+        return data["joinedClubId"] as? String
     }
 }

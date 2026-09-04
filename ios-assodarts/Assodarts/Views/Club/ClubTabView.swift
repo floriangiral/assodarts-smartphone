@@ -69,6 +69,7 @@ extension View {
 
 /// The club space: five top-level destinations sharing the same tab bar.
 struct ClubTabView: View {
+    @Environment(AppStore.self) private var store
     @State private var selection: Int = 0
 
     var body: some View {
@@ -104,6 +105,25 @@ struct ClubTabView: View {
             .tag(4)
         }
         .tint(Theme.navy)
+        .alert(
+            tr("Nouveau club rejoint", "Joined a new club"),
+            isPresented: Binding(
+                get: { store.pendingClubSwitchOffer != nil },
+                set: { if !$0 { store.dismissPendingClubSwitch() } }
+            )
+        ) {
+            Button(tr("Plus tard", "Later"), role: .cancel) { store.dismissPendingClubSwitch() }
+            Button(tr("Basculer maintenant", "Switch now")) {
+                Task { await store.confirmPendingClubSwitch() }
+            }
+        } message: {
+            if let club = store.pendingClubSwitchOffer {
+                Text(tr(
+                    "Vous avez rejoint \(club.name). Basculer sur ce club maintenant ?",
+                    "You just joined \(club.name). Switch to this club now?"
+                ))
+            }
+        }
     }
 }
 

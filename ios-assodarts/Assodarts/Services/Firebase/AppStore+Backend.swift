@@ -133,8 +133,7 @@ extension AppStore {
 
         do {
             let snapshot = try await loadSnapshotAcceptingInvitations(for: userId)
-            db = snapshot.database
-            currentUserId = snapshot.currentMemberId
+            applySnapshot(snapshot)
             mode = .live
             syncError = nil
             save()
@@ -148,29 +147,39 @@ extension AppStore {
     }
 
     /// Loads the club snapshot, first accepting any pending invitation for
-    /// this member's email so a first-time sign-in lands straight in their
-    /// club instead of surfacing "no membership".
+    /// this member's email — this both lands a first-time sign-in straight
+    /// into their club, and lets an already-onboarded member pick up a later
+    /// invitation to a second club. If that second club differs from the one
+    /// currently active, `pendingClubSwitchOffer` is set so the UI can offer
+    /// an immediate switch instead of silently reloading the old club.
     private func loadSnapshotAcceptingInvitations(for userId: UUID) async throws -> RemoteRepository.Snapshot {
+        let joinedClubId = try? await RemoteRepository.acceptPendingInvitation()
+
+        let snapshot: RemoteRepository.Snapshot
         do {
-            return try await RemoteRepository.loadSnapshot(for: userId)
+            snapshot = try await RemoteRepository.loadSnapshot(for: userId, preferredClubId: activeClubRemoteId)
         } catch BackendError.noMembership {
-            guard try await RemoteRepository.acceptPendingInvitation() != nil else {
-                throw BackendError.noMembership
-            }
-            return try await RemoteRepository.loadSnapshot(for: userId)
+            throw BackendError.noMembership
         }
+
+        if let joinedClubId, joinedClubId != snapshot.activeClubRemoteId,
+           let offer = snapshot.availableClubs.first(where: { $0.id == joinedClubId }) {
+            pendingClubSwitchOffer = offer
+        }
+
+        return snapshot
     }
 
     /// Re-reads everything from the server: pull-to-refresh, and recovery after
-    /// a rejected write.
+    /// a rejected write. Stays on the currently active club.
     func refresh() async {
         guard mode == .live, let userId = currentUserId, !isSyncing else { return }
         isSyncing = true
         defer { isSyncing = false }
 
         do {
-            let snapshot = try await RemoteRepository.loadSnapshot(for: userId)
-            db = snapshot.database
+            let snapshot = try await loadSnapshotAcceptingInvitations(for: userId)
+            applySnapshot(snapshot)
             syncError = nil
             save()
             await loadNotifications()
@@ -179,6 +188,48 @@ extension AppStore {
             print("Refresh failed: \(error)")
             syncError = friendlyMessage(for: error)
         }
+    }
+
+    /// Switches the member's active club to one of their other memberships
+    /// and reloads its data. No-op if the member only belongs to one club.
+    func switchActiveClub(to clubId: String) async -> String? {
+        guard mode == .live, let userId = currentUserId, clubId != activeClubRemoteId, !isSyncing else { return nil }
+        isSyncing = true
+        defer { isSyncing = false }
+
+        do {
+            try await RemoteRepository.setDefaultClub(memberId: userId, clubId: clubId)
+            let snapshot = try await RemoteRepository.loadSnapshot(for: userId, preferredClubId: clubId)
+            applySnapshot(snapshot)
+            syncError = nil
+            save()
+            await loadNotifications()
+            scheduleDueReminders()
+            return nil
+        } catch {
+            print("Club switch failed: \(error)")
+            return friendlyMessage(for: error)
+        }
+    }
+
+    /// Accepts the offer surfaced by `pendingClubSwitchOffer` and switches to it.
+    func confirmPendingClubSwitch() async {
+        guard let offer = pendingClubSwitchOffer else { return }
+        pendingClubSwitchOffer = nil
+        _ = await switchActiveClub(to: offer.id)
+    }
+
+    /// Dismisses the offer without switching; the member stays on their
+    /// current club and can switch later from the dashboard header.
+    func dismissPendingClubSwitch() {
+        pendingClubSwitchOffer = nil
+    }
+
+    private func applySnapshot(_ snapshot: RemoteRepository.Snapshot) {
+        db = snapshot.database
+        currentUserId = snapshot.currentMemberId
+        availableClubs = snapshot.availableClubs
+        activeClubRemoteId = snapshot.activeClubRemoteId
     }
 
     // MARK: - Notifications

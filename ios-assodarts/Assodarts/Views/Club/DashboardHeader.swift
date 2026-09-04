@@ -7,6 +7,7 @@ struct DashboardHeader: View {
     let subtitle: String
 
     @Environment(AppStore.self) private var store
+    @State private var clubSwitchError: String?
 
     private var greeting: String {
         let hour = Calendar.current.component(.hour, from: .now)
@@ -25,10 +26,14 @@ struct DashboardHeader: View {
                 Text("\(greeting), \(user.firstName)")
                     .font(.title3.bold())
                     .foregroundStyle(Theme.ink)
-                Text(subtitle)
-                    .font(.footnote)
-                    .foregroundStyle(Theme.inkSecondary)
-                    .lineLimit(1)
+                if store.availableClubs.count > 1 {
+                    clubSwitcher
+                } else {
+                    Text(subtitle)
+                        .font(.footnote)
+                        .foregroundStyle(Theme.inkSecondary)
+                        .lineLimit(1)
+                }
             }
 
             Spacer(minLength: 8)
@@ -51,6 +56,48 @@ struct DashboardHeader: View {
             .buttonStyle(.plain)
             .accessibilityLabel(tr("Messages", "Messages"))
         }
+        .alert(
+            tr("Changement de club impossible", "Couldn't switch club"),
+            isPresented: Binding(get: { clubSwitchError != nil }, set: { if !$0 { clubSwitchError = nil } })
+        ) {
+            Button(tr("OK", "OK"), role: .cancel) {}
+        } message: {
+            Text(clubSwitchError ?? "")
+        }
+    }
+
+    /// Lets a member who belongs to several clubs switch the active one, right from the header.
+    private var clubSwitcher: some View {
+        Menu {
+            ForEach(store.availableClubs) { club in
+                Button {
+                    guard club.id != store.activeClubRemoteId else { return }
+                    Task {
+                        if let message = await store.switchActiveClub(to: club.id) {
+                            clubSwitchError = message
+                        }
+                    }
+                } label: {
+                    if club.id == store.activeClubRemoteId {
+                        Label(club.name, systemImage: "checkmark")
+                    } else {
+                        Text(club.name)
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Text(subtitle)
+                    .font(.footnote)
+                    .foregroundStyle(Theme.inkSecondary)
+                    .lineLimit(1)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(Theme.inkSecondary)
+            }
+        }
+        .disabled(store.isSyncing)
+        .accessibilityLabel(tr("Changer de club actif", "Switch active club"))
     }
 
     /// Round toolbar button with an optional unread count.
