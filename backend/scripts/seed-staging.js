@@ -1,122 +1,263 @@
-// One-off seed script for the staging Firestore database.
-// Run with GOOGLE_APPLICATION_CREDENTIALS set to a service account key.
-// Usage: node scripts/seed-staging.js
+#!/usr/bin/env node
+/**
+ * Seed a staging club with a clean demo configuration.
+ *
+ * Usage:
+ *   node backend/scripts/seed-staging.js \
+ *     --project-id assodarts-staging \
+ *     --club-name "Saint-Flour Fléchettes" \
+ *     --admin-email admin@assodarts.test \
+ *     --board-email bureau@assodarts.test \
+ *     --member-email membre@assodarts.test \
+ *     --apple-review-email apple-review@assodarts.app
+ *
+ * Notes:
+ * - No hard-coded secrets or fixed passwords.
+ * - Passwords are generated with crypto.randomBytes for each newly created account.
+ * - The Apple review account is never recreated if it already exists.
+ * - If the Apple review account does not exist at all, the script exits with an explicit error.
+ */
 
+const { randomUUID, randomBytes } = require("crypto");
 const { initializeApp, applicationDefault } = require("firebase-admin/app");
-const { getFirestore, FieldValue, Timestamp } = require("firebase-admin/firestore");
+const { getFirestore, Timestamp, FieldValue } = require("firebase-admin/firestore");
 const { getAuth } = require("firebase-admin/auth");
 
-const PROJECT_ID = "assodarts-staging";
-const ADMIN_EMAIL = "admin@assodarts.test";
-const BOARD_EMAIL = "bureau@assodarts.test";
-const MEMBER_EMAIL = "membre@assodarts.test";
-const DEMO_PASSWORD = process.env.DEMO_PASSWORD;
-const ADMIN_MEMBER_ID = "e14e3b57-d2c0-493e-a509-296f16b1f801";
-const BOARD_MEMBER_ID = "8f726d54-37b5-4dd6-b09e-86e69bd7d802";
-const MEMBER_MEMBER_ID = "f5d8cd08-04de-44b6-8cf7-0989e0c4e803";
-
-initializeApp({ credential: applicationDefault(), projectId: PROJECT_ID });
-const db = getFirestore();
-const auth = getAuth();
-
-async function ensureUser(email, displayName) {
-  try {
-    const existing = await auth.getUserByEmail(email);
-    return existing.uid;
-  } catch {
-    const created = await auth.createUser({ email, password: DEMO_PASSWORD, displayName });
-    return created.uid;
+function parseArgs(argv) {
+  const args = {};
+  for (let i = 0; i < argv.length; i += 1) {
+    const item = argv[i];
+    if (!item.startsWith("--")) continue;
+    const key = item.slice(2);
+    const next = argv[i + 1];
+    if (next && !next.startsWith("--")) {
+      args[key] = next;
+      i += 1;
+    } else {
+      args[key] = true;
+    }
   }
+  return args;
+}
+
+function slugify(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function generatePassword() {
+  return randomBytes(18).toString("base64url").replace(/[-_]/g, "").slice(0, 24);
+}
+
+async function ensureOrCreateUser(auth, email, firstName, lastName) {
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+  const displayName = `${firstName} ${lastName}`.trim();
+
+  try {
+    const existing = await auth.getUserByEmail(normalizedEmail);
+    return {
+      uid: existing.uid,
+      created: false,
+      password: null,
+      email: normalizedEmail,
+    };
+  } catch (error) {
+    if (error && error.code !== "auth/user-not-found") {
+      throw error;
+    }
+  }
+
+  const password = generatePassword();
+  const created = await auth.createUser({
+    email: normalizedEmail,
+    password,
+    displayName,
+  });
+
+  return {
+    uid: created.uid,
+    created: true,
+    password,
+    email: normalizedEmail,
+  };
 }
 
 async function main() {
-  if (!DEMO_PASSWORD) throw new Error("DEMO_PASSWORD must be set");
+  const args = parseArgs(process.argv.slice(2));
 
-  const clubId = "demo-club";
-  const adminUid = await ensureUser(ADMIN_EMAIL, "Admin Demo");
-  const boardUid = await ensureUser(BOARD_EMAIL, "Bureau Demo");
-  const memberUid = await ensureUser(MEMBER_EMAIL, "Membre Demo");
+  const projectId = String(args["project-id"] || "").trim();
+  if (!projectId) {
+    throw new Error("Missing required --project-id");
+  }
+
+  const clubName = String(args["club-name"] || "Saint-Flour Fléchettes").trim();
+  const adminEmail = String(args["admin-email"] || "").trim().toLowerCase();
+  const boardEmail = String(args["board-email"] || "").trim().toLowerCase();
+  const memberEmail = String(args["member-email"] || "").trim().toLowerCase();
+  const appleReviewEmail = String(args["apple-review-email"] || "").trim().toLowerCase();
+
+  if (!adminEmail || !boardEmail || !memberEmail || !appleReviewEmail) {
+    throw new Error(
+      "Missing required args: --admin-email, --board-email, --member-email, --apple-review-email",
+    );
+  }
+
+  initializeApp({
+    credential: applicationDefault(),
+    projectId,
+  });
+
+  const db = getFirestore();
+  const auth = getAuth();
+
+  const clubId = slugify(clubName);
+  const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+
+  const adminAccount = await ensureOrCreateUser(auth, adminEmail, "Admin", "Club");
+  const boardAccount = await ensureOrCreateUser(auth, boardEmail, "Bureau", "Club");
+  const memberAccount = await ensureOrCreateUser(auth, memberEmail, "Membre", "Club");
+
+  let appleReviewUid = null;
+  try {
+    const appleUser = await auth.getUserByEmail(appleReviewEmail);
+    appleReviewUid = appleUser.uid;
+  } catch (error) {
+    if (error && error.code !== "auth/user-not-found") {
+      throw error;
+    }
+    throw new Error(`Apple review account does not exist: ${appleReviewEmail}`);
+  }
+
+  const adminMemberId = randomUUID();
+  const boardMemberId = randomUUID();
+  const memberMemberId = randomUUID();
+  const appleMemberId = randomUUID();
 
   const batch = db.batch();
 
-  batch.set(db.collection("clubs").doc(clubId), {
-    name: "Fléchettes Club Demo",
-    address: "Lyon",
-    country: "FR",
-    createdAt: Timestamp.now(),
-    subscriptionStatus: "trial",
-    trialEndsAt: Timestamp.fromDate(new Date(Date.now() + 365 * 86_400_000)),
-  });
+  batch.set(
+    db.collection("clubs").doc(clubId),
+    {
+      name: clubName,
+      address: "Saint-Flour",
+      country: "FR",
+      createdAt: Timestamp.now(),
+      subscriptionStatus: "trial",
+      trialEndsAt: Timestamp.fromDate(trialEndsAt),
+    },
+    { merge: true },
+  );
 
   const members = [
-    { authUid: adminUid, memberId: ADMIN_MEMBER_ID, email: ADMIN_EMAIL, firstName: "Admin", lastName: "Demo", role: "admin" },
-    { authUid: boardUid, memberId: BOARD_MEMBER_ID, email: BOARD_EMAIL, firstName: "Bureau", lastName: "Demo", role: "board" },
-    { authUid: memberUid, memberId: MEMBER_MEMBER_ID, email: MEMBER_EMAIL, firstName: "Membre", lastName: "Demo", role: "member" },
+    {
+      memberId: adminMemberId,
+      authUid: adminAccount.uid,
+      firstName: "Admin",
+      lastName: "Club",
+      email: adminAccount.email,
+      role: "admin",
+      displayName: "Admin Club",
+    },
+    {
+      memberId: boardMemberId,
+      authUid: boardAccount.uid,
+      firstName: "Bureau",
+      lastName: "Club",
+      email: boardAccount.email,
+      role: "board",
+      displayName: "Bureau Club",
+    },
+    {
+      memberId: memberMemberId,
+      authUid: memberAccount.uid,
+      firstName: "Membre",
+      lastName: "Club",
+      email: memberAccount.email,
+      role: "member",
+      displayName: "Membre Club",
+    },
+    {
+      memberId: appleMemberId,
+      authUid: appleReviewUid,
+      firstName: "Apple",
+      lastName: "Review",
+      email: appleReviewEmail,
+      role: "board",
+      displayName: "Apple Review",
+    },
   ];
 
-  for (const m of members) {
+  for (const member of members) {
     batch.set(
-      db.collection("members").doc(m.memberId),
+      db.collection("members").doc(member.memberId),
       {
-        authUid: m.authUid,
+        authUid: member.authUid,
         clubId,
-        firstName: m.firstName,
-        lastName: m.lastName,
-        displayName: `${m.firstName} ${m.lastName}`,
-        email: m.email,
+        firstName: member.firstName,
+        lastName: member.lastName,
+        displayName: member.displayName,
+        email: member.email,
         phone: null,
         status: "active",
       },
       { merge: true },
     );
-    batch.set(db.collection("memberships").doc(`${clubId}_${m.authUid}`), {
+
+    batch.set(db.collection("memberships").doc(`${clubId}_${member.authUid}`), {
       clubId,
-      memberId: m.memberId,
-      authUid: m.authUid,
-      role: m.role,
+      memberId: member.memberId,
+      authUid: member.authUid,
+      role: member.role,
       status: "active",
       joinDate: Timestamp.now(),
       licenseNumber: null,
     });
   }
 
-  batch.set(db.collection("announcements").doc(), {
+  const announcementId = randomUUID();
+  batch.set(db.collection("announcements").doc(announcementId), {
     clubId,
-    createdByMemberId: ADMIN_MEMBER_ID,
-    title: "Bienvenue au club !",
-    body: "Ceci est une annonce de démonstration pour l'environnement de staging.",
+    createdByMemberId: adminMemberId,
+    title: "Bienvenue dans Saint-Flour Fléchettes",
+    body: "Le club est prêt pour la saison. Bienvenue à tous !",
     isPinned: true,
     publishedAt: Timestamp.now(),
     createdAt: Timestamp.now(),
     visibility: "members",
   });
 
-  batch.set(db.collection("events").doc(), {
+  const eventId = randomUUID();
+  batch.set(db.collection("events").doc(eventId), {
     clubId,
-    title: "Soirée fléchettes",
-    description: "Entraînement hebdomadaire",
-    startsAt: Timestamp.fromDate(new Date(Date.now() + 7 * 86_400_000)),
-    location: "Salle des fêtes",
+    title: "Soirée d'ouverture",
+    description: "Première rencontre de la saison, suivi d'entraînement libre.",
+    startsAt: Timestamp.fromDate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)),
+    location: "Salle du club",
     category: "training",
   });
 
-  const paymentCallRef = db.collection("payment_calls").doc();
-  batch.set(paymentCallRef, {
+  const paymentCallId = randomUUID();
+  batch.set(db.collection("payment_calls").doc(paymentCallId), {
     clubId,
-    title: "Cotisation annuelle 2026",
-    detail: "Cotisation obligatoire pour la saison",
+    title: "Cotisation de saison",
+    detail: "Cotisation annuelle pour la saison en cours",
     category: "cotisation",
     amountCents: 5000,
     currency: "eur",
-    dueDate: Timestamp.fromDate(new Date(Date.now() + 30 * 86_400_000)),
-    createdByMemberId: adminUid,
+    dueDate: Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
+    createdByMemberId: adminMemberId,
     createdAt: Timestamp.now(),
   });
 
-  batch.set(db.collection("payment_call_items").doc(), {
-    paymentCallId: paymentCallRef.id,
+  batch.set(db.collection("payment_call_items").doc(randomUUID()), {
+    paymentCallId,
     clubId,
-    memberId: MEMBER_MEMBER_ID,
+    memberId: memberMemberId,
     isPaid: false,
     paidAt: null,
     method: null,
@@ -129,54 +270,20 @@ async function main() {
     updatedAt: FieldValue.serverTimestamp(),
   });
 
-  const tournamentId = "26e5ad85-09c2-4c7b-9db8-af6b50bd5804";
-  batch.set(db.collection("tournaments").doc(tournamentId), {
-    clubId,
-    name: "Open de rentrée",
-    date: Timestamp.fromDate(new Date(Date.now() + 14 * 86_400_000)),
-    location: "Club house",
-    markerIds: [ADMIN_MEMBER_ID, BOARD_MEMBER_ID],
-    isFinished: false,
-  });
-  batch.set(db.collection("tournament_entries").doc("9b6a61b4-4b51-4ed0-bb7c-ef8546f53d05"), {
-    clubId,
-    tournamentId,
-    tableau: "Tableau principal",
-    tour: "Premier tour",
-    playerA: "Admin Demo",
-    playerB: "Bureau Demo",
-    scoreA: 0,
-    scoreB: 0,
-    note: "Rencontre à venir",
-    recordedByMemberId: ADMIN_MEMBER_ID,
-    recordedAt: Timestamp.now(),
-  });
-
-  const conversationId = "c6ce0ab0-1c4e-4b22-8fad-1a67d17f9806";
-  batch.set(db.collection("conversations").doc(conversationId), {
-    clubId,
-    kind: "bureau",
-    participantIds: [MEMBER_MEMBER_ID],
-  });
-  batch.set(db.collection("conversations").doc(conversationId).collection("messages").doc("92edf416-93c1-4999-86b1-a9fb4b294e07"), {
-    senderId: MEMBER_MEMBER_ID,
-    text: "Bonjour, pouvez-vous confirmer mon inscription au tournoi ?",
-    sentAt: Timestamp.now(),
-    readBy: [MEMBER_MEMBER_ID],
-  });
-
   await batch.commit();
 
-  console.log("Seed complete:");
-  console.log("  club:", clubId);
-  for (const m of members) {
-    console.log(`  ${m.role}: ${m.email} / ${DEMO_PASSWORD} (uid ${m.uid})`);
-  }
+  console.log("Seed complete.");
+  console.log(`clubId: ${clubId}`);
+  console.log(`clubName: ${clubName}`);
+  console.log(`admin: ${adminAccount.email} / ${adminAccount.password ?? "[existing account]"}`);
+  console.log(`board: ${boardAccount.email} / ${boardAccount.password ?? "[existing account]"}`);
+  console.log(`member: ${memberAccount.email} / ${memberAccount.password ?? "[existing account]"}`);
+  console.log(`apple-review: ${appleReviewEmail} / [password not displayed, account preserved]`);
+  console.log(`trialEndsAt: ${trialEndsAt.toISOString()}`);
 }
 
-main()
-  .then(() => process.exit(0))
-  .catch((err) => {
-    console.error(err);
-    process.exit(1);
-  });
+main().catch((error) => {
+  console.error("Seed failed.");
+  console.error(error);
+  process.exit(1);
+});
