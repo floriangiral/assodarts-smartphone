@@ -66,6 +66,8 @@ At launch, the app checks whether both public Supabase variables were injected.
 
 `Config.swift` is generated during the iOS build. Its checked-in values are intentionally empty, so credentials must never be committed there.
 
+> TODO avant de repasser ce repo en privé : migrer docs/index.html (politique de confidentialité, requise par Apple pour TestFlight/App Store) vers un repo public dédié, sinon GitHub Pages cessera de servir cette URL sur le plan Free.
+
 ## Requirements
 
 For local UI exploration:
