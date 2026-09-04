@@ -30,8 +30,8 @@ workflows:
         script: xcode-project use-profiles
       - name: Increment build number
         script: |
-          if ! LATEST_BUILD_NUMBER=$(app-store-connect get-latest-app-store-build-number "$APP_STORE_APPLE_ID"); then
-            echo "Unable to retrieve the latest App Store Connect build number"
+          if ! LATEST_BUILD_NUMBER=$(app-store-connect get-latest-testflight-build-number --all-versions "$APP_STORE_APPLE_ID"); then
+            echo "Unable to retrieve the latest TestFlight build number"
             exit 1
           fi
           case "$LATEST_BUILD_NUMBER" in
@@ -39,7 +39,7 @@ workflows:
               NEXT_BUILD_NUMBER=1
               ;;
             *[!0-9]*)
-              echo "Unable to retrieve a numeric App Store Connect build number"
+              echo "Unable to retrieve a numeric TestFlight build number"
               exit 1
               ;;
             *)
