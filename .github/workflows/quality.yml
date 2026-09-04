@@ -1,0 +1,368 @@
+name: Quality
+
+"on":
+  pull_request:
+    branches:
+      - main
+      - "release-*"
+  push:
+    branches:
+      - main
+      - "release-*"
+      - staging
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ios:
+    name: iOS build, test, lint, and SAST
+    runs-on: macos-15
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@5ba2889ada762081db2c4f32a729827dce632c7b # v3
+        with:
+          languages: swift
+          build-mode: manual
+
+      - name: Restore Swift package cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData/SourcePackages
+          key: ${{ runner.os }}-xcode-${{ hashFiles('ios-assodarts/Assodarts.xcodeproj/project.pbxproj') }}
+          restore-keys: |
+            ${{ runner.os }}-xcode-
+
+      - name: Install SwiftLint
+        run: arch -arm64 brew install swiftlint
+
+      - name: Lint Swift source
+        run: swiftlint lint --lenient --config .swiftlint.yml
+
+      - name: Resolve Swift package dependencies
+        run: >-
+          xcodebuild -resolvePackageDependencies
+          -project ios-assodarts/Assodarts.xcodeproj
+          -scheme Assodarts
+
+      - name: Build and test
+        run: >-
+          xcodebuild test
+          -project ios-assodarts/Assodarts.xcodeproj
+          -scheme Assodarts
+          -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest'
+          -enableCodeCoverage YES
+          -resultBundlePath TestResults.xcresult
+          CODE_SIGNING_ALLOWED=NO
+
+      - name: Export code coverage for SonarQube
+        run: python3 .github/scripts/xccov_to_sonar_generic.py TestResults.xcresult ios-coverage.xml "$GITHUB_WORKSPACE"
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ios-coverage
+          path: ios-coverage.xml
+          retention-days: 1
+
+      - name: Upload CodeQL results
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: github/codeql-action/analyze@5ba2889ada762081db2c4f32a729827dce632c7b # v3
+        with:
+          category: /language:swift
+          upload: never
+          output: ${{ github.workspace }}/codeql-results/ios
+          post-processed-sarif-path: ${{ github.workspace }}/codeql-results/ios-final
+
+      - name: Summarize iOS CodeQL results
+        if: >-
+          always() &&
+          (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        run: |
+          python3 .github/scripts/summarize_codeql_sarif.py \
+            "${{ github.workspace }}/codeql-results/ios-final" \
+            "${{ github.workspace }}/codeql-results/ios.sarif" \
+            "iOS"
+
+      - name: Upload iOS CodeQL SARIF
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: codeql-sarif-ios
+          path: ${{ github.workspace }}/codeql-results/ios.sarif
+          retention-days: 30
+
+  backend:
+    name: Cloud Functions quality and SAST
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@5ba2889ada762081db2c4f32a729827dce632c7b # v3
+        with:
+          languages: javascript-typescript
+          build-mode: none
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: backend/functions/package-lock.json
+
+      - name: Install Cloud Functions dependencies
+        working-directory: backend/functions
+        run: npm ci
+
+      - name: Audit dependencies
+        working-directory: backend/functions
+        run: npm audit --audit-level=high
+
+      - name: Check formatting
+        working-directory: backend/functions
+        run: npm run format
+
+      - name: Lint Cloud Functions
+        working-directory: backend/functions
+        run: npm run lint
+
+      - name: Type-check and build
+        working-directory: backend/functions
+        run: npm run build
+
+      - name: Run tests with coverage
+        working-directory: backend/functions
+        run: npm run test:coverage
+
+      - name: Copy coverage report for SonarQube
+        run: cp backend/functions/coverage/lcov.info backend-coverage.lcov
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: backend-coverage
+          path: backend-coverage.lcov
+          retention-days: 1
+
+      - name: Upload CodeQL results
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: github/codeql-action/analyze@5ba2889ada762081db2c4f32a729827dce632c7b # v3
+        with:
+          category: /language:javascript-typescript
+          upload: never
+          output: ${{ github.workspace }}/codeql-results/backend
+          post-processed-sarif-path: ${{ github.workspace }}/codeql-results/backend-final
+
+      - name: Summarize backend CodeQL results
+        if: >-
+          always() &&
+          (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        run: |
+          python3 .github/scripts/summarize_codeql_sarif.py \
+            "${{ github.workspace }}/codeql-results/backend-final" \
+            "${{ github.workspace }}/codeql-results/backend.sarif" \
+            "Backend"
+
+      - name: Upload backend CodeQL SARIF
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: codeql-sarif-backend
+          path: ${{ github.workspace }}/codeql-results/backend.sarif
+          retention-days: 30
+
+  secret-scan:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Check out full history
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Scan for secrets
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  sonarqube:
+    name: Analyze and enforce Quality Gate
+    needs: [ios, backend]
+    if: >-
+      needs.ios.result == 'success' &&
+      needs.backend.result == 'success' &&
+      vars.SONAR_HOST_URL != '' &&
+      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out full history
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Download backend coverage report
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: backend-coverage
+          path: .
+        continue-on-error: true
+
+      - name: Scan with SonarQube
+        uses: SonarSource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602 # v6
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
+        with:
+          args: >-
+            -Dsonar.qualitygate.wait=true
+            -Dsonar.qualitygate.timeout=300
+
+  staging-distribute:
+    name: Archive and distribute iOS staging build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/staging'
+    needs: [ios, backend, sonarqube]
+    runs-on: macos-15
+    environment: staging
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+      FIREBASE_IOS_APP_ID: ${{ vars.FIREBASE_IOS_APP_ID }}
+      FIREBASE_TESTER_GROUP: ${{ secrets.FIREBASE_TESTER_GROUP }}
+      GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/firebase-service-account.json
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Validate staging configuration
+        run: |
+          test -n "$FIREBASE_PROJECT_ID" || { echo "FIREBASE_PROJECT_ID is not configured"; exit 1; }
+          test -n "$FIREBASE_IOS_APP_ID" || { echo "FIREBASE_IOS_APP_ID is not configured"; exit 1; }
+          test -n "$FIREBASE_TESTER_GROUP" || { echo "FIREBASE_TESTER_GROUP is not configured"; exit 1; }
+          test -n "$APPLE_TEAM_ID" || { echo "APPLE_TEAM_ID is not configured"; exit 1; }
+          test -n "$APPLE_CERTIFICATE_P12_BASE64" || { echo "APPLE_CERTIFICATE_P12_BASE64 is not configured"; exit 1; }
+          test -n "$APPLE_CERTIFICATE_PASSWORD" || { echo "APPLE_CERTIFICATE_PASSWORD is not configured"; exit 1; }
+          test -n "$APPLE_PROVISIONING_PROFILE_BASE64" || { echo "APPLE_PROVISIONING_PROFILE_BASE64 is not configured"; exit 1; }
+          test -n "$GOOGLE_SERVICE_INFO_PLIST_STAGING_BASE64" || { echo "GOOGLE_SERVICE_INFO_PLIST_STAGING_BASE64 is not configured"; exit 1; }
+          test -n "$FIREBASE_SERVICE_ACCOUNT" || { echo "FIREBASE_SERVICE_ACCOUNT is not configured"; exit 1; }
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_PROVISIONING_PROFILE_BASE64: ${{ secrets.APPLE_PROVISIONING_PROFILE_BASE64 }}
+          GOOGLE_SERVICE_INFO_PLIST_STAGING_BASE64: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST_STAGING_BASE64 }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      - name: Install Apple signing certificate
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
+          p12-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+
+      - name: Install staging provisioning profile
+        run: |
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          echo "$APPLE_PROVISIONING_PROFILE_BASE64" | base64 --decode > "$RUNNER_TEMP/staging.mobileprovision"
+          profile_uuid=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin < <(security cms -D -i "$RUNNER_TEMP/staging.mobileprovision"))
+          cp "$RUNNER_TEMP/staging.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/$profile_uuid.mobileprovision"
+        env:
+          APPLE_PROVISIONING_PROFILE_BASE64: ${{ secrets.APPLE_PROVISIONING_PROFILE_BASE64 }}
+
+      - name: Write staging Firebase configuration
+        run: |
+          mkdir -p ios-assodarts/Config/Firebase/Staging
+          echo "$GOOGLE_SERVICE_INFO_PLIST_STAGING_BASE64" | base64 --decode > ios-assodarts/Config/Firebase/Staging/GoogleService-Info.plist
+        env:
+          GOOGLE_SERVICE_INFO_PLIST_STAGING_BASE64: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST_STAGING_BASE64 }}
+
+      - name: Write Firebase service account
+        run: |
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$GOOGLE_APPLICATION_CREDENTIALS"
+          chmod 600 "$GOOGLE_APPLICATION_CREDENTIALS"
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      - name: Archive staging app
+        run: >-
+          xcodebuild archive
+          -project ios-assodarts/Assodarts.xcodeproj
+          -scheme Staging
+          -configuration Staging
+          -archivePath "$RUNNER_TEMP/Assodarts-Staging.xcarchive"
+          -allowProvisioningUpdates
+          DEVELOPMENT_TEAM="$APPLE_TEAM_ID"
+          CODE_SIGN_STYLE=Automatic
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Create export options
+        run: |
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+          <key>method</key><string>app-store</string>
+          <key>signingStyle</key><string>automatic</string>
+          <key>teamID</key><string>__APPLE_TEAM_ID__</string>
+          <key>destination</key><string>export</string>
+          </dict></plist>
+          PLIST
+          sed -i '' "s/__APPLE_TEAM_ID__/$APPLE_TEAM_ID/" "$RUNNER_TEMP/ExportOptions.plist"
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Export IPA
+        run: >-
+          xcodebuild -exportArchive
+          -archivePath "$RUNNER_TEMP/Assodarts-Staging.xcarchive"
+          -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist"
+          -exportPath "$RUNNER_TEMP/Assodarts-Staging-export"
+          -allowProvisioningUpdates
+
+      - name: Upload to Firebase App Distribution
+        run: |
+          npx --yes firebase-tools@15.29.0 appdistribution:distribute \
+            "$RUNNER_TEMP/Assodarts-Staging-export/Assodarts.ipa" \
+            --app "$FIREBASE_IOS_APP_ID" \
+            --groups "$FIREBASE_TESTER_GROUP" \
+            --project "$FIREBASE_PROJECT_ID" \
+            --non-interactive 2>&1 | tee "$RUNNER_TEMP/firebase-distribution.log"
+
+      - name: Publish staging build summary
+        if: always()
+        run: |
+          version=$(xcodebuild -showBuildSettings -project ios-assodarts/Assodarts.xcodeproj -scheme Staging -configuration Staging 2>/dev/null | awk -F ' = ' '/MARKETING_VERSION/ { print $2; exit }')
+          build=$(xcodebuild -showBuildSettings -project ios-assodarts/Assodarts.xcodeproj -scheme Staging -configuration Staging 2>/dev/null | awk -F ' = ' '/CURRENT_PROJECT_VERSION/ { print $2; exit }')
+          {
+            echo "## Assodarts Staging"
+            echo "- Version: ${version:-unknown} (${build:-unknown})"
+            if [ -f "$RUNNER_TEMP/firebase-distribution.log" ]; then
+              grep -Eo 'https?://[^ ]+' "$RUNNER_TEMP/firebase-distribution.log" | tail -1 | sed 's/^/- Tester link: /' || true
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove credentials and staging plist
+        if: always()
+        run: |
+          rm -f "$GOOGLE_APPLICATION_CREDENTIALS"
+          rm -f ios-assodarts/Config/Firebase/Staging/GoogleService-Info.plist

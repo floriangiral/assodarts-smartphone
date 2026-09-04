@@ -3,26 +3,30 @@
 //  Assodarts
 //
 
+import FirebaseCore
+import FirebaseMessaging
 import SwiftUI
 import UIKit
 
-/// Receives the APNs device token and hands it to the store, which stores it
-/// against the signed-in member so the club can push to this phone.
-final class AppDelegate: NSObject, UIApplicationDelegate {
+/// Bridges the APNs device token to FCM, and forwards the FCM registration
+/// token to the store so the club can push to this phone.
+final class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate {
     static let didRegisterToken = Notification.Name("assodarts.push.token")
+
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+    ) -> Bool {
+        Backend.configure()
+        Messaging.messaging().delegate = self
+        return true
+    }
 
     nonisolated func application(
         _ application: UIApplication,
         didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
     ) {
-        let token = deviceToken.map { String(format: "%02x", $0) }.joined()
-        Task { @MainActor in
-            NotificationCenter.default.post(
-                name: Self.didRegisterToken,
-                object: nil,
-                userInfo: ["token": token]
-            )
-        }
+        Messaging.messaging().apnsToken = deviceToken
     }
 
     nonisolated func application(
@@ -30,6 +34,17 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         didFailToRegisterForRemoteNotificationsWithError error: Error
     ) {
         print("Push registration failed: \(error.localizedDescription)")
+    }
+
+    nonisolated func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
+        guard let fcmToken else { return }
+        Task { @MainActor in
+            NotificationCenter.default.post(
+                name: Self.didRegisterToken,
+                object: nil,
+                userInfo: ["token": fcmToken]
+            )
+        }
     }
 }
 
@@ -54,3 +69,4 @@ struct AssodartsApp: App {
         }
     }
 }
+

@@ -5,9 +5,9 @@ import UserNotifications
 /// Local notifications: immediate confirmations, and the due-date reminders that
 /// chase members before a payment falls late.
 ///
-/// These work with no server at all. Server-sent push (APNs) uses the same
-/// content and is wired through `device_push_tokens` once the club has a push
-/// certificate.
+/// These work with no server at all. Server-sent push uses the same content
+/// and is wired through Firebase Cloud Messaging once `AppDelegate` bridges the
+/// APNs device token to FCM.
 enum NotificationService {
     /// One outstanding payment line worth reminding a member about.
     nonisolated struct DueReminder: Sendable, Hashable {

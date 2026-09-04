@@ -1,0 +1,7 @@
+{
+  "projects": {
+    "staging": "assodarts-staging",
+    "production": "assodarts",
+    "default": "assodarts-staging"
+  }
+}

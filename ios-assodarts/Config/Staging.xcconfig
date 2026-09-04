@@ -1,0 +1,5 @@
+// Staging is distributed to external pilot clubs.
+FIREBASE_ENVIRONMENT = Staging
+INFOPLIST_KEY_CFBundleDisplayName = Assodarts Staging
+PRODUCT_BUNDLE_IDENTIFIER = com.assodarts.app
+SWIFT_ACTIVE_COMPILATION_CONDITIONS = $(inherited) STAGING
