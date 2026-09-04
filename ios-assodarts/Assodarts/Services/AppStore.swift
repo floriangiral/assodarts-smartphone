@@ -259,7 +259,19 @@ final class AppStore {
             db.conversations[index].messages[messageIndex].readBy.append(memberId)
             changed = true
         }
-        if changed { save() }
+        if changed {
+            let messageIds = db.conversations[index].messages
+                .filter { !$0.readBy.contains(memberId) }
+                .map(\.id)
+            save()
+            push {
+                try await RemoteRepository.markConversationRead(
+                    conversationId: conversationId,
+                    messageIds: messageIds,
+                    by: memberId
+                )
+            }
+        }
     }
 
     @discardableResult
@@ -270,6 +282,7 @@ final class AppStore {
         let message = Message(senderId: senderId, text: trimmed, readBy: [senderId], imageData: imageData)
         db.conversations[index].messages.append(message)
         save()
+        push { try await RemoteRepository.sendMessage(message, conversationId: conversationId) }
         return true
     }
 
@@ -283,6 +296,7 @@ final class AppStore {
         let conversation = Conversation(clubId: clubId, kind: .bureau, participantIds: [memberId])
         db.conversations.append(conversation)
         save()
+        push { try await RemoteRepository.createConversation(conversation) }
         return conversation
     }
 
@@ -296,6 +310,7 @@ final class AppStore {
         let conversation = Conversation(clubId: clubId, kind: .direct, participantIds: [a, b])
         db.conversations.append(conversation)
         save()
+        push { try await RemoteRepository.createConversation(conversation) }
         return conversation
     }
 
@@ -327,11 +342,14 @@ final class AppStore {
         if going == true { db.events[index].attendeeIds.append(memberId) }
         if going == false { db.events[index].declinedIds.append(memberId) }
         save()
+        let clubId = db.events[index].clubId
+        push { try await RemoteRepository.setEventAttendance(going, eventId: eventId, clubId: clubId, memberId: memberId) }
     }
 
     func addEvent(_ event: ClubEvent) {
         db.events.append(event)
         save()
+        push { try await RemoteRepository.createEvent(event) }
     }
 
     func updateMember(_ member: Member) {
@@ -359,18 +377,22 @@ final class AppStore {
     func addTournament(_ tournament: Tournament) {
         db.tournaments.append(tournament)
         save()
+        push { try await RemoteRepository.createTournament(tournament) }
     }
 
     func addEntry(_ entry: TournamentEntry, to tournamentId: UUID) {
         guard let index = db.tournaments.firstIndex(where: { $0.id == tournamentId }) else { return }
         db.tournaments[index].entries.append(entry)
         save()
+        let clubId = db.tournaments[index].clubId
+        push { try await RemoteRepository.addTournamentEntry(entry, tournamentId: tournamentId, clubId: clubId) }
     }
 
     func deleteEntry(_ entryId: UUID, from tournamentId: UUID) {
         guard let index = db.tournaments.firstIndex(where: { $0.id == tournamentId }) else { return }
         db.tournaments[index].entries.removeAll { $0.id == entryId }
         save()
+        push { try await RemoteRepository.deleteTournamentEntry(id: entryId) }
     }
 
     // MARK: - Club bank details

@@ -82,6 +82,42 @@ export interface EventRegistrationDoc {
   status: string;
 }
 
+export interface TournamentDoc {
+  clubId: string;
+  name: string;
+  date: FirebaseFirestore.Timestamp;
+  location: string;
+  markerIds: string[];
+  isFinished: boolean;
+}
+
+export interface TournamentEntryDoc {
+  clubId: string;
+  tournamentId: string;
+  tableau: string;
+  tour: string;
+  playerA: string;
+  playerB: string;
+  scoreA: number;
+  scoreB: number;
+  note: string;
+  recordedByMemberId: string;
+  recordedAt: FirebaseFirestore.Timestamp;
+}
+
+export interface ConversationDoc {
+  clubId: string;
+  kind: "bureau" | "direct";
+  participantIds: string[];
+}
+
+export interface MessageDoc {
+  senderId: string;
+  text: string;
+  sentAt: FirebaseFirestore.Timestamp;
+  readBy: string[];
+}
+
 export interface PaymentCallDoc {
   clubId: string;
   title: string;

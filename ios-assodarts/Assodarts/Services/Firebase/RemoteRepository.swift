@@ -94,6 +94,36 @@ enum RemoteRepository {
             .getDocuments()
         let remoteItems = itemsSnap.documents.compactMap { try? $0.data(as: RemotePaymentItem.self) }
 
+        let tournamentsSnap = try await db.collection("tournaments")
+            .whereField("clubId", isEqualTo: clubId)
+            .getDocuments()
+        let remoteTournaments = tournamentsSnap.documents.compactMap { try? $0.data(as: RemoteTournament.self) }
+
+        let tournamentEntriesSnap = try await db.collection("tournament_entries")
+            .whereField("clubId", isEqualTo: clubId)
+            .getDocuments()
+        let remoteTournamentEntries = tournamentEntriesSnap.documents.compactMap {
+            try? $0.data(as: RemoteTournamentEntry.self)
+        }
+
+        let conversationsSnap = try await db.collection("conversations")
+            .whereField("clubId", isEqualTo: clubId)
+            .getDocuments()
+        let remoteConversations = conversationsSnap.documents.compactMap {
+            try? $0.data(as: RemoteConversation.self)
+        }
+        var messagesByConversation: [String: [RemoteMessage]] = [:]
+        for conversation in remoteConversations {
+            guard let conversationId = conversation.id else { continue }
+            let messagesSnap = try await db.collection("conversations").document(conversationId)
+                .collection("messages")
+                .order(by: "sentAt")
+                .getDocuments()
+            messagesByConversation[conversationId] = messagesSnap.documents.compactMap {
+                try? $0.data(as: RemoteMessage.self)
+            }
+        }
+
         // MARK: Mapping
 
         let clubUUID = remoteId(clubId)
@@ -203,12 +233,62 @@ enum RemoteRepository {
             )
         }
 
+        let entriesByTournament = Dictionary(grouping: remoteTournamentEntries, by: \.tournamentId)
+        let tournaments: [Tournament] = remoteTournaments.map { remote in
+            let tournamentId = remote.id ?? ""
+            return Tournament(
+                id: remoteId(remote.id),
+                clubId: clubUUID,
+                name: remote.name,
+                date: remote.date,
+                location: remote.location,
+                markerIds: remote.markerIds.map(remoteId),
+                entries: (entriesByTournament[tournamentId] ?? []).map { entry in
+                    TournamentEntry(
+                        id: remoteId(entry.id),
+                        tableau: entry.tableau,
+                        tour: entry.tour,
+                        playerA: entry.playerA,
+                        playerB: entry.playerB,
+                        scoreA: entry.scoreA,
+                        scoreB: entry.scoreB,
+                        note: entry.note,
+                        recordedById: remoteId(entry.recordedByMemberId),
+                        recordedAt: entry.recordedAt
+                    )
+                },
+                isFinished: remote.isFinished
+            )
+        }
+
+        let conversations: [Conversation] = remoteConversations.compactMap { remote in
+            guard let conversationId = remote.id,
+                  let kind = ConversationKind(rawValue: remote.kind) else { return nil }
+            return Conversation(
+                id: remoteId(conversationId),
+                clubId: clubUUID,
+                kind: kind,
+                participantIds: remote.participantIds.map(remoteId),
+                messages: (messagesByConversation[conversationId] ?? []).map { message in
+                    Message(
+                        id: remoteId(message.id),
+                        senderId: remoteId(message.senderId),
+                        text: message.text,
+                        sentAt: message.sentAt,
+                        readBy: message.readBy.map(remoteId)
+                    )
+                }
+            )
+        }
+
         var database = Database()
         database.clubs = [club]
         database.members = members
         database.announcements = announcements
         database.events = events
+        database.tournaments = tournaments
         database.paymentCalls = paymentCalls
+        database.conversations = conversations
 
         return Snapshot(database: database, currentMemberId: userId, activeClubId: clubUUID)
     }
@@ -351,6 +431,97 @@ enum RemoteRepository {
 
     static func deleteAnnouncement(id: UUID) async throws {
         try await Backend.firestore.collection("announcements").document(id.uuidString).delete()
+    }
+
+    static func createEvent(_ event: ClubEvent) async throws {
+        let payload = EventInsert(
+            clubId: event.clubId.uuidString,
+            title: event.title,
+            description: event.details,
+            startsAt: event.date,
+            location: event.location,
+            category: event.kind.remoteValue
+        )
+        try Backend.firestore.collection("events").document(event.id.uuidString).setData(from: payload)
+    }
+
+    static func setEventAttendance(_ response: Bool?, eventId: UUID, clubId: UUID, memberId: UUID) async throws {
+        let registration = Backend.firestore.collection("event_registrations")
+            .document("\(eventId.uuidString)_\(memberId.uuidString)")
+        guard let response else {
+            try await registration.delete()
+            return
+        }
+        let payload = EventRegistrationInsert(
+            clubId: clubId.uuidString,
+            eventId: eventId.uuidString,
+            memberId: memberId.uuidString,
+            status: response ? "going" : "declined"
+        )
+        try registration.setData(from: payload)
+    }
+
+    static func createTournament(_ tournament: Tournament) async throws {
+        let payload = TournamentInsert(
+            clubId: tournament.clubId.uuidString,
+            name: tournament.name,
+            date: tournament.date,
+            location: tournament.location,
+            markerIds: tournament.markerIds.map(\.uuidString),
+            isFinished: tournament.isFinished
+        )
+        try Backend.firestore.collection("tournaments").document(tournament.id.uuidString).setData(from: payload)
+    }
+
+    static func addTournamentEntry(_ entry: TournamentEntry, tournamentId: UUID, clubId: UUID) async throws {
+        let payload = TournamentEntryInsert(
+            clubId: clubId.uuidString,
+            tournamentId: tournamentId.uuidString,
+            tableau: entry.tableau,
+            tour: entry.tour,
+            playerA: entry.playerA,
+            playerB: entry.playerB,
+            scoreA: entry.scoreA,
+            scoreB: entry.scoreB,
+            note: entry.note,
+            recordedByMemberId: entry.recordedById.uuidString,
+            recordedAt: entry.recordedAt
+        )
+        try Backend.firestore.collection("tournament_entries").document(entry.id.uuidString).setData(from: payload)
+    }
+
+    static func deleteTournamentEntry(id: UUID) async throws {
+        try await Backend.firestore.collection("tournament_entries").document(id.uuidString).delete()
+    }
+
+    static func createConversation(_ conversation: Conversation) async throws {
+        let payload = ConversationInsert(
+            clubId: conversation.clubId.uuidString,
+            kind: conversation.kind.rawValue,
+            participantIds: conversation.participantIds.map(\.uuidString)
+        )
+        try Backend.firestore.collection("conversations").document(conversation.id.uuidString).setData(from: payload)
+    }
+
+    static func sendMessage(_ message: Message, conversationId: UUID) async throws {
+        let payload = MessageInsert(
+            senderId: message.senderId.uuidString,
+            text: message.text,
+            sentAt: message.sentAt,
+            readBy: message.readBy.map(\.uuidString)
+        )
+        try Backend.firestore.collection("conversations").document(conversationId.uuidString)
+            .collection("messages").document(message.id.uuidString).setData(from: payload)
+    }
+
+    static func markConversationRead(conversationId: UUID, messageIds: [UUID], by memberId: UUID) async throws {
+        let batch = Backend.firestore.batch()
+        for messageId in messageIds {
+            let ref = Backend.firestore.collection("conversations").document(conversationId.uuidString)
+                .collection("messages").document(messageId.uuidString)
+            batch.updateData(["readBy": FieldValue.arrayUnion([memberId.uuidString])], forDocument: ref)
+        }
+        try await batch.commit()
     }
 
     /// Creates the `members` document that mirrors a freshly created auth

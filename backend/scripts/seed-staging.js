@@ -10,7 +10,10 @@ const PROJECT_ID = "assodarts-staging";
 const ADMIN_EMAIL = "admin@assodarts.test";
 const BOARD_EMAIL = "bureau@assodarts.test";
 const MEMBER_EMAIL = "membre@assodarts.test";
-const DEMO_PASSWORD = "Assodarts-Demo-2026!";
+const DEMO_PASSWORD = process.env.DEMO_PASSWORD;
+const ADMIN_MEMBER_ID = "e14e3b57-d2c0-493e-a509-296f16b1f801";
+const BOARD_MEMBER_ID = "8f726d54-37b5-4dd6-b09e-86e69bd7d802";
+const MEMBER_MEMBER_ID = "f5d8cd08-04de-44b6-8cf7-0989e0c4e803";
 
 initializeApp({ credential: applicationDefault(), projectId: PROJECT_ID });
 const db = getFirestore();
@@ -27,6 +30,8 @@ async function ensureUser(email, displayName) {
 }
 
 async function main() {
+  if (!DEMO_PASSWORD) throw new Error("DEMO_PASSWORD must be set");
+
   const clubId = "demo-club";
   const adminUid = await ensureUser(ADMIN_EMAIL, "Admin Demo");
   const boardUid = await ensureUser(BOARD_EMAIL, "Bureau Demo");
@@ -44,15 +49,16 @@ async function main() {
   });
 
   const members = [
-    { uid: adminUid, email: ADMIN_EMAIL, firstName: "Admin", lastName: "Demo", role: "admin" },
-    { uid: boardUid, email: BOARD_EMAIL, firstName: "Bureau", lastName: "Demo", role: "board" },
-    { uid: memberUid, email: MEMBER_EMAIL, firstName: "Membre", lastName: "Demo", role: "member" },
+    { authUid: adminUid, memberId: ADMIN_MEMBER_ID, email: ADMIN_EMAIL, firstName: "Admin", lastName: "Demo", role: "admin" },
+    { authUid: boardUid, memberId: BOARD_MEMBER_ID, email: BOARD_EMAIL, firstName: "Bureau", lastName: "Demo", role: "board" },
+    { authUid: memberUid, memberId: MEMBER_MEMBER_ID, email: MEMBER_EMAIL, firstName: "Membre", lastName: "Demo", role: "member" },
   ];
 
   for (const m of members) {
     batch.set(
-      db.collection("members").doc(m.uid),
+      db.collection("members").doc(m.memberId),
       {
+        authUid: m.authUid,
         clubId,
         firstName: m.firstName,
         lastName: m.lastName,
@@ -63,9 +69,10 @@ async function main() {
       },
       { merge: true },
     );
-    batch.set(db.collection("memberships").doc(`${clubId}_${m.uid}`), {
+    batch.set(db.collection("memberships").doc(`${clubId}_${m.authUid}`), {
       clubId,
-      memberId: m.uid,
+      memberId: m.memberId,
+      authUid: m.authUid,
       role: m.role,
       status: "active",
       joinDate: Timestamp.now(),
@@ -75,7 +82,7 @@ async function main() {
 
   batch.set(db.collection("announcements").doc(), {
     clubId,
-    createdByMemberId: adminUid,
+    createdByMemberId: ADMIN_MEMBER_ID,
     title: "Bienvenue au club !",
     body: "Ceci est une annonce de démonstration pour l'environnement de staging.",
     isPinned: true,
@@ -109,7 +116,7 @@ async function main() {
   batch.set(db.collection("payment_call_items").doc(), {
     paymentCallId: paymentCallRef.id,
     clubId,
-    memberId: memberUid,
+    memberId: MEMBER_MEMBER_ID,
     isPaid: false,
     paidAt: null,
     method: null,
@@ -120,6 +127,42 @@ async function main() {
     stripeCheckoutSessionId: null,
     stripePaymentIntentId: null,
     updatedAt: FieldValue.serverTimestamp(),
+  });
+
+  const tournamentId = "26e5ad85-09c2-4c7b-9db8-af6b50bd5804";
+  batch.set(db.collection("tournaments").doc(tournamentId), {
+    clubId,
+    name: "Open de rentrée",
+    date: Timestamp.fromDate(new Date(Date.now() + 14 * 86_400_000)),
+    location: "Club house",
+    markerIds: [ADMIN_MEMBER_ID, BOARD_MEMBER_ID],
+    isFinished: false,
+  });
+  batch.set(db.collection("tournament_entries").doc("9b6a61b4-4b51-4ed0-bb7c-ef8546f53d05"), {
+    clubId,
+    tournamentId,
+    tableau: "Tableau principal",
+    tour: "Premier tour",
+    playerA: "Admin Demo",
+    playerB: "Bureau Demo",
+    scoreA: 0,
+    scoreB: 0,
+    note: "Rencontre à venir",
+    recordedByMemberId: ADMIN_MEMBER_ID,
+    recordedAt: Timestamp.now(),
+  });
+
+  const conversationId = "c6ce0ab0-1c4e-4b22-8fad-1a67d17f9806";
+  batch.set(db.collection("conversations").doc(conversationId), {
+    clubId,
+    kind: "bureau",
+    participantIds: [MEMBER_MEMBER_ID],
+  });
+  batch.set(db.collection("conversations").doc(conversationId).collection("messages").doc("92edf416-93c1-4999-86b1-a9fb4b294e07"), {
+    senderId: MEMBER_MEMBER_ID,
+    text: "Bonjour, pouvez-vous confirmer mon inscription au tournoi ?",
+    sentAt: Timestamp.now(),
+    readBy: [MEMBER_MEMBER_ID],
   });
 
   await batch.commit();

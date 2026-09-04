@@ -25,6 +25,21 @@ service cloud.firestore {
       return isActiveMember(clubId) && membership(clubId).role in ['admin', 'board'];
     }
 
+    function isOwnMember(clubId, memberId) {
+      return isActiveMember(clubId) && membership(clubId).memberId == memberId;
+    }
+
+    function isOwnProfile(memberId) {
+      return isSignedIn()
+        && get(/databases/$(database)/documents/members/$(memberId)).data.authUid == request.auth.uid;
+    }
+
+    function canAccessConversation(conversation) {
+      return isActiveMember(conversation.clubId)
+        && (conversation.participantIds.hasAny([membership(conversation.clubId).memberId])
+            || (conversation.kind == 'bureau' && isBoard(conversation.clubId)));
+    }
+
     match /clubs/{clubId} {
       allow read: if isActiveMember(clubId);
       allow write: if isBoard(clubId);
@@ -64,15 +79,46 @@ service cloud.firestore {
 
     match /events/{eventId} {
       allow read: if isActiveMember(resource.data.clubId);
-      allow write: if isBoard(request.resource.data.clubId);
+      allow create: if isBoard(request.resource.data.clubId);
+      allow update, delete: if isBoard(resource.data.clubId);
     }
 
     match /event_registrations/{registrationId} {
       allow read: if isActiveMember(resource.data.clubId);
-      allow create: if isActiveMember(request.resource.data.clubId)
-        && request.resource.data.memberId == request.auth.uid;
-      allow update, delete: if resource.data.memberId == request.auth.uid
+      allow create: if isOwnMember(request.resource.data.clubId, request.resource.data.memberId)
+        || isBoard(request.resource.data.clubId);
+      allow update, delete: if isOwnMember(resource.data.clubId, resource.data.memberId)
         || isBoard(resource.data.clubId);
+    }
+
+    match /tournaments/{tournamentId} {
+      allow read: if isActiveMember(resource.data.clubId);
+      allow create: if isBoard(request.resource.data.clubId);
+      allow update, delete: if isBoard(resource.data.clubId);
+    }
+
+    match /tournament_entries/{entryId} {
+      allow read: if isActiveMember(resource.data.clubId);
+      allow create: if isBoard(request.resource.data.clubId);
+      allow delete: if isBoard(resource.data.clubId);
+      allow update: if false;
+    }
+
+    match /conversations/{conversationId} {
+      allow read: if canAccessConversation(resource.data);
+      allow create: if isActiveMember(request.resource.data.clubId)
+        && request.resource.data.participantIds.hasAny([membership(request.resource.data.clubId).memberId]);
+      allow update, delete: if false;
+
+      match /messages/{messageId} {
+        allow read: if canAccessConversation(get(/databases/$(database)/documents/conversations/$(conversationId)).data);
+        allow create: if canAccessConversation(get(/databases/$(database)/documents/conversations/$(conversationId)).data)
+          && request.resource.data.senderId == membership(get(/databases/$(database)/documents/conversations/$(conversationId)).data.clubId).memberId;
+        allow update: if canAccessConversation(get(/databases/$(database)/documents/conversations/$(conversationId)).data)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy'])
+          && request.resource.data.readBy.hasAll([membership(get(/databases/$(database)/documents/conversations/$(conversationId)).data.clubId).memberId]);
+        allow delete: if false;
+      }
     }
 
     match /payment_calls/{callId} {
@@ -82,7 +128,7 @@ service cloud.firestore {
 
     match /payment_call_items/{itemId} {
       allow read: if isSignedIn()
-        && (resource.data.memberId == request.auth.uid || isBoard(resource.data.clubId));
+        && (isOwnMember(resource.data.clubId, resource.data.memberId) || isBoard(resource.data.clubId));
       // `markPaid` (cash/transfer) and `remind` are the only direct client
       // writes; declare/validate/cancel and Stripe updates go through
       // Cloud Functions with the Admin SDK.
@@ -90,13 +136,13 @@ service cloud.firestore {
     }
 
     match /notifications/{notificationId} {
-      allow read, update, delete: if isSignedIn() && resource.data.memberId == request.auth.uid;
+      allow read, update, delete: if isOwnMember(resource.data.clubId, resource.data.memberId);
       // Created only by Cloud Function triggers (Admin SDK).
       allow create: if false;
     }
 
     match /device_push_tokens/{token} {
-      allow create, update: if isSignedIn() && request.resource.data.memberId == request.auth.uid;
+      allow create, update: if isOwnProfile(request.resource.data.memberId);
       allow read, delete: if false;
     }
 

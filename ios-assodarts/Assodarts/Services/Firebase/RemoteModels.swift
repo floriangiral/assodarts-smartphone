@@ -111,6 +111,46 @@ struct RemotePaymentItem: Codable {
     let remindedAt: Date?
 }
 
+struct RemoteTournament: Codable {
+    @DocumentID var id: String?
+    let clubId: String
+    let name: String
+    let date: Date
+    let location: String
+    let markerIds: [String]
+    let isFinished: Bool
+}
+
+struct RemoteTournamentEntry: Codable {
+    @DocumentID var id: String?
+    let clubId: String
+    let tournamentId: String
+    let tableau: String
+    let tour: String
+    let playerA: String
+    let playerB: String
+    let scoreA: Int
+    let scoreB: Int
+    let note: String
+    let recordedByMemberId: String
+    let recordedAt: Date
+}
+
+struct RemoteConversation: Codable {
+    @DocumentID var id: String?
+    let clubId: String
+    let kind: String
+    let participantIds: [String]
+}
+
+struct RemoteMessage: Codable {
+    @DocumentID var id: String?
+    let senderId: String
+    let text: String
+    let sentAt: Date
+    let readBy: [String]
+}
+
 // MARK: - Write models
 
 nonisolated struct BankAccountUpsert: Encodable, Sendable {
@@ -167,6 +207,58 @@ nonisolated struct MemberSelfInsert: Encodable, Sendable {
     let email: String
     let phone: String?
     let status: String
+}
+
+nonisolated struct EventInsert: Encodable, Sendable {
+    let clubId: String
+    let title: String
+    let description: String
+    let startsAt: Date
+    let location: String
+    let category: String
+}
+
+nonisolated struct EventRegistrationInsert: Encodable, Sendable {
+    let clubId: String
+    let eventId: String
+    let memberId: String
+    let status: String
+}
+
+nonisolated struct TournamentInsert: Encodable, Sendable {
+    let clubId: String
+    let name: String
+    let date: Date
+    let location: String
+    let markerIds: [String]
+    let isFinished: Bool
+}
+
+nonisolated struct TournamentEntryInsert: Encodable, Sendable {
+    let clubId: String
+    let tournamentId: String
+    let tableau: String
+    let tour: String
+    let playerA: String
+    let playerB: String
+    let scoreA: Int
+    let scoreB: Int
+    let note: String
+    let recordedByMemberId: String
+    let recordedAt: Date
+}
+
+nonisolated struct ConversationInsert: Encodable, Sendable {
+    let clubId: String
+    let kind: String
+    let participantIds: [String]
+}
+
+nonisolated struct MessageInsert: Encodable, Sendable {
+    let senderId: String
+    let text: String
+    let sentAt: Date
+    let readBy: [String]
 }
 
 // MARK: - Mapping to app models
