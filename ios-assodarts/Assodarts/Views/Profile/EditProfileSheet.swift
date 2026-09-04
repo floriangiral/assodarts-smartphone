@@ -87,6 +87,7 @@ struct EditProfileSheet: View {
                 .keyboardField(.name, submit: .next)
                 .focused($focusedField, equals: .firstName)
                 .onSubmit { focusedField = .lastName }
+                .foregroundStyle(Theme.ink)
 
                 TextField(tr("Nom", "Last name"), text: Binding(
                     get: { draft?.lastName ?? "" },
@@ -95,6 +96,7 @@ struct EditProfileSheet: View {
                 .keyboardField(.name, submit: .next)
                 .focused($focusedField, equals: .lastName)
                 .onSubmit { focusedField = .email }
+                .foregroundStyle(Theme.ink)
 
                 Toggle(tr("Date de naissance", "Date of birth"), isOn: $hasBirthDate)
                 if hasBirthDate {
@@ -110,6 +112,7 @@ struct EditProfileSheet: View {
                 .keyboardField(.email, submit: .next)
                 .focused($focusedField, equals: .email)
                 .onSubmit { focusedField = .phone }
+                .foregroundStyle(Theme.ink)
 
                 TextField(tr("Téléphone", "Phone"), text: Binding(
                     get: { draft?.phone ?? "" },
@@ -117,6 +120,7 @@ struct EditProfileSheet: View {
                 ))
                 .keyboardField(.phone, submit: .done)
                 .focused($focusedField, equals: .phone)
+                .foregroundStyle(Theme.ink)
             } header: {
                 Text(tr("Contact", "Contact"))
             } footer: {

@@ -32,7 +32,7 @@ struct PrimaryButton: View {
 struct SecondaryButton: View {
     let title: String
     var symbol: String?
-    var tint: Color = Theme.navy
+    var tint: Color = Theme.navyText
     let action: () -> Void
 
     var body: some View {

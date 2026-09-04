@@ -60,7 +60,7 @@ struct AssodartsApp: App {
                 .environment(store)
                 .environment(localization)
                 .environment(\.locale, localization.locale)
-                .tint(Theme.navy)
+                .tint(Theme.navyText)
                 .id(localization.lang)
                 .onReceive(NotificationCenter.default.publisher(for: AppDelegate.didRegisterToken)) { note in
                     guard let token = note.userInfo?["token"] as? String else { return }

@@ -23,10 +23,12 @@ struct NewAnnouncementSheet: View {
                     TextField(tr("Titre de l'annonce", "Announcement title"), text: $title)
                         .keyboardField(.freeText, submit: .next)
                         .focused($isEditing)
+                        .foregroundStyle(Theme.ink)
                     TextField(tr("Votre message…", "Your message…"), text: $body_, axis: .vertical)
                         .lineLimit(5...10)
                         .keyboardField(.freeText, submit: .return)
                         .focused($isEditing)
+                        .foregroundStyle(Theme.ink)
                 }
 
                 Section {

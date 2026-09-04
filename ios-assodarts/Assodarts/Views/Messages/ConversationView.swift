@@ -128,6 +128,7 @@ struct ConversationView: View {
                     .keyboardField(.freeText, submit: .send)
                     .focused($isInputFocused)
                     .onSubmit { send(from: user) }
+                    .foregroundStyle(Theme.ink)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
                     .background(Theme.canvas, in: .capsule)

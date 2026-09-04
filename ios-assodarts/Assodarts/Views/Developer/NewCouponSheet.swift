@@ -56,6 +56,7 @@ struct NewCouponSheet: View {
                         .keyboardField(.code, submit: .done)
                         .focused($isEditing)
                         .monospaced()
+                        .foregroundStyle(Theme.ink)
                 }
 
                 Section {
@@ -100,6 +101,7 @@ struct NewCouponSheet: View {
                     TextField(tr("Rechercher un club", "Search for a club"), text: $search)
                         .keyboardField(.freeText, submit: .search)
                         .focused($isEditing)
+                        .foregroundStyle(Theme.ink)
 
                     ForEach(clubs) { club in
                         Button {

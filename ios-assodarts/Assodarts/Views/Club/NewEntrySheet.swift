@@ -34,12 +34,14 @@ struct NewEntrySheet: View {
                     TextField(tr("Ex. Tableau principal", "E.g. Main draw"), text: $tableau)
                         .keyboardField(.freeText, submit: .next)
                         .focused($isEditing)
+                        .foregroundStyle(Theme.ink)
                     TextField(
                         tr("Ex. Poule A, quart, barrage…", "E.g. Group A, quarter-final, play-off…"),
                         text: $tour
                     )
                     .keyboardField(.freeText, submit: .next)
                     .focused($isEditing)
+                    .foregroundStyle(Theme.ink)
                 } header: {
                     Text(tr("Où en est-on ?", "Where are we?"))
                 } footer: {
@@ -62,10 +64,12 @@ struct NewEntrySheet: View {
                     TextField(tr("Joueur ou équipe A", "Player or team A"), text: $playerA)
                         .keyboardField(.name, submit: .next)
                         .focused($isEditing)
+                        .foregroundStyle(Theme.ink)
                     Stepper(tr("Score A · \(scoreA)", "Score A · \(scoreA)"), value: $scoreA, in: 0...30)
                     TextField(tr("Joueur ou équipe B", "Player or team B"), text: $playerB)
                         .keyboardField(.name, submit: .next)
                         .focused($isEditing)
+                        .foregroundStyle(Theme.ink)
                     Stepper(tr("Score B · \(scoreB)", "Score B · \(scoreB)"), value: $scoreB, in: 0...30)
                 }
 
@@ -74,6 +78,7 @@ struct NewEntrySheet: View {
                         .lineLimit(3...6)
                         .keyboardField(.freeText, submit: .return)
                         .focused($isEditing)
+                        .foregroundStyle(Theme.ink)
                 }
             }
             .scrollContentBackground(.hidden)
