@@ -53,6 +53,14 @@ service cloud.firestore {
         || (member.defaultClubId != null && isActiveMember(member.defaultClubId));
     }
 
+    // Same two-field candidates as canViewMemberProfile(), but requires board/
+    // admin rather than any active member — editing a profile is a management
+    // action, not just visibility.
+    function canManageMemberProfile(member) {
+      return (member.clubId != null && isBoard(member.clubId))
+        || (member.defaultClubId != null && isBoard(member.defaultClubId));
+    }
+
     function canAccessConversation(conversation) {
       return isActiveMember(conversation.clubId)
         && (conversation.participantIds.hasAny([membership(conversation.clubId).memberId])
@@ -78,11 +86,20 @@ service cloud.firestore {
         && (resource.data.authUid == request.auth.uid || canViewMemberProfile(resource.data));
       allow create: if isSignedIn()
         && request.resource.data.authUid == request.auth.uid;
+      // Board/admin management access is checked against both `clubId` and
+      // `defaultClubId` (see canManageMemberProfile), so the board of a
+      // member's currently active club can manage them, not just the board
+      // of their historical first club. This 2-field model is a deliberate
+      // scope limit: a member active in a 3rd club beyond these two is not
+      // covered. If that becomes necessary, prefer a denormalized field
+      // (e.g. `activeClubIds`, maintained by a Cloud Function on every
+      // `memberships` write) or move this check into a Cloud Function
+      // entirely, rather than a direct security rule.
       allow update: if isSignedIn()
         && ((resource.data.authUid == request.auth.uid
               && request.resource.data.authUid == resource.data.authUid
               && ownClubIdChangeIsValid())
-            || (resource.data.clubId != null && isBoard(resource.data.clubId)));
+            || canManageMemberProfile(resource.data));
     }
 
     match /club_bank_accounts/{clubId} {
