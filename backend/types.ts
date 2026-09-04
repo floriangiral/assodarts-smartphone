@@ -28,6 +28,8 @@ export interface MemberDoc {
   authUid: string;
   /** Null until a board member links this profile to a club membership. */
   clubId: string | null;
+  /** The club the app opens on when the member belongs to several. */
+  defaultClubId: string | null;
   firstName: string;
   lastName: string;
   displayName: string;

@@ -34,6 +34,18 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/members/$(memberId)).data.authUid == request.auth.uid;
     }
 
+    // A member may switch `clubId`/`defaultClubId` to any club they hold an
+    // active membership for (multi-club support), but never to an arbitrary
+    // club they don't belong to.
+    function ownClubIdChangeIsValid() {
+      return (request.resource.data.clubId == resource.data.clubId
+              || request.resource.data.clubId == null
+              || isActiveMember(request.resource.data.clubId))
+        && (request.resource.data.defaultClubId == resource.data.get('defaultClubId', null)
+            || request.resource.data.defaultClubId == null
+            || isActiveMember(request.resource.data.defaultClubId));
+    }
+
     function canAccessConversation(conversation) {
       return isActiveMember(conversation.clubId)
         && (conversation.participantIds.hasAny([membership(conversation.clubId).memberId])
@@ -62,7 +74,8 @@ service cloud.firestore {
         && request.resource.data.authUid == request.auth.uid;
       allow update: if isSignedIn()
         && ((resource.data.authUid == request.auth.uid
-              && request.resource.data.authUid == resource.data.authUid)
+              && request.resource.data.authUid == resource.data.authUid
+              && ownClubIdChangeIsValid())
             || (resource.data.clubId != null && isBoard(resource.data.clubId)));
     }
 
