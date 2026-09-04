@@ -370,11 +370,13 @@ enum RemoteRepository {
 
     // MARK: - Writes
 
-    /// Persists the member's active-club choice. Security rules only accept
-    /// clubs the member holds an active membership for.
+    /// Persists the member's active-club choice. `clubId` is a historical
+    /// marker frozen at the member's first club and must never be touched
+    /// here — only `defaultClubId` tracks which club is currently active.
+    /// Security rules only accept clubs the member holds an active membership for.
     static func setDefaultClub(memberId: UUID, clubId: String) async throws {
         try await Backend.firestore.collection("members").document(memberId.uuidString)
-            .setData(["clubId": clubId, "defaultClubId": clubId], merge: true)
+            .setData(["defaultClubId": clubId], merge: true)
     }
 
     static func upsertBankAccount(_ account: ClubBankAccount, clubId: UUID, by memberId: UUID?) async throws {

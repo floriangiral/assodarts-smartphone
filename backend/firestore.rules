@@ -34,16 +34,23 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/members/$(memberId)).data.authUid == request.auth.uid;
     }
 
-    // A member may switch `clubId`/`defaultClubId` to any club they hold an
-    // active membership for (multi-club support), but never to an arbitrary
-    // club they don't belong to.
+    // `clubId` is a historical marker frozen at the member's very first club:
+    // once non-null it must stay exactly the same forever, it is never a
+    // switchable "current club". `defaultClubId` is the only field a member
+    // may freely switch, to any club they hold an active membership for.
     function ownClubIdChangeIsValid() {
-      return (request.resource.data.clubId == resource.data.clubId
-              || request.resource.data.clubId == null
-              || isActiveMember(request.resource.data.clubId))
+      return (resource.data.clubId == null || request.resource.data.clubId == resource.data.clubId)
         && (request.resource.data.defaultClubId == resource.data.get('defaultClubId', null)
             || request.resource.data.defaultClubId == null
             || isActiveMember(request.resource.data.defaultClubId));
+    }
+
+    // A member's `clubId` only ever names their first club, and `defaultClubId`
+    // only their currently active one — both are candidate clubs for shared
+    // visibility, neither alone tells the full multi-club story.
+    function canViewMemberProfile(member) {
+      return (member.clubId != null && isActiveMember(member.clubId))
+        || (member.defaultClubId != null && isActiveMember(member.defaultClubId));
     }
 
     function canAccessConversation(conversation) {
@@ -68,8 +75,7 @@ service cloud.firestore {
       // `clubId` is null until the member accepts a club invitation, so only
       // the member themselves can read/write their own doc until then.
       allow read: if isSignedIn()
-        && (resource.data.authUid == request.auth.uid
-            || (resource.data.clubId != null && isActiveMember(resource.data.clubId)));
+        && (resource.data.authUid == request.auth.uid || canViewMemberProfile(resource.data));
       allow create: if isSignedIn()
         && request.resource.data.authUid == request.auth.uid;
       allow update: if isSignedIn()
