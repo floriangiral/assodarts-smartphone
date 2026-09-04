@@ -1,4 +1,4 @@
-# Triggered exclusively by .github/workflows/quality.yml (staging-distribute) through the Codemagic API.
+# Triggered exclusively by .github/workflows/quality.yml (staging-distribute) through the Codemagic API. Distributes to TestFlight group beta-clubs with an automatically incremented build number.
 workflows:
   ios-staging-distribute:
     name: iOS Staging Distribution
@@ -11,11 +11,12 @@ workflows:
       groups:
         - staging
       ios_signing:
-        distribution_type: ad_hoc
+        distribution_type: app_store
         bundle_identifier: com.assodarts.app.staging
       vars:
         XCODE_PROJECT: "ios-assodarts/Assodarts.xcodeproj"
         XCODE_SCHEME: "Staging"
+        APP_STORE_APPLE_ID: 6808560869
       xcode: latest
     cache:
       cache_paths:
@@ -27,6 +28,22 @@ workflows:
           echo "$GOOGLE_SERVICE_INFO_PLIST_STAGING_BASE64" | base64 --decode > "$CM_BUILD_DIR/ios-assodarts/Config/Firebase/Staging/GoogleService-Info.plist"
       - name: Set up code signing settings on Xcode project
         script: xcode-project use-profiles
+      - name: Increment build number
+        script: |
+          if ! LATEST_BUILD_NUMBER=$(app-store-connect get-latest-app-store-build-number "$APP_STORE_APPLE_ID"); then
+            echo "Unable to retrieve the latest App Store Connect build number"
+            exit 1
+          fi
+          case "$LATEST_BUILD_NUMBER" in
+            ''|*[!0-9]*)
+              echo "Unable to retrieve a numeric App Store Connect build number"
+              exit 1
+              ;;
+          esac
+          NEXT_BUILD_NUMBER=$((LATEST_BUILD_NUMBER + 1))
+          sed -i '' \
+            "/F60718293A4B5C6D7E8F9012 \/\* Staging \*\//,/name = Staging;/ s/CURRENT_PROJECT_VERSION = [^;]*/CURRENT_PROJECT_VERSION = $NEXT_BUILD_NUMBER/" \
+            "$CM_BUILD_DIR/$XCODE_PROJECT/project.pbxproj"
       - name: Build ipa for distribution
         script: |
           xcode-project build-ipa \
@@ -36,10 +53,17 @@ workflows:
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
+    # Automatic TestFlight release_notes.txt handling is not configured; verify it before adding release notes.
     publishing:
-      firebase:
-        firebase_service_account: $FIREBASE_SERVICE_ACCOUNT
-        ios:
-          app_id: $FIREBASE_IOS_APP_ID
-          groups:
-            - REPLACE_WITH_FIREBASE_TESTER_GROUP
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        expire_build_submitted_for_review: true
+        beta_groups:
+          - beta-clubs
+      email:
+        recipients:
+          - zontave@gmail.com
+        notify:
+          success: true
+          failure: true
