@@ -233,6 +233,25 @@ extension StripeAccountStatus {
     }
 }
 
+extension ClubBankAccount {
+    nonisolated init(remote: RemoteBankAccount) {
+        self.init(
+            holder: remote.holder,
+            iban: remote.iban,
+            bic: remote.bic,
+            bankName: remote.bankName,
+            stripeStatus: .fromRemote(remote.stripeStatus),
+            stripeAccountId: remote.stripeAccountId,
+            acceptsTransfer: remote.acceptsTransfer,
+            acceptsCash: remote.acceptsCash,
+            transferNote: remote.transferNote,
+            cashNote: remote.cashNote,
+            updatedAt: remote.updatedAt,
+            updatedById: remote.updatedByMemberId.map(remoteId)
+        )
+    }
+}
+
 extension PaymentMethodKind {
     nonisolated static func fromRemote(_ raw: String?) -> PaymentMethodKind? {
         guard let raw else { return nil }
