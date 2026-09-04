@@ -8,7 +8,7 @@ import Foundation
 // convert with `UUID(uuidString:)` at the mapping boundary in
 // `RemoteRepository`.
 
-nonisolated struct RemoteClub: Codable, Sendable {
+struct RemoteClub: Codable {
     @DocumentID var id: String?
     let name: String
     let address: String?
@@ -18,7 +18,7 @@ nonisolated struct RemoteClub: Codable, Sendable {
     let trialEndsAt: Date?
 }
 
-nonisolated struct RemoteMembership: Codable, Sendable {
+struct RemoteMembership: Codable {
     @DocumentID var id: String?
     let clubId: String
     let memberId: String
@@ -28,7 +28,7 @@ nonisolated struct RemoteMembership: Codable, Sendable {
     let licenseNumber: String?
 }
 
-nonisolated struct RemoteMember: Codable, Sendable {
+struct RemoteMember: Codable {
     @DocumentID var id: String?
     let clubId: String?
     let firstName: String
@@ -38,7 +38,7 @@ nonisolated struct RemoteMember: Codable, Sendable {
     let status: String
 }
 
-nonisolated struct RemoteBankAccount: Codable, Sendable {
+struct RemoteBankAccount: Codable {
     @DocumentID var id: String?
     let clubId: String
     let holder: String
@@ -55,7 +55,7 @@ nonisolated struct RemoteBankAccount: Codable, Sendable {
     let updatedByMemberId: String?
 }
 
-nonisolated struct RemoteAnnouncement: Codable, Sendable {
+struct RemoteAnnouncement: Codable {
     @DocumentID var id: String?
     let clubId: String
     let createdByMemberId: String
@@ -66,7 +66,7 @@ nonisolated struct RemoteAnnouncement: Codable, Sendable {
     let createdAt: Date
 }
 
-nonisolated struct RemoteEvent: Codable, Sendable {
+struct RemoteEvent: Codable {
     @DocumentID var id: String?
     let clubId: String
     let title: String
@@ -76,7 +76,7 @@ nonisolated struct RemoteEvent: Codable, Sendable {
     let category: String
 }
 
-nonisolated struct RemoteEventRegistration: Codable, Sendable {
+struct RemoteEventRegistration: Codable {
     @DocumentID var id: String?
     let clubId: String
     let eventId: String
@@ -84,7 +84,7 @@ nonisolated struct RemoteEventRegistration: Codable, Sendable {
     let status: String
 }
 
-nonisolated struct RemotePaymentCall: Codable, Sendable {
+struct RemotePaymentCall: Codable {
     @DocumentID var id: String?
     let clubId: String
     let title: String
@@ -96,7 +96,7 @@ nonisolated struct RemotePaymentCall: Codable, Sendable {
     let createdAt: Date
 }
 
-nonisolated struct RemotePaymentItem: Codable, Sendable {
+struct RemotePaymentItem: Codable {
     @DocumentID var id: String?
     let paymentCallId: String
     let clubId: String
