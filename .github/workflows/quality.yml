@@ -15,9 +15,52 @@ name: Quality
 permissions:
   contents: read
 
+# NOUVEAU : annule automatiquement tout run en cours sur la même branche/PR
+# dès qu'un nouveau push arrive. Évite de payer pour des runs devenus obsolètes
+# avant même d'avoir fini (gain quasi gratuit, surtout précieux sur le job
+# macOS facturé 10x).
+concurrency:
+  group: quality-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  # NOUVEAU : détecte quels dossiers ont changé pour éviter de lancer le job
+  # iOS (macOS, 10x) quand seul le backend a bougé, et inversement.
+  changes:
+    name: Detect changed paths
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      ios: ${{ steps.filter.outputs.ios }}
+      backend: ${{ steps.filter.outputs.backend }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      # NOTE : action non pinnée par SHA ici (contrairement au reste du workflow).
+      # Si tu veux garder la même discipline de pinning que le reste du fichier,
+      # récupère le SHA exact de la release dorny/paths-filter que tu choisis
+      # et remplace le tag @v3 par ce SHA, comme pour les autres actions ci-dessous.
+      - name: Detect changed paths
+        id: filter
+        uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3.0.4
+        with:
+          filters: |
+            ios:
+              - 'ios-assodarts/**'
+              - '.github/workflows/quality.yml'
+            backend:
+              - 'backend/**'
+
   ios:
     name: iOS build, test, lint, and SAST
+    needs: changes
+    # NOUVEAU : ne tourne plus que si un fichier iOS (ou ce workflow lui-même) a changé.
+    # workflow_dispatch garde toujours la possibilité de forcer le run manuellement.
+    if: needs.changes.outputs.ios == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: macos-15
     timeout-minutes: 30
     permissions:
@@ -41,8 +84,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-xcode-
 
-      - name: Install SwiftLint
-        run: arch -arm64 brew install swiftlint
+      - name: Show SwiftLint version
+        run: swiftlint version
 
       - name: Lint Swift source
         run: swiftlint lint --lenient --config .swiftlint.yml
@@ -205,9 +248,12 @@ jobs:
 
   sonarqube:
     name: Analyze and enforce Quality Gate
-    needs: [ios, backend]
+    needs: [changes, ios, backend]
+    # MODIFIÉ : accepte "skipped" pour ios (cas où seul le backend a changé),
+    # en plus de "success". Un ios qui a réellement échoué reste bloquant.
     if: >-
-      needs.ios.result == 'success' &&
+      always() &&
+      (needs.ios.result == 'success' || needs.ios.result == 'skipped') &&
       needs.backend.result == 'success' &&
       vars.SONAR_HOST_URL != '' &&
       (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
@@ -238,8 +284,12 @@ jobs:
 
   staging-distribute:
     name: Archive and distribute iOS staging build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/staging'
-    needs: [ios, backend, sonarqube]
+    # MODIFIÉ : accepte "skipped" pour ios ici aussi, par cohérence — même si en
+    # pratique un push staging touche presque toujours ios-assodarts/.
+    if: >-
+      github.event_name == 'push' && github.ref == 'refs/heads/staging' &&
+      (needs.ios.result == 'success' || needs.ios.result == 'skipped')
+    needs: [changes, ios, backend, sonarqube]
     runs-on: macos-15
     environment: staging
     timeout-minutes: 30
