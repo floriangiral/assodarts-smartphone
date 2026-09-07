@@ -12,7 +12,7 @@ struct ContentView: View {
             } else if store.isDeveloper {
                 DeveloperTabView()
                     .transition(.opacity)
-            } else if let user = store.currentUser {
+            } else if store.currentUser != nil {
                 ClubTabView()
                     .transition(.opacity)
             } else if store.needsOnboardingChoice {

@@ -159,7 +159,9 @@ struct NewCouponSheet: View {
             clubIds: Array(selection),
             autoRenew: autoRenew
         )
-        store.createCoupon(coupon)
-        dismiss()
+        Task {
+            await store.createCoupon(coupon)
+            dismiss()
+        }
     }
 }
