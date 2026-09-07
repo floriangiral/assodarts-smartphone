@@ -22,16 +22,18 @@ struct DevBroadcastView: View {
 
     var body: some View {
         ScrollView {
-                    ForEach(store.platformAnnouncements) { announcement in
-                    await store.broadcast(title: title, body: message, audience: audience)
-                    NotificationService.notify(title: "Assodarts", body: title)
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                        didPublish = true
-                        title = ""
-                        message = ""
-                    }
-                        publishedRow(announcement)
-                    }
+            VStack(spacing: 18) {
+                DevHeaderBand(title: tr("broadcasts"))
+                composer
+
+                if didPublish {
+                    Label(tr("broadcast_published"), systemImage: "checkmark.circle.fill")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(Theme.green)
+                }
+
+                ForEach(store.platformAnnouncements) { announcement in
+                    publishedRow(announcement)
                 }
             }
             .padding(.horizontal, 20)
@@ -71,24 +73,22 @@ struct DevBroadcastView: View {
             Text(tr("clubs_recipients \(store.totalClubs) \(Fmt.number(recipients))"))
                 .font(.caption)
                 .foregroundStyle(Theme.inkSecondary)
-                        Task {
-                            await store.broadcast(title: title, body: message, audience: audience)
-                            NotificationService.notify(title: "Assodarts", body: title)
-                            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                                didPublish = true
-                                title = ""
-                                message = ""
-                            }
-                        }
-            ) {
-                store.broadcast(title: title, body: message, audience: audience)
-                NotificationService.notify(title: "Assodarts", body: title)
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                    didPublish = true
-                    title = ""
-                    message = ""
-                }
+
+            PrimaryButton(title: tr("publish_broadcast"), symbol: "paperplane", isEnabled: canPublish) {
+                let broadcastTitle = title
+                let broadcastMessage = message
                 Task {
+                    await store.broadcast(
+                        title: broadcastTitle,
+                        body: broadcastMessage,
+                        audience: audience
+                    )
+                    NotificationService.notify(title: "Assodarts", body: broadcastTitle)
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                        didPublish = true
+                        title = ""
+                        message = ""
+                    }
                     try? await Task.sleep(for: .seconds(2))
                     didPublish = false
                 }

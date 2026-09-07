@@ -10,7 +10,6 @@ struct NewCouponSheet: View {
     @State private var percent: Double = 25
     @State private var expiresAt: Date = Calendar.current.date(byAdding: .month, value: 10, to: .now) ?? .now
     @State private var selection: Set<UUID> = []
-                    ForEach(store.platformClubs) { club in
     @State private var search: String = ""
     @State private var autoRenew: Bool = false
     @FocusState private var isEditing: Bool
@@ -119,10 +118,7 @@ struct NewCouponSheet: View {
                                 SelectionIndicator(isSelected: selection.contains(club.id))
                             }
                         }
-        Task {
-            await store.createCoupon(coupon)
-            dismiss()
-        }
+                        .buttonStyle(.plain)
                     }
                 } header: {
                     Text(tr("selected_clubs_count \(selection.count)"))
