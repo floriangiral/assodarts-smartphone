@@ -16,7 +16,7 @@ struct CreateClubView: View {
         VStack(alignment: .leading, spacing: 14) {
             Text(tr("create_my_club")).font(.title3.bold()).foregroundStyle(Theme.ink)
             TextField(tr("club_name"), text: $name)
-                .keyboardField(.default, submit: .done)
+                .keyboardField(.name, submit: .done)
                 .focused($isFocused)
                 .foregroundStyle(Theme.ink)
                 .padding(14)
