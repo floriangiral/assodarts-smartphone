@@ -167,12 +167,7 @@ struct NewPaymentCallSheet: View {
                                             .foregroundStyle(Theme.inkSecondary)
                                     }
                                     Spacer()
-                                    Image(systemName: selection.contains(member.id) ? "checkmark.circle.fill" : "circle")
-                                        .foregroundStyle(
-                                            selection.contains(member.id)
-                                                ? Theme.navy
-                                                : Theme.inkSecondary.opacity(0.4)
-                                        )
+                                    SelectionIndicator(isSelected: selection.contains(member.id))
                                 }
                             }
                             .buttonStyle(.plain)

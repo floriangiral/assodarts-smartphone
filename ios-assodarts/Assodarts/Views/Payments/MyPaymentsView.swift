@@ -153,17 +153,15 @@ struct MyPaymentsView: View {
             if entry.item.isAwaitingValidation {
                 awaitingBlock(entry)
             } else {
-                Button {
+                TintedActionButton(
+                    title: tr("pay \(Fmt.money(entry.call.amountCents))"),
+                    foreground: .white,
+                    background: Theme.navy,
+                    font: .subheadline.weight(.semibold),
+                    height: 42
+                ) {
                     payingCallId = entry.call.id
-                } label: {
-                    Text(tr("pay \(Fmt.money(entry.call.amountCents))"))
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 42)
-                        .background(Theme.navy, in: .rect(cornerRadius: Theme.controlRadius))
                 }
-                .buttonStyle(PressableButtonStyle())
             }
         }
     }

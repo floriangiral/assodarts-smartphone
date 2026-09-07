@@ -84,12 +84,7 @@ struct NewMessageSheet: View {
                                             .foregroundStyle(Theme.inkSecondary)
                                     }
                                     Spacer()
-                                    Image(systemName: selectedId == member.id ? "checkmark.circle.fill" : "circle")
-                                        .foregroundStyle(
-                                            selectedId == member.id
-                                                ? Theme.navy
-                                                : Theme.inkSecondary.opacity(0.4)
-                                        )
+                                    SelectionIndicator(isSelected: selectedId == member.id)
                                 }
                             }
                             .buttonStyle(.plain)

@@ -51,12 +51,7 @@ struct NewTournamentSheet: View {
                                     .font(.subheadline)
                                     .foregroundStyle(Theme.ink)
                                 Spacer()
-                                Image(systemName: markerIds.contains(member.id) ? "checkmark.circle.fill" : "circle")
-                                    .foregroundStyle(
-                                        markerIds.contains(member.id)
-                                            ? Theme.navy
-                                            : Theme.inkSecondary.opacity(0.4)
-                                    )
+                                SelectionIndicator(isSelected: markerIds.contains(member.id))
                             }
                         }
                         .buttonStyle(.plain)

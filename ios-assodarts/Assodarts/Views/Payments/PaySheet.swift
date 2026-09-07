@@ -210,9 +210,10 @@ struct PaySheet: View {
 
                             Spacer(minLength: 4)
 
-                            Image(systemName: method == option ? "checkmark.circle.fill" : "circle")
-                                .foregroundStyle(method == option ? Theme.navy : Theme.inkSecondary.opacity(0.35))
-                                .opacity(isUsable ? 1 : 0.3)
+                            SelectionIndicator(
+                                isSelected: method == option,
+                                isEnabled: isUsable
+                            )
                         }
                         .padding(.vertical, 10)
                     }
@@ -267,51 +268,42 @@ struct PaySheet: View {
             .background(Theme.canvas, in: .rect(cornerRadius: Theme.controlRadius))
 
             HStack(spacing: 10) {
-                Button {
+                TintedActionButton(
+                    title: didCopyIban ? tr("iban_copied") : tr("copy_iban"),
+                    symbol: didCopyIban ? "checkmark" : "doc.on.doc",
+                    foreground: Theme.navy,
+                    background: Theme.navyTint
+                ) {
                     UIPasteboard.general.string = account.formattedIban
                     withAnimation { didCopyIban = true }
                     Task {
                         try? await Task.sleep(for: .seconds(2))
                         withAnimation { didCopyIban = false }
                     }
-                } label: {
-                    Label(
-                        didCopyIban ? tr("iban_copied") : tr("copy_iban"),
-                        systemImage: didCopyIban ? "checkmark" : "doc.on.doc"
-                    )
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(Theme.navy)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 44)
-                        .background(Theme.navyTint, in: .rect(cornerRadius: Theme.controlRadius))
                 }
-                .buttonStyle(PressableButtonStyle())
 
                 if let ribURL {
                     ShareLink(item: ribURL) {
-                        Label(tr("download_details"), systemImage: "arrow.down.doc")
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 44)
-                            .background(Theme.navy, in: .rect(cornerRadius: Theme.controlRadius))
+                        ActionButtonLabel(
+                            title: tr("download_details"),
+                            symbol: "arrow.down.doc",
+                            foreground: .white,
+                            background: Theme.navy
+                        )
                     }
                 } else {
-                    Button {
+                    TintedActionButton(
+                        title: tr("prepare_details"),
+                        symbol: "doc.text",
+                        foreground: .white,
+                        background: Theme.navy
+                    ) {
                         ribURL = RIBDocument.makePDF(
                             club: club,
                             account: account,
                             reference: call.reference
                         )
-                    } label: {
-                        Label(tr("prepare_details"), systemImage: "doc.text")
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 44)
-                            .background(Theme.navy, in: .rect(cornerRadius: Theme.controlRadius))
                     }
-                    .buttonStyle(PressableButtonStyle())
                 }
             }
 

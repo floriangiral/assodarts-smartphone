@@ -229,18 +229,14 @@ struct EventDetailView: View {
         isSelected: Bool,
         action: @escaping () -> Void
     ) -> some View {
-        Button(action: action) {
-            HStack(spacing: 8) {
-                Image(systemName: symbol)
-                Text(title)
-                    .font(.subheadline.weight(.semibold))
-            }
-            .frame(maxWidth: .infinity)
-            .frame(height: 46)
-            .foregroundStyle(isSelected ? .white : tint)
-            .background(isSelected ? tint : tint.opacity(0.1))
-            .clipShape(.rect(cornerRadius: Theme.controlRadius))
-        }
-        .buttonStyle(PressableButtonStyle())
+        TintedActionButton(
+            title: title,
+            symbol: symbol,
+            foreground: isSelected ? .white : tint,
+            background: isSelected ? tint : tint.opacity(0.1),
+            font: .subheadline.weight(.semibold),
+            height: 46,
+            action: action
+        )
     }
 }

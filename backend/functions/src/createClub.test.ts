@@ -14,7 +14,6 @@ function makeRequest(
 }
 
 const mockMemberDoc = { exists: true, id: "m1" };
-const mockMemberGet = jest.fn();
 const mockClubGet = jest.fn();
 const mockMembershipSet = jest.fn();
 const mockMemberSet = jest.fn();

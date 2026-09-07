@@ -23,11 +23,18 @@ The project is split into a native SwiftUI application and Firebase Cloud Functi
 - Maintain bank details and payment methods for the club.
 - Onboard the club to Stripe Connect and check its payment capability status.
 
+### Onboarding
+
+- A single sign-in/sign-up screen offers three intents: sign in, sign up expecting a club invitation, or sign up while creating a brand-new club.
+- A member who signs up without a pending invitation lands on an onboarding-choice screen instead of a dead end, and can still create their own club from there.
+- Creating a club opens an invite sheet right away so the founder can bring in the rest of the committee, skippable without blocking access to the club.
+- Members can belong to more than one club; an active-club switcher and a prompt on a second invitation let them move between memberships.
+
 ### Platform
 
-- A developer-only console for platform administration, broadcasts, and coupons.
+- A developer console for platform administration — live club/subscription stats, broadcast announcements, and coupon management — gated by a dedicated `platform_admins` Firestore collection, independent of any club membership.
 - Tenant-oriented data model: club records are associated with memberships, isolated by Firestore Security Rules.
-- English and French interface localization.
+- English and French interface localization backed by a String Catalog, switchable in-app without restarting.
 - Local persisted demo data, allowing the UI to run without network access or Firebase credentials.
 
 ## Architecture
@@ -53,7 +60,8 @@ The project is split into a native SwiftUI application and Firebase Cloud Functi
 | Domain models                 | `ios-assodarts/Assodarts/Models/`                                   | Swift models for clubs, members, events, tournaments, payments, conversations, and notifications.                                                            |
 | State and demo mode           | `ios-assodarts/Assodarts/Services/AppStore.swift`, `DemoData.swift` | Local persistence, optimistic UI mutations, demo seed data, and session state.                                                                               |
 | Firebase integration          | `ios-assodarts/Assodarts/Services/Firebase/`                        | Native auth, Firestore repositories, mappings, push token persistence, and Cloud Function calls.                                                             |
-| User interface                | `ios-assodarts/Assodarts/Views/`                                    | Authentication, club, messages, notifications, payments, profile, and developer screens.                                                                     |
+| Reusable UI components        | `ios-assodarts/Assodarts/Components/`                               | Shared building blocks (`PrimaryButton`, `StatusChip`, `AvatarView`, `MetricNumber`, `EmptyStateView`, `BrandMark`) built on `Theme`'s design tokens.        |
+| User interface                | `ios-assodarts/Assodarts/Views/`                                    | Authentication/onboarding, club, messages, notifications, payments, profile, and developer screens.                                                          |
 | Database contract             | `backend/types.ts`                                                  | Hand-maintained TypeScript description of the Firestore document shapes. Keep in sync with `functions/src` and `RemoteModels.swift`.                         |
 | Secure payment backend        | `backend/functions/`                                                | Firebase Cloud Functions (Node/TypeScript) for Stripe Connect, Checkout, return handling, webhooks, payment-state transitions, and notification/FCM fan-out. |
 
@@ -128,7 +136,7 @@ firebase use staging                 # or: firebase use production — from back
 firebase deploy --only firestore:rules,firestore:indexes
 ```
 
-Firestore has no schema enforcement beyond these rules; `backend/types.ts` documents the expected document shape for every collection (`clubs`, `memberships`, `members`, `announcements`, `events`, `event_registrations`, `payment_calls`, `payment_call_items`, `club_bank_accounts`, `notifications`, `device_push_tokens`). Keep it in sync by hand with `backend/functions/src` and `RemoteModels.swift`.
+Firestore has no schema enforcement beyond these rules; `backend/types.ts` documents the expected document shape for every collection (`clubs`, `memberships`, `members`, `announcements`, `events`, `event_registrations`, `tournaments`, `tournament_entries`, `conversations` (with a `messages` subcollection), `payment_calls`, `payment_call_items`, `club_bank_accounts`, `notifications`, `device_push_tokens`, `invitations`, `platform_admins`, `platform_announcements`, `coupons`). Keep it in sync by hand with `backend/functions/src` and `RemoteModels.swift`.
 
 ### 2. Supply iOS public configuration
 
@@ -203,13 +211,34 @@ node backend/scripts/seed-staging.js \
   --admin-email admin@assodarts.test \
   --board-email bureau@assodarts.test \
   --member-email membre@assodarts.test \
-  --apple-review-email apple-review@assodarts.app
+  --apple-review-email apple-review@assodarts.app \
+  --platform-admin-email admin@assodarts.test
 ```
 
 Le script utilise les identifiants Firebase Admin locaux (`GOOGLE_APPLICATION_CREDENTIALS` ou `applicationDefault()`). Pour créer également un compte Stripe Express de test, exportez `STRIPE_SECRET_KEY` avec une clé `sk_test_...`. Le compte reste volontairement `pending` : terminez une fois l'onboarding dans `BankSettingsView` pour déclencher la vérification Stripe. Sans cette variable, les données bancaires sont tout de même créées et le résumé final indique l'étape manuelle restante.
 
-Les coupons ne sont pas seedés : ils sont actuellement consommés uniquement
-par la console développeur locale, qui n'est pas connectée à Firestore.
+`--platform-admin-email` est optionnel et accorde directement l'accès à la
+console développeur (`platform_admins`) au compte indiqué — voir aussi
+[`grant-platform-admin.js`](#platform-admin-bootstrap-see-setupmd) pour
+l'accorder séparément à tout moment. Les coupons ne sont pas seedés (aucun
+scénario de test n'en dépend par défaut), mais la console développeur les
+lit et les écrit désormais réellement dans Firestore via les Cloud Functions
+`createCoupon`/`deleteCoupon` — ce n'est plus un état local uniquement.
+
+### Platform admin bootstrap (see SETUP.md)
+
+Accorder ou révoquer l'accès à la console développeur se fait via un script
+séparé plutôt que depuis l'app (`platform_admins` n'est jamais modifiable
+côté client) :
+
+```sh
+node backend/scripts/grant-platform-admin.js \
+  --project-id assodarts-staging \
+  --email admin@assodarts.test
+```
+
+Détails complets, y compris le comportement de `--force`, dans
+[`SETUP.md`](SETUP.md#platform-admin-bootstrap).
 
 ## Cloud Functions
 
@@ -223,7 +252,11 @@ par la console développeur locale, qui n'est pas connectée à Firestore.
 | `declarePayment` / `validatePayment` / `cancelPaymentDeclaration` | Callable          | Firebase Auth (+ board for validation)        | Payment-state transitions, replacing the former Postgres RPCs.                                                |
 | `createInvitation` / `revokeInvitation`                           | Callable          | Firebase Auth + active board/admin membership | Invites a member by email with a role, or withdraws a pending invitation.                                     |
 | `acceptInvitation`                                                | Callable          | Firebase Auth                                 | Joins every club that invited the signed-in member's email; called automatically right after sign-in/sign-up. |
+| `createClub`                                                      | Callable          | Firebase Auth (existing member profile)       | Creates a club, its founding admin membership, and a 14-day trial, in one transaction.                        |
+| `broadcastAnnouncement`                                           | Callable          | Firebase Auth + `platform_admins` membership  | Publishes a platform-wide announcement, targeted at all members or committees only.                            |
+| `createCoupon` / `deleteCoupon`                                   | Callable          | Firebase Auth + `platform_admins` membership  | Creates or revokes a discount code and repercusses it onto the targeted clubs' `couponCode`.                   |
 | `onPaymentItemWritten` / `onAnnouncementCreated`                  | Firestore trigger | Admin SDK only                                | Fan out `notifications` documents for board/member events.                                                    |
+| `onPlatformAnnouncementCreated`                                   | Firestore trigger | Admin SDK only                                | Fans out a `notifications` document to every member (or every committee) targeted by a platform broadcast.     |
 | `onNotificationCreated`                                           | Firestore trigger | Admin SDK only                                | Sends the FCM push for every new notification.                                                                |
 
 ## Security model
@@ -232,8 +265,9 @@ par la console développeur locale, qui n'est pas connectée à Firestore.
 - Firestore Security Rules (`backend/firestore.rules`) enforce tenant isolation and board-only writes for every collection the client touches directly.
 - Money-moving state transitions (declare/validate/cancel a payment, anything Stripe, and notification creation) are **not** directly writable by clients — they only happen through Cloud Functions using the Admin SDK, which bypasses the rules the same way the callable/RPC split did before.
 - Callable Cloud Functions re-check an active `admin` or `board` role from Firestore, never trusting a role claimed by the app.
-- Checkout re-reads the payment amount, club, member, and paid status from Firestore before contacting Stripe.
+- Checkout re-reads the payment amount, club, member, and paid status from Firestore before contacting Stripe, and resolves the caller's own `memberId` through their `memberships` document rather than assuming it equals the Firebase Auth UID (the two are different ID spaces).
 - Webhook state changes require Stripe's signed request verification.
+- Platform-admin access (the developer console, cross-club reads, broadcasts, coupons) is gated by a dedicated `platform_admins` collection, checked independently from any club `membership` — a platform admin is not a role on a club, and the collection is never writable from the client (see [`grant-platform-admin.js`](SETUP.md#platform-admin-bootstrap) to bootstrap the first admin).
 - Firestore Security Rules are a required part of the live deployment and must be kept under version control alongside the collections they protect.
 
 ## Testing and validation
@@ -247,16 +281,50 @@ xcodebuild test \
   -destination 'platform=iOS Simulator,name=iPhone 16'
 ```
 
-The committed unit-test target currently contains only Xcode's placeholder test. Add focused tests for permission checks, payment state transitions, repository mappings, and tenant boundaries before relying on a production backend.
+The committed iOS unit-test target currently contains only Xcode's placeholder test. Add focused tests for permission checks, payment state transitions, repository mappings, and tenant boundaries before relying on a production backend.
+
+Cloud Functions, by contrast, have real coverage: run them from `backend/functions`:
+
+```sh
+npm run build
+npm test          # or: npm run test:coverage
+```
+
+Every callable and trigger (Stripe, payments, invitations, `createClub`, and
+the platform-admin functions) is covered with mocked Firestore/Stripe/Auth —
+no network access needed. This is also what `.github/workflows/quality.yml`
+runs on every pull request.
 
 For payment integration testing, use Stripe test keys and the Stripe CLI to forward events to the deployed webhook function, then confirm that an eligible `payment_call_items` document changes state only after a signed `checkout.session.completed` event.
 
-Cloud Functions can be exercised locally with the Firebase emulator suite:
+Cloud Functions can also be exercised locally with the Firebase emulator suite:
 
 ```sh
 cd backend/functions && npm run build
 cd .. && firebase emulators:start --only functions,firestore
 ```
+
+### Localization
+
+Interface copy lives in `ios-assodarts/Assodarts/Localizable.xcstrings` (a
+String Catalog), resolved at call sites through `tr(_:)`
+(`Utilities/Localization.swift`), which forces the app's own in-app language
+choice rather than the device's system language — this is what lets
+`LanguageMenu` switch languages instantly, without restarting the app.
+
+`backend/scripts/audit_localization_types.py` checks every interpolated
+`tr("key \(value)")` call site against the placeholder type stored in the
+catalog (`%@` for `String`, `%lld` for `Int`, etc.) and reports any mismatch
+— a mismatch shows up at runtime as the raw catalog key instead of the
+translated text, so run this after touching any interpolated string:
+
+```sh
+python3 backend/scripts/audit_localization_types.py
+```
+
+`backend/scripts/migrate_localization.py` is the one-off script that
+produced the catalog from the previous inline `tr(fr, en)` calls; keep it
+for reference, it is not part of the normal workflow anymore.
 
 ## Repository layout
 
@@ -266,20 +334,33 @@ cd .. && firebase emulators:start --only functions,firestore
 │   ├── types.ts                       # Hand-maintained Firestore document types
 │   ├── firebase.json                  # Firebase project configuration
 │   ├── .firebaserc                    # staging/production project aliases
-│   ├── firestore.rules                # Security rules (tenant isolation, roles)
+│   ├── firestore.rules                # Security rules (tenant isolation, roles, platform admin)
 │   ├── firestore.indexes.json         # Composite indexes
-│   └── functions/                     # Firebase Cloud Functions (Node/TypeScript)
+│   ├── functions/                     # Firebase Cloud Functions (Node/TypeScript)
+│   └── scripts/                       # One-off/maintenance scripts (see below)
 └── ios-assodarts/
     ├── Assodarts/                     # SwiftUI application source
-    │   ├── Components/                # Reusable views
+    │   ├── Components/                # Reusable views (buttons, chips, empty states, metrics...)
     │   ├── Models/                    # Domain types
     │   ├── Services/                  # App state, local data, remote integrations
     │   ├── Utilities/                 # Theme, formatting, localization
-    │   └── Views/                     # Feature screens
+    │   ├── Localizable.xcstrings      # String Catalog (FR/EN)
+    │   └── Views/                     # Feature screens (Auth/onboarding, club, messages, payments, developer...)
     ├── Assodarts.xcodeproj/           # Xcode project and Swift package reference
     ├── AssodartsTests/                # Unit-test target
     └── AssodartsUITests/              # UI-test target
 ```
+
+`backend/scripts/` (Node unless noted):
+
+| Script | Purpose |
+| --- | --- |
+| `seed-staging.js` | Seeds/updates a full test environment (two clubs, accounts, announcements, events, a tournament, conversations, a payment call, optionally a Stripe test account and a platform admin). |
+| `grant-platform-admin.js` | Grants (or, with `--force`, re-grants) developer-console access to an existing Firebase Auth account. |
+| `delete-demo-club.js` | Deletes a club and its data, plus the Firebase Auth users that belong only to it. |
+| `check-role-mismatch.js` | Read-only: lists `memberships` documents still holding the old French role values instead of the canonical `admin`/`board`/`member`. |
+| `audit_localization_types.py` | Read-only: flags interpolated `tr()` call sites whose inferred Swift type disagrees with the String Catalog's placeholder. |
+| `migrate_localization.py` | One-off script that produced `Localizable.xcstrings` from the previous inline `tr(fr, en)` calls; kept for reference. |
 
 ## CI/CD setup
 

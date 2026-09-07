@@ -139,33 +139,29 @@ struct PaymentValidationView: View {
             }
 
             HStack(spacing: 10) {
-                Button {
+                TintedActionButton(
+                    title: tr("confirm"),
+                    symbol: "checkmark",
+                    foreground: .white,
+                    background: Theme.green,
+                    font: .subheadline.weight(.semibold)
+                ) {
                     validate(entry)
-                } label: {
-                    Label(tr("confirm"), systemImage: "checkmark")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 44)
-                        .background(Theme.green, in: .rect(cornerRadius: Theme.controlRadius))
                 }
-                .buttonStyle(PressableButtonStyle())
 
-                Button {
+                TintedActionButton(
+                    title: tr("reject"),
+                    symbol: "xmark",
+                    foreground: Theme.red,
+                    background: Theme.redTint,
+                    font: .subheadline.weight(.semibold)
+                ) {
                     rejecting = RejectTarget(
                         callId: entry.call.id,
                         memberId: entry.item.memberId,
                         name: member?.firstName ?? tr("this_member")
                     )
-                } label: {
-                    Label(tr("reject"), systemImage: "xmark")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(Theme.red)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 44)
-                        .background(Theme.redTint, in: .rect(cornerRadius: Theme.controlRadius))
                 }
-                .buttonStyle(PressableButtonStyle())
             }
 
             NavigationLink(value: ClubRoute.paymentCall(entry.call.id)) {

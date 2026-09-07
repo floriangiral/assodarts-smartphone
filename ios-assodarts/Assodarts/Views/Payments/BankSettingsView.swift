@@ -456,47 +456,38 @@ struct BankSettingsView: View {
             .background(Theme.canvas, in: .rect(cornerRadius: Theme.controlRadius))
 
             HStack(spacing: 10) {
-                Button {
+                TintedActionButton(
+                    title: didCopyIban ? tr("iban_copied") : tr("copy_iban"),
+                    symbol: didCopyIban ? "checkmark" : "doc.on.doc",
+                    foreground: Theme.navy,
+                    background: Theme.navyTint
+                ) {
                     UIPasteboard.general.string = draft.formattedIban
                     withAnimation { didCopyIban = true }
                     Task {
                         try? await Task.sleep(for: .seconds(2))
                         withAnimation { didCopyIban = false }
                     }
-                } label: {
-                    Label(
-                        didCopyIban ? tr("iban_copied") : tr("copy_iban"),
-                        systemImage: didCopyIban ? "checkmark" : "doc.on.doc"
-                    )
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(Theme.navy)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 44)
-                        .background(Theme.navyTint, in: .rect(cornerRadius: Theme.controlRadius))
                 }
-                .buttonStyle(PressableButtonStyle())
 
                 if let ribURL {
                     ShareLink(item: ribURL) {
-                        Label(tr("share_details"), systemImage: "square.and.arrow.up")
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(Theme.navy)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 44)
-                            .background(Theme.navyTint, in: .rect(cornerRadius: Theme.controlRadius))
+                        ActionButtonLabel(
+                            title: tr("share_details"),
+                            symbol: "square.and.arrow.up",
+                            foreground: Theme.navy,
+                            background: Theme.navyTint
+                        )
                     }
                 } else {
-                    Button {
+                    TintedActionButton(
+                        title: tr("generate_pdf"),
+                        symbol: "doc.text",
+                        foreground: Theme.navy,
+                        background: Theme.navyTint
+                    ) {
                         ribURL = RIBDocument.makePDF(club: club, account: draft, reference: nil)
-                    } label: {
-                        Label(tr("generate_pdf"), systemImage: "doc.text")
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(Theme.navy)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 44)
-                            .background(Theme.navyTint, in: .rect(cornerRadius: Theme.controlRadius))
                     }
-                    .buttonStyle(PressableButtonStyle())
                 }
             }
         }

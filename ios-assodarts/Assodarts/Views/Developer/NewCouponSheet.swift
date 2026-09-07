@@ -116,12 +116,7 @@ struct NewCouponSheet: View {
                                         .foregroundStyle(Theme.inkSecondary)
                                 }
                                 Spacer()
-                                Image(systemName: selection.contains(club.id) ? "checkmark.circle.fill" : "circle")
-                                    .foregroundStyle(
-                                        selection.contains(club.id)
-                                            ? Theme.navy
-                                            : Theme.inkSecondary.opacity(0.4)
-                                    )
+                                SelectionIndicator(isSelected: selection.contains(club.id))
                             }
                         }
         Task {

@@ -15,8 +15,26 @@ struct OnboardingChoiceView: View {
                 Text(tr("choose_an_option_you_can_change_your_choice_later"))
                     .foregroundStyle(Theme.inkSecondary)
                 VStack(spacing: 12) {
-                    onboardingButton(title: tr("i_was_invited_by_my_club"), detail: tr("wait_for_your_club_board_to_register_your_invitation_wit"), symbol: "envelope.badge") { showsCreateClub = false }
-                    onboardingButton(title: tr("create_my_club"), detail: tr("create_your_club_and_become_an_administrator_automatical"), symbol: "plus.circle") { showsCreateClub = true }
+                    onboardingButton(
+                        title: tr("i_was_invited_by_my_club"),
+                        detail: tr("wait_for_your_club_board_to_register_your_invitation_with_this_email_address"),
+                        symbol: "envelope.badge",
+                        isSelected: !showsCreateClub
+                    ) {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            showsCreateClub = false
+                        }
+                    }
+                    onboardingButton(
+                        title: tr("create_my_club"),
+                        detail: tr("create_your_club_and_become_an_administrator_automatical"),
+                        symbol: "plus.circle",
+                        isSelected: showsCreateClub
+                    ) {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            showsCreateClub = true
+                        }
+                    }
                 }
                 if !showsCreateClub {
                     PrimaryButton(title: tr("refresh"), symbol: "arrow.clockwise", isEnabled: !isRefreshing, action: refresh)
@@ -32,7 +50,13 @@ struct OnboardingChoiceView: View {
         }
     }
 
-    private func onboardingButton(title: String, detail: String, symbol: String, action: @escaping () -> Void) -> some View {
+    private func onboardingButton(
+        title: String,
+        detail: String,
+        symbol: String,
+        isSelected: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
         Button(action: action) {
             HStack(alignment: .top, spacing: 14) {
                 Image(systemName: symbol).font(.title3).foregroundStyle(Theme.navy)
@@ -43,7 +67,17 @@ struct OnboardingChoiceView: View {
                 Spacer()
             }
             .padding(16)
-            .background(Theme.surface, in: .rect(cornerRadius: Theme.buttonRadius))
+            .background(
+                isSelected ? Theme.navyTint : Theme.surface,
+                in: .rect(cornerRadius: Theme.buttonRadius)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: Theme.buttonRadius)
+                    .stroke(
+                        isSelected ? Theme.navy : Theme.border,
+                        lineWidth: isSelected ? 1.5 : 1
+                    )
+            }
         }
         .buttonStyle(.plain)
     }

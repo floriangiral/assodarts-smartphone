@@ -22,7 +22,7 @@ struct CreateClubView: View {
                 .padding(14)
                 .background(Theme.surface, in: .rect(cornerRadius: Theme.controlRadius))
             if let errorMessage {
-                Text(errorMessage).font(.subheadline).foregroundStyle(.red)
+                Text(errorMessage).font(.subheadline).foregroundStyle(Theme.red)
             }
             PrimaryButton(title: tr("create_club"), symbol: "plus", isEnabled: isValid && !isSubmitting, action: submit)
             Button(tr("back"), action: onCancel)
