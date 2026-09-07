@@ -28,7 +28,15 @@ struct EmptyStateView: View {
     var body: some View {
         Group {
             if let searchText {
-                ContentUnavailableView.search(text: searchText)
+                VStack(spacing: 12) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.largeTitle)
+                        .foregroundStyle(Theme.inkSecondary)
+                    Text(searchText)
+                        .font(.headline)
+                        .foregroundStyle(Theme.ink)
+                        .multilineTextAlignment(.center)
+                }
             } else if let title, let systemImage {
                 if let description {
                     ContentUnavailableView(
