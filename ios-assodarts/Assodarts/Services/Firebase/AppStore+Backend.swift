@@ -159,6 +159,22 @@ extension AppStore {
         }
     }
 
+    /// Creates a club for an authenticated member who has not joined one yet.
+    /// The snapshot reload also switches the app into the new live club.
+    func createClubFromOnboarding(name: String, userId: UUID) async -> String? {
+        do {
+            _ = try await RemoteRepository.createClub(name: name)
+            let message = await loadRemote(userId: userId)
+            if message == nil {
+                showsPostCreationInviteOffer = true
+            }
+            return message
+        } catch {
+            print("Onboarding club creation failed: \(error)")
+            return friendlyMessage(for: error)
+        }
+    }
+
     /// Sends a password reset email.
     func sendPasswordReset(email: String) async -> String {
         let normalized = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -192,6 +208,7 @@ extension AppStore {
             let snapshot = try await loadSnapshotAcceptingInvitations(for: userId)
             applySnapshot(snapshot)
             mode = .live
+            needsOnboardingChoice = false
             syncError = nil
             save()
             await loadNotifications()
@@ -199,6 +216,10 @@ extension AppStore {
             return nil
         } catch {
             print("Club sync failed: \(error)")
+            if case BackendError.noMembership = error {
+                needsOnboardingChoice = true
+                mode = .live
+            }
             return friendlyMessage(for: error)
         }
     }

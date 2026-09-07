@@ -17,6 +17,9 @@ struct ContentView: View {
                     ClubTabView()
                         .transition(.opacity)
                 }
+            } else if store.needsOnboardingChoice {
+                OnboardingChoiceView()
+                    .transition(.opacity)
             } else {
                 LoginView()
                     .transition(.opacity)

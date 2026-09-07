@@ -618,14 +618,43 @@ enum RemoteRepository {
     /// has to exist first, its `clubId` is completed by this call.
     /// - Returns: The real Firestore id of the newly created club.
     static func createClub(name: String) async throws -> String {
-        let result = try await Backend.functions.httpsCallable("createClub").call(["name": name])
-        guard let data = result.data as? [String: Any], let clubId = data["clubId"] as? String else {
+        do {
+            let result = try await Backend.functions.httpsCallable("createClub").call(["name": name])
+            guard let data = result.data as? [String: Any], let clubId = data["clubId"] as? String else {
+                throw BackendError.message(tr(
+                    "Réponse inattendue du serveur.",
+                    "Unexpected server response."
+                ))
+            }
+            return clubId
+        } catch let error as BackendError {
+            throw error
+        } catch {
+            let description = error.localizedDescription.lowercased()
+            if description.contains("invalid-argument") {
+                throw BackendError.message(tr(
+                    "Le nom du club doit contenir entre 2 et 80 caractères.",
+                    "The club name must be between 2 and 80 characters."
+                ))
+            }
+            if description.contains("already-exists") {
+                throw BackendError.message(tr(
+                    "Un club avec un nom très proche existe déjà. Choisissez un autre nom.",
+                    "A club with a very similar name already exists. Choose another name."
+                ))
+            }
+            if description.contains("failed-precondition") {
+                print("createClub failed precondition: \(error)")
+                throw BackendError.message(tr(
+                    "Votre profil n'est pas encore prêt. Réessayez dans un instant.",
+                    "Your profile is not ready yet. Please try again in a moment."
+                ))
+            }
             throw BackendError.message(tr(
-                "Le club n'a pas pu être créé. Réessayez.",
-                "The club couldn't be created. Please try again."
+                "Impossible de créer le club. Vérifiez votre connexion puis réessayez.",
+                "The club could not be created. Check your connection and try again."
             ))
         }
-        return clubId
     }
 
     // MARK: - Invitations

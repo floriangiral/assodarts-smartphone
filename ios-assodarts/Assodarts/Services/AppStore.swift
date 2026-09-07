@@ -33,6 +33,7 @@ final class AppStore {
     /// Set right after a member creates their own club, so the app can offer
     /// inviting board members before landing on the normal dashboard.
     var showsPostCreationInviteOffer: Bool = false
+    var needsOnboardingChoice: Bool = false
 
     init() {
         if let data = UserDefaults.standard.data(forKey: Self.storageKey),
@@ -122,6 +123,7 @@ final class AppStore {
         activeClubRemoteId = nil
         pendingClubSwitchOffer = nil
         showsPostCreationInviteOffer = false
+        needsOnboardingChoice = false
         NotificationService.clearScheduledReminders()
         if wasLive {
             db = DemoData.seed()
