@@ -165,7 +165,7 @@ export interface NotificationPayload {
 export interface NotificationDoc {
   memberId: string;
   clubId: string;
-  kind: "announcement" | "payment_due" | "payment_to_confirm" | "payment_confirmed" | "event";
+  kind: "announcement" | "payment_due" | "payment_to_confirm" | "payment_confirmed" | "platform_announcement" | "event";
   title: string;
   body: string;
   payload: NotificationPayload;

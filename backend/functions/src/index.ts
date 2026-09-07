@@ -15,6 +15,7 @@ export {
 export {
   onPaymentItemWritten,
   onAnnouncementCreated,
+  onPlatformAnnouncementCreated,
   onNotificationCreated,
 } from "./notifications";
 export {

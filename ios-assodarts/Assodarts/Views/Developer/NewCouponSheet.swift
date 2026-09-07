@@ -63,7 +63,7 @@ struct NewCouponSheet: View {
                             Spacer()
                             Text(roundedPercent >= 100
                                 ? tr("free")
-                                : tr("localized_string_newcouponsheet \(roundedPercent)"))
+                                : tr("discount_percent_new_coupon \(roundedPercent)"))
                                 .font(.headline)
                                 .monospacedDigit()
                                 .foregroundStyle(roundedPercent >= 100 ? Theme.green : Theme.orange)

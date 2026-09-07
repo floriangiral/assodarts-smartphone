@@ -4209,34 +4209,34 @@
         }
       }
     },
-    "localized_string %@": {
+    "discount_percent %lld": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "−%@ %"
+            "value": "−%lld %"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "−%@%"
+            "value": "−%lld%"
           }
         }
       }
     },
-    "localized_string_newcouponsheet %@": {
+    "discount_percent_new_coupon %lld": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ %"
+            "value": "%lld %"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@%"
+            "value": "%lld%"
           }
         }
       }
@@ -4481,18 +4481,18 @@
         }
       }
     },
-    "members_year %@ %@": {
+    "members_year %lld %@": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ membres · %@/an"
+            "value": "%lld membres · %@/an"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ members · %@/year"
+            "value": "%lld members · %@/year"
           }
         }
       }
@@ -5697,7 +5697,7 @@
         }
       }
     },
-    "overdue_paymentcallsview %@": {
+    "overdue_paymentcallsview %lld": {
       "localizations": {
         "fr": {
           "stringUnit": {
@@ -5793,7 +5793,7 @@
         }
       }
     },
-    "paid_paymentcallsview %@": {
+    "paid_paymentcallsview %lld": {
       "localizations": {
         "fr": {
           "stringUnit": {
@@ -6225,7 +6225,7 @@
         }
       }
     },
-    "pending_paymentcallsview %@": {
+    "pending_paymentcallsview %lld": {
       "localizations": {
         "fr": {
           "stringUnit": {
@@ -6993,7 +6993,7 @@
         }
       }
     },
-    "renewals_first_subscriptions %@ %lld": {
+    "renewals_first_subscriptions %lld %lld": {
       "localizations": {
         "fr": {
           "stringUnit": {
@@ -7233,7 +7233,7 @@
         }
       }
     },
-    "score_a %@": {
+    "score_a %lld": {
       "localizations": {
         "fr": {
           "stringUnit": {
@@ -7249,7 +7249,7 @@
         }
       }
     },
-    "score_b %@": {
+    "score_b %lld": {
       "localizations": {
         "fr": {
           "stringUnit": {
@@ -8337,7 +8337,7 @@
         }
       }
     },
-    "this_month %@": {
+    "this_month %lld": {
       "localizations": {
         "fr": {
           "stringUnit": {

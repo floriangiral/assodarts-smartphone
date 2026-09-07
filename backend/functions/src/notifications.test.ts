@@ -4,6 +4,7 @@ const mockMembershipsQueryGet = jest.fn();
 const mockTokensQueryGet = jest.fn();
 const mockNotificationAdd = jest.fn();
 const mockSendEachForMulticast = jest.fn();
+let lastMembershipsQuery: { where: jest.Mock; get: jest.Mock };
 
 function makeMembershipsQuery(): {
   where: jest.Mock;
@@ -14,6 +15,7 @@ function makeMembershipsQuery(): {
     get: mockMembershipsQueryGet,
   };
   query.where.mockImplementation(() => query);
+  lastMembershipsQuery = query;
   return query;
 }
 
@@ -48,6 +50,7 @@ jest.mock("firebase-admin/messaging", () => ({
 import {
   onPaymentItemWritten,
   onAnnouncementCreated,
+  onPlatformAnnouncementCreated,
   onNotificationCreated,
 } from "./notifications";
 
@@ -77,6 +80,13 @@ function paymentItemEvent(
 function announcementEvent(data: Record<string, unknown> | undefined) {
   return {
     params: { announcementId: "ann-1" },
+    data: { data: () => data },
+  } as never;
+}
+
+function platformAnnouncementEvent(data: Record<string, unknown> | undefined) {
+  return {
+    params: { announcementId: "platform-ann-1" },
     data: { data: () => data },
   } as never;
 }
@@ -212,6 +222,84 @@ describe("onAnnouncementCreated", () => {
         payload: expect.objectContaining({ announcementId: "ann-1" }),
       }),
     );
+  });
+});
+
+describe("onPlatformAnnouncementCreated", () => {
+  it("notifies every active membership across clubs for all audience", async () => {
+    mockMembershipsQueryGet.mockResolvedValue({
+      docs: [
+        { data: () => ({ memberId: "m1", clubId: "c1" }) },
+        { data: () => ({ memberId: "m2", clubId: "c2" }) },
+      ],
+    });
+
+    await onPlatformAnnouncementCreated.run(
+      platformAnnouncementEvent({
+        title: "Mise à jour",
+        body: "Contenu",
+        audience: "all",
+        publishedAt: "2026-09-03T00:00:00Z",
+      }),
+    );
+
+    expect(mockNotificationAdd).toHaveBeenCalledTimes(2);
+    expect(mockNotificationAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        memberId: "m1",
+        clubId: "c1",
+        kind: "platform_announcement",
+        payload: expect.objectContaining({ announcementId: "platform-ann-1" }),
+      }),
+    );
+  });
+
+  it("uses the admin and board membership filter for admins audience", async () => {
+    mockMembershipsQueryGet.mockResolvedValue({
+      docs: [{ data: () => ({ memberId: "admin1", clubId: "c1" }) }],
+    });
+
+    await onPlatformAnnouncementCreated.run(
+      platformAnnouncementEvent({
+        title: "Admins",
+        body: "Contenu",
+        audience: "admins",
+        publishedAt: "2026-09-03T00:00:00Z",
+      }),
+    );
+
+    expect(lastMembershipsQuery.where).toHaveBeenNthCalledWith(
+      1,
+      "status",
+      "==",
+      "active",
+    );
+    expect(lastMembershipsQuery.where).toHaveBeenNthCalledWith(
+      2,
+      "role",
+      "in",
+      ["admin", "board"],
+    );
+    expect(mockNotificationAdd).toHaveBeenCalledTimes(1);
+    expect(mockNotificationAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        memberId: "admin1",
+        kind: "platform_announcement",
+      }),
+    );
+  });
+
+  it("does not notify when the platform announcement is unpublished", async () => {
+    await onPlatformAnnouncementCreated.run(
+      platformAnnouncementEvent({
+        title: "Brouillon",
+        body: "Contenu",
+        audience: "all",
+      }),
+    );
+
+    expect(mockMembershipsQueryGet).not.toHaveBeenCalled();
+    expect(mockNotificationAdd).not.toHaveBeenCalled();
   });
 });
 

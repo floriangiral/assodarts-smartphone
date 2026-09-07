@@ -2,6 +2,7 @@ const mockItemGet = jest.fn();
 const mockItemSet = jest.fn();
 const mockPaymentCallGet = jest.fn();
 const mockBankAccountGet = jest.fn();
+const mockMembershipGet = jest.fn();
 const mockCheckoutCreate = jest.fn();
 
 jest.mock("./shared/stripe", () => {
@@ -26,6 +27,9 @@ jest.mock("firebase-admin/firestore", () => ({
       }
       if (name === "club_bank_accounts") {
         return { doc: () => ({ get: mockBankAccountGet }) };
+      }
+      if (name === "memberships") {
+        return { doc: () => ({ get: mockMembershipGet }) };
       }
       throw new Error(`Unexpected collection ${name}`);
     },
@@ -68,6 +72,9 @@ beforeEach(() => {
   mockBankAccountGet.mockResolvedValue({
     data: () => ({ stripeAccountId: "acct_club", stripeStatus: "verified" }),
   });
+  mockMembershipGet.mockResolvedValue({
+    data: () => ({ status: "active", memberId: "u1" }),
+  });
   mockCheckoutCreate.mockResolvedValue({
     id: "cs_123",
     url: "https://stripe.test/checkout",
@@ -86,7 +93,6 @@ describe("stripeCreateCheckout", () => {
 
   it.each([
     ["missing", undefined],
-    ["owned by another auth uid", { memberId: "u2", isPaid: false }],
     ["already paid", { memberId: "u1", isPaid: true }],
   ])("rejects a %s payment line", async (_label, item) => {
     mockItemGet.mockResolvedValue({ data: item });
@@ -107,7 +113,14 @@ describe("stripeCreateCheckout", () => {
     expect(mockCheckoutCreate).not.toHaveBeenCalled();
   });
 
-  it("rejects a valid member document id when it differs from the auth uid", async () => {
+  it.each([
+    [
+      "an inactive membership",
+      { status: "inactive", memberId: "member-document-1" },
+    ],
+    ["a different member", { status: "active", memberId: "other-member" }],
+    ["a missing membership", undefined],
+  ])("rejects a payment when there is %s", async (_label, membership) => {
     mockItemGet.mockResolvedValue({
       data: () => ({
         memberId: "member-document-1",
@@ -116,10 +129,32 @@ describe("stripeCreateCheckout", () => {
         isPaid: false,
       }),
     });
+    mockMembershipGet.mockResolvedValue({ data: () => membership });
 
     await expect(
       handler(makeRequest({ itemId: "i1" }, "auth-uid-1")),
     ).rejects.toThrow();
+  });
+
+  it("allows an active membership to pay its member document", async () => {
+    mockItemGet.mockResolvedValue({
+      data: () => ({
+        memberId: "member-document-1",
+        paymentCallId: "call1",
+        clubId: "c1",
+        isPaid: false,
+      }),
+    });
+    mockMembershipGet.mockResolvedValue({
+      data: () => ({ status: "active", memberId: "member-document-1" }),
+    });
+
+    await expect(
+      handler(makeRequest({ itemId: "i1" }, "auth-uid-1")),
+    ).resolves.toEqual({
+      url: "https://stripe.test/checkout",
+      sessionId: "cs_123",
+    });
   });
 
   it("creates a checkout session from server payment data and persists its id", async () => {

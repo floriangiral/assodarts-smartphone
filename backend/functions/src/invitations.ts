@@ -124,8 +124,7 @@ export const acceptInvitation = onCall(async (request) => {
     );
   }
 
-  const existingClubId = member.data()?.clubId as
-    string | null | undefined;
+  const existingClubId = member.data()?.clubId as string | null | undefined;
   if (!existingClubId) {
     await member.ref.set({ clubId: firstClubId }, { merge: true });
   }

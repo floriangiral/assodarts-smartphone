@@ -1,5 +1,6 @@
-Parsed calls: 736
-Unique catalog keys: 583
-Duplicate calls merged: 153
-Unparsed calls: 1
-ios-assodarts/Assodarts/Utilities/Localization.swift:58: non-literal tr() (the old wrapper definition, resolved manually)
+Localization type audit
+========================
+Findings: 0
+New findings beyond the seven known cases: 0
+
+No placeholder/type disagreements found.
