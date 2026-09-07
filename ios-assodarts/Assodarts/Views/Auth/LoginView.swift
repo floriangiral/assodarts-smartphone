@@ -30,9 +30,9 @@ struct LoginView: View {
 
         var label: String {
             switch self {
-            case .signIn: tr("Se connecter", "Sign in")
-            case .signUp: tr("Créer un compte", "Sign up")
-            case .createClub: tr("Créer mon club", "Create my club")
+            case .signIn: tr("sign_in")
+            case .signUp: tr("sign_up")
+            case .createClub: tr("create_my_club")
             }
         }
 
@@ -40,8 +40,8 @@ struct LoginView: View {
         /// "Sign up" is selected — clearer there than the generic `label`.
         var signUpChoiceLabel: String {
             switch self {
-            case .signUp: tr("J'ai été invité(e) par mon club", "I was invited by my club")
-            case .createClub: tr("Je crée le club de mon association", "I'm creating my club")
+            case .signUp: tr("i_was_invited_by_my_club")
+            case .createClub: tr("i_m_creating_my_club")
             case .signIn: label
             }
         }
@@ -101,10 +101,7 @@ struct LoginView: View {
             Text("Assodarts")
                 .font(.largeTitle.bold())
                 .foregroundStyle(Theme.ink)
-            Text(tr(
-                "La gestion de votre club de fléchettes,\nréunie dans une seule application.",
-                "Everything your darts club needs,\nbrought together in one app."
-            ))
+            Text(tr("everything_your_darts_club_needs_brought_together_in_one"))
             .font(.subheadline)
             .multilineTextAlignment(.center)
             .foregroundStyle(Theme.inkSecondary)
@@ -138,76 +135,76 @@ struct LoginView: View {
             if intent == .signUp || intent == .createClub {
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 8) {
-                        SectionLabel(text: tr("Prénom", "First name"))
-                        TextField(tr("Camille", "Alex"), text: $firstName)
+                        SectionLabel(text: tr("first_name"))
+                        TextField(tr("alex"), text: $firstName)
                             .textContentType(.givenName)
                             .focused($focusedField, equals: .firstName)
                             .foregroundStyle(Theme.ink)
                             .padding(14)
-                            .background(Theme.canvas, in: .rect(cornerRadius: 12))
+                            .background(Theme.canvas, in: .rect(cornerRadius: Theme.controlRadius))
                     }
                     VStack(alignment: .leading, spacing: 8) {
-                        SectionLabel(text: tr("Nom", "Last name"))
-                        TextField(tr("Dupont", "Smith"), text: $lastName)
+                        SectionLabel(text: tr("last_name"))
+                        TextField(tr("smith"), text: $lastName)
                             .textContentType(.familyName)
                             .focused($focusedField, equals: .lastName)
                             .foregroundStyle(Theme.ink)
                             .padding(14)
-                            .background(Theme.canvas, in: .rect(cornerRadius: 12))
+                            .background(Theme.canvas, in: .rect(cornerRadius: Theme.controlRadius))
                     }
                 }
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
 
             VStack(alignment: .leading, spacing: 8) {
-                SectionLabel(text: tr("Adresse email", "Email address"))
-                TextField(tr("prenom@club.fr", "name@club.com"), text: $email)
+                SectionLabel(text: tr("email_address"))
+                TextField(tr("name_club_com"), text: $email)
                     .keyboardField(.email, submit: .next)
                     .focused($focusedField, equals: .email)
                     .onSubmit { focusedField = .password }
                     .foregroundStyle(Theme.ink)
                     .padding(14)
-                    .background(Theme.canvas, in: .rect(cornerRadius: 12))
+                    .background(Theme.canvas, in: .rect(cornerRadius: Theme.controlRadius))
             }
 
             if intent == .signUp || intent == .createClub {
                 VStack(alignment: .leading, spacing: 8) {
-                    SectionLabel(text: tr("Téléphone (facultatif)", "Phone (optional)"))
+                    SectionLabel(text: tr("phone_optional"))
                     TextField("06 12 34 56 78", text: $phone)
                         .keyboardType(.phonePad)
                         .textContentType(.telephoneNumber)
                         .focused($focusedField, equals: .phone)
                         .foregroundStyle(Theme.ink)
                         .padding(14)
-                        .background(Theme.canvas, in: .rect(cornerRadius: 12))
+                        .background(Theme.canvas, in: .rect(cornerRadius: Theme.controlRadius))
                 }
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
 
             if intent == .createClub {
                 VStack(alignment: .leading, spacing: 8) {
-                    SectionLabel(text: tr("Nom du club", "Club name"))
-                    TextField(tr("Fléchettes Club Lyon", "Lyon Darts Club"), text: $clubName)
+                    SectionLabel(text: tr("club_name"))
+                    TextField(tr("lyon_darts_club"), text: $clubName)
                         .focused($focusedField, equals: .clubName)
                         .onSubmit { focusedField = .password }
                         .foregroundStyle(Theme.ink)
                         .padding(14)
-                        .background(Theme.canvas, in: .rect(cornerRadius: 12))
+                        .background(Theme.canvas, in: .rect(cornerRadius: Theme.controlRadius))
                 }
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
 
             VStack(alignment: .leading, spacing: 8) {
-                SectionLabel(text: tr("Mot de passe", "Password"))
+                SectionLabel(text: tr("password"))
                 SecureField("••••••", text: $password)
                     .keyboardField(.password, submit: .go)
                     .focused($focusedField, equals: .password)
                     .onSubmit(submit)
                     .foregroundStyle(Theme.ink)
                     .padding(14)
-                    .background(Theme.canvas, in: .rect(cornerRadius: 12))
+                    .background(Theme.canvas, in: .rect(cornerRadius: Theme.controlRadius))
                 if intent == .signUp || intent == .createClub {
-                    Text(tr("6 caractères minimum.", "At least 6 characters."))
+                    Text(tr("at_least_6_characters"))
                         .font(.caption)
                         .foregroundStyle(Theme.inkSecondary)
                 }
@@ -231,7 +228,7 @@ struct LoginView: View {
 
             PrimaryButton(
                 title: isSubmitting
-                    ? tr("Connexion…", "Signing in…")
+                    ? tr("signing_in")
                     : intent.label,
                 symbol: isSubmitting ? "ellipsis" : "arrow.right",
                 isEnabled: !isSubmitting && !email.isEmpty && !password.isEmpty,
@@ -240,7 +237,7 @@ struct LoginView: View {
             .padding(.top, 4)
 
             if intent == .signIn {
-                Button(tr("Mot de passe oublié ?", "Forgot your password?"), action: resetPassword)
+                Button(tr("forgot_your_password"), action: resetPassword)
                     .font(.footnote.weight(.medium))
                     .foregroundStyle(Theme.inkSecondary)
                     .disabled(isSubmitting)
@@ -259,7 +256,7 @@ struct LoginView: View {
             } label: {
                 HStack {
                     Image(systemName: "person.2.badge.key")
-                    Text(tr("Explorer en mode démo (hors ligne)", "Explore in demo mode (offline)"))
+                    Text(tr("explore_in_demo_mode_offline"))
                         .font(.subheadline.weight(.semibold))
                     Spacer()
                     Image(systemName: "chevron.down")
@@ -272,10 +269,7 @@ struct LoginView: View {
 
             if showsDemoAccounts {
                 VStack(spacing: 10) {
-                    Text(tr(
-                        "Données fictives stockées sur cet iPhone, sans connexion au serveur.",
-                        "Sample data kept on this iPhone only, with no server connection."
-                    ))
+                    Text(tr("sample_data_kept_on_this_iphone_only_with_no_server_conn"))
                     .font(.caption)
                     .foregroundStyle(Theme.inkSecondary)
                     .frame(maxWidth: .infinity, alignment: .leading)

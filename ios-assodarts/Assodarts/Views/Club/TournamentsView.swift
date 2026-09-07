@@ -22,13 +22,10 @@ struct TournamentsView: View {
                 }
 
                 if tournaments.isEmpty {
-                    ContentUnavailableView(
-                        tr("Aucun tournoi", "No tournaments"),
+                    EmptyStateView(
+                        tr("no_tournaments"),
                         systemImage: "trophy",
-                        description: Text(tr(
-                            "Le bureau peut créer un tournoi et désigner ses marqueurs.",
-                            "The committee can create a tournament and appoint its scorers."
-                        ))
+                        description: Text(tr("the_committee_can_create_a_tournament_and_appoint_its_sc"))
                     )
                     .padding(.top, 60)
                 }
@@ -37,7 +34,7 @@ struct TournamentsView: View {
             .padding(.vertical, 12)
         }
         .assoCanvas()
-        .navigationTitle(tr("Tournois", "Tournaments"))
+        .navigationTitle(tr("tournaments"))
         .toolbar {
             if store.canManageClub {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -46,7 +43,7 @@ struct TournamentsView: View {
                     } label: {
                         Image(systemName: "plus")
                     }
-                    .accessibilityLabel(tr("Nouveau tournoi", "New tournament"))
+                    .accessibilityLabel(tr("new_tournament"))
                 }
             }
         }
@@ -87,13 +84,7 @@ struct TournamentCard: View {
             HStack(spacing: 6) {
                 Image(systemName: "list.bullet.rectangle")
                     .font(.caption2)
-                Text(Fmt.count(
-                    tournament.entries.count,
-                    "résultat saisi",
-                    "résultats saisis",
-                    "result recorded",
-                    "results recorded"
-                ))
+                Text(Fmt.count(tournament.entries.count, key: .results))
                     .font(.caption.weight(.medium))
                 Spacer()
                 Image(systemName: "chevron.right")

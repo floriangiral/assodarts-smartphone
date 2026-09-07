@@ -9,14 +9,12 @@ struct ContentView: View {
             if store.isRestoringSession {
                 SplashView()
                     .transition(.opacity)
+            } else if store.isDeveloper {
+                DeveloperTabView()
+                    .transition(.opacity)
             } else if let user = store.currentUser {
-                if user.role == .developpeur {
-                    DeveloperTabView()
-                        .transition(.opacity)
-                } else {
-                    ClubTabView()
-                        .transition(.opacity)
-                }
+                ClubTabView()
+                    .transition(.opacity)
             } else if store.needsOnboardingChoice {
                 OnboardingChoiceView()
                     .transition(.opacity)

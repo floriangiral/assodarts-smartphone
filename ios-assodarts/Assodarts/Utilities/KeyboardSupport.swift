@@ -88,7 +88,7 @@ private struct KeyboardDoneBar: ViewModifier {
             ToolbarItemGroup(placement: .keyboard) {
                 if isVisible {
                     Spacer()
-                    Button(tr("Terminé", "Done"), action: dismiss)
+                    Button(tr("done"), action: dismiss)
                         .fontWeight(.semibold)
                 }
             }

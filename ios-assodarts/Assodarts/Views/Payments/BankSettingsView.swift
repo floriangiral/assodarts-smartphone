@@ -43,8 +43,8 @@ struct BankSettingsView: View {
                     }
                     saveButton(club)
                 } else {
-                    ContentUnavailableView(
-                        tr("Club introuvable", "Club not found"),
+                    EmptyStateView(
+                        tr("club_not_found"),
                         systemImage: "building.columns"
                     )
                 }
@@ -55,7 +55,7 @@ struct BankSettingsView: View {
         .assoCanvas()
         .keyboardDismissable()
         .keyboardDoneBar(isVisible: focus != nil) { focus = nil }
-        .navigationTitle(tr("Coordonnées bancaires", "Bank details"))
+        .navigationTitle(tr("bank_details_admindashboardcontent"))
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             guard !didLoad else { return }
@@ -67,10 +67,10 @@ struct BankSettingsView: View {
                 .ignoresSafeArea()
         }
         .alert(
-            tr("Activation impossible", "Activation failed"),
+            tr("activation_failed"),
             isPresented: Binding(get: { stripeError != nil }, set: { if !$0 { stripeError = nil } })
         ) {
-            Button(tr("Fermer", "Close"), role: .cancel) { stripeError = nil }
+            Button(tr("close"), role: .cancel) { stripeError = nil }
         } message: {
             Text(stripeError ?? "")
         }
@@ -82,13 +82,10 @@ struct BankSettingsView: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(tr("Paiements en ligne", "Online payments"))
+                    Text(tr("online_payments"))
                         .font(.headline)
                         .foregroundStyle(Theme.ink)
-                    Text(tr(
-                        "Apple Pay, Google Pay et carte bancaire, encaissés via Stripe.",
-                        "Apple Pay, Google Pay and card, collected through Stripe."
-                    ))
+                    Text(tr("apple_pay_google_pay_and_card_collected_through_stripe"))
                         .font(.footnote)
                         .foregroundStyle(Theme.inkSecondary)
                 }
@@ -114,12 +111,12 @@ struct BankSettingsView: View {
                 }
 
                 if let accountId = draft.stripeAccountId {
-                    Text(tr("Compte Stripe \(accountId)", "Stripe account \(accountId)"))
+                    Text(tr("stripe_account \(accountId)"))
                         .font(.caption2.monospaced())
                         .foregroundStyle(Theme.inkSecondary)
                 }
 
-                Button(tr("Désactiver les paiements en ligne", "Turn off online payments")) {
+                Button(tr("turn_off_online_payments")) {
                     store.disableOnlineCollection(for: club.id)
                     draft.stripeStatus = .notConnected
                     draft.stripeAccountId = nil
@@ -128,16 +125,8 @@ struct BankSettingsView: View {
                 .foregroundStyle(Theme.red)
             } else {
                 Text(draft.stripeStatus == .pending
-                     ? tr(
-                        "Stripe vérifie les informations du club. Reprenez le formulaire si des pièces manquent.",
-                        "Stripe is reviewing the club's information. Resume the form if documents are missing."
-                     )
-                     : tr(
-                        "Renseignez le compte du club ci-dessous, puis activez l'encaissement en ligne. "
-                            + "Les fonds sont versés sur ce compte.",
-                        "Fill in the club account below, then activate online collection. "
-                            + "Payouts are sent to that account."
-                     ))
+                     ? tr("stripe_is_reviewing_the_club_s_information_resume_the_fo")
+                     : tr("fill_in_the_club_account_below_then_activate_online_coll"))
                     .font(.footnote)
                     .foregroundStyle(Theme.inkSecondary)
 
@@ -151,7 +140,7 @@ struct BankSettingsView: View {
 
                 if !draft.isComplete {
                     Label(
-                        tr("IBAN et BIC valides requis", "A valid IBAN and BIC are required"),
+                        tr("a_valid_iban_and_bic_are_required"),
                         systemImage: "info.circle"
                     )
                         .font(.caption)
@@ -164,12 +153,12 @@ struct BankSettingsView: View {
 
     private var onlineCallToAction: String {
         if isVerifying {
-            return tr("Ouverture de Stripe…", "Opening Stripe…")
+            return tr("opening_stripe")
         }
         if draft.stripeStatus == .pending {
-            return tr("Reprendre la vérification", "Resume verification")
+            return tr("resume_verification")
         }
-        return tr("Activer l'encaissement en ligne", "Activate online collection")
+        return tr("activate_online_collection")
     }
 
     /// Live clubs go through the real Stripe Connect onboarding; the demo mode
@@ -212,11 +201,8 @@ struct BankSettingsView: View {
                 case .verified:
                     store.completeOnlineCollection(for: club.id)
                     NotificationService.notify(
-                        title: tr("Paiements en ligne actifs", "Online payments active"),
-                        body: tr(
-                            "Vos membres peuvent régler par Apple Pay ou carte bancaire.",
-                            "Your members can now pay with Apple Pay or a bank card."
-                        )
+                        title: tr("online_payments_active"),
+                        body: tr("your_members_can_now_pay_with_apple_pay_or_a_bank_card")
                     )
                 case .pending:
                     store.startOnlineCollection(for: club.id)
@@ -245,11 +231,8 @@ struct BankSettingsView: View {
                 isVerifying = false
             }
             NotificationService.notify(
-                title: tr("Paiements en ligne actifs", "Online payments active"),
-                body: tr(
-                    "Vos membres peuvent régler par Apple Pay, Google Pay ou carte.",
-                    "Your members can now pay with Apple Pay, Google Pay or card."
-                )
+                title: tr("online_payments_active"),
+                body: tr("your_members_can_now_pay_with_apple_pay_google_pay_or_ca")
             )
         }
     }
@@ -258,12 +241,12 @@ struct BankSettingsView: View {
 
     private var detailsCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            SectionLabel(text: tr("Compte du club", "Club account"))
+            SectionLabel(text: tr("club_account"))
 
             field(
-                tr("Titulaire du compte", "Account holder"),
+                tr("account_holder"),
                 text: $draft.holder,
-                placeholder: tr("Ex. Fléchettes Club de Lyon", "E.g. Lyon Darts Club"),
+                placeholder: tr("e_g_lyon_darts_club"),
                 kind: .name,
                 focusValue: .holder
             )
@@ -281,17 +264,17 @@ struct BankSettingsView: View {
                     .focused($focus, equals: .iban)
                     .foregroundStyle(Theme.ink)
                     .padding(12)
-                    .background(Theme.canvas, in: .rect(cornerRadius: 10))
+                    .background(Theme.canvas, in: .rect(cornerRadius: Theme.compactRadius))
                     .overlay {
-                        RoundedRectangle(cornerRadius: 10)
+                        RoundedRectangle(cornerRadius: Theme.compactRadius)
                             .stroke(ibanBorder, lineWidth: 1)
                     }
 
                 if !draft.compactIban.isEmpty {
                     Label(
                         draft.isIbanValid
-                            ? tr("IBAN valide", "Valid IBAN")
-                            : tr("IBAN incorrect — vérifiez la saisie", "Invalid IBAN — check the entry"),
+                            ? tr("valid_iban")
+                            : tr("invalid_iban_check_the_entry"),
                         systemImage: draft.isIbanValid ? "checkmark.circle.fill" : "exclamationmark.circle.fill"
                     )
                         .font(.caption)
@@ -308,23 +291,24 @@ struct BankSettingsView: View {
                     focusValue: .bic
                 )
                 field(
-                    tr("Banque", "Bank"),
+                    tr("bank"),
                     text: $draft.bankName,
-                    placeholder: tr("Ex. Crédit Agricole", "E.g. Barclays"),
+                    placeholder: tr("e_g_barclays"),
                     kind: .name,
                     focusValue: .bank
                 )
             }
 
             if let updatedAt = club?.bank?.updatedAt {
-                Text(tr(
-                    "Dernière mise à jour le \(Fmt.mediumDate(updatedAt))"
-                        + (club?.bank?.updatedById.map { " par \(store.memberName($0))" } ?? ""),
-                    "Last updated on \(Fmt.mediumDate(updatedAt))"
-                        + (club?.bank?.updatedById.map { " by \(store.memberName($0))" } ?? "")
-                ))
-                    .font(.caption)
-                    .foregroundStyle(Theme.inkSecondary)
+                if let updatedById = club?.bank?.updatedById {
+                    Text(tr("last_updated_on_by \(Fmt.mediumDate(updatedAt)) \(store.memberName(updatedById))"))
+                        .font(.caption)
+                        .foregroundStyle(Theme.inkSecondary)
+                } else {
+                    Text(tr("last_updated_on \(Fmt.mediumDate(updatedAt))"))
+                        .font(.caption)
+                        .foregroundStyle(Theme.inkSecondary)
+                }
             }
         }
         .assoCard(padding: 18)
@@ -352,7 +336,7 @@ struct BankSettingsView: View {
                 .focused($focus, equals: focusValue)
                 .foregroundStyle(Theme.ink)
                 .padding(12)
-                .background(Theme.canvas, in: .rect(cornerRadius: 10))
+                .background(Theme.canvas, in: .rect(cornerRadius: Theme.compactRadius))
         }
     }
 
@@ -360,17 +344,14 @@ struct BankSettingsView: View {
 
     private func methodsCard(_ club: Club) -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            SectionLabel(text: tr("Moyens acceptés par le club", "Methods accepted by the club"))
+            SectionLabel(text: tr("methods_accepted_by_the_club"))
 
             Toggle(isOn: $draft.acceptsTransfer) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(PaymentMethodKind.transfer.label)
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(Theme.ink)
-                    Text(tr(
-                        "Le membre télécharge le RIB, le bureau valide à réception.",
-                        "The member downloads the bank details, the committee confirms on receipt."
-                    ))
+                    Text(tr("the_member_downloads_the_bank_details_the_committee_conf"))
                         .font(.caption)
                         .foregroundStyle(Theme.inkSecondary)
                 }
@@ -380,7 +361,7 @@ struct BankSettingsView: View {
 
             if draft.acceptsTransfer {
                 TextField(
-                    tr("Consigne pour le virement (optionnel)", "Transfer instructions (optional)"),
+                    tr("transfer_instructions_optional"),
                     text: $draft.transferNote,
                     axis: .vertical
                 )
@@ -390,7 +371,7 @@ struct BankSettingsView: View {
                     .focused($focus, equals: .transferNote)
                     .foregroundStyle(Theme.ink)
                     .padding(12)
-                    .background(Theme.canvas, in: .rect(cornerRadius: 10))
+                    .background(Theme.canvas, in: .rect(cornerRadius: Theme.compactRadius))
             }
 
             Divider().overlay(Theme.border)
@@ -400,10 +381,7 @@ struct BankSettingsView: View {
                     Text(PaymentMethodKind.cash.label)
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(Theme.ink)
-                    Text(tr(
-                        "Remise en main propre, le bureau valide après encaissement.",
-                        "Handed over in person, the committee confirms once received."
-                    ))
+                    Text(tr("handed_over_in_person_the_committee_confirms_once_receiv"))
                         .font(.caption)
                         .foregroundStyle(Theme.inkSecondary)
                 }
@@ -412,7 +390,7 @@ struct BankSettingsView: View {
 
             if draft.acceptsCash {
                 TextField(
-                    tr("Où remettre les espèces (optionnel)", "Where to hand over the cash (optional)"),
+                    tr("where_to_hand_over_the_cash_optional"),
                     text: $draft.cashNote,
                     axis: .vertical
                 )
@@ -422,7 +400,7 @@ struct BankSettingsView: View {
                     .focused($focus, equals: .cashNote)
                     .foregroundStyle(Theme.ink)
                     .padding(12)
-                    .background(Theme.canvas, in: .rect(cornerRadius: 10))
+                    .background(Theme.canvas, in: .rect(cornerRadius: Theme.compactRadius))
             }
 
             if store.pendingValidationCount(of: club.id) > 0 {
@@ -432,10 +410,7 @@ struct BankSettingsView: View {
                             .foregroundStyle(Theme.navy)
                         Text(Fmt.count(
                             store.pendingValidationCount(of: club.id),
-                            "paiement à valider",
-                            "paiements à valider",
-                            "payment to confirm",
-                            "payments to confirm"
+                            key: .paymentsToConfirm
                         ))
                             .font(.footnote.weight(.semibold))
                             .foregroundStyle(Theme.navy)
@@ -445,7 +420,7 @@ struct BankSettingsView: View {
                             .foregroundStyle(Theme.navy.opacity(0.6))
                     }
                     .padding(12)
-                    .background(Theme.navyTint, in: .rect(cornerRadius: 12))
+                    .background(Theme.navyTint, in: .rect(cornerRadius: Theme.controlRadius))
                 }
                 .buttonStyle(.plain)
             }
@@ -458,7 +433,7 @@ struct BankSettingsView: View {
     private func ribCard(_ club: Club) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                SectionLabel(text: tr("RIB transmis aux membres", "Bank details shared with members"))
+                SectionLabel(text: tr("bank_details_shared_with_members"))
                 Spacer()
             }
 
@@ -478,7 +453,7 @@ struct BankSettingsView: View {
             }
             .padding(14)
             .frame(maxWidth: .infinity)
-            .background(Theme.canvas, in: .rect(cornerRadius: 12))
+            .background(Theme.canvas, in: .rect(cornerRadius: Theme.controlRadius))
 
             HStack(spacing: 10) {
                 Button {
@@ -490,36 +465,36 @@ struct BankSettingsView: View {
                     }
                 } label: {
                     Label(
-                        didCopyIban ? tr("IBAN copié", "IBAN copied") : tr("Copier l'IBAN", "Copy IBAN"),
+                        didCopyIban ? tr("iban_copied") : tr("copy_iban"),
                         systemImage: didCopyIban ? "checkmark" : "doc.on.doc"
                     )
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(Theme.navy)
                         .frame(maxWidth: .infinity)
                         .frame(height: 44)
-                        .background(Theme.navyTint, in: .rect(cornerRadius: 12))
+                        .background(Theme.navyTint, in: .rect(cornerRadius: Theme.controlRadius))
                 }
                 .buttonStyle(PressableButtonStyle())
 
                 if let ribURL {
                     ShareLink(item: ribURL) {
-                        Label(tr("Partager le RIB", "Share details"), systemImage: "square.and.arrow.up")
+                        Label(tr("share_details"), systemImage: "square.and.arrow.up")
                             .font(.footnote.weight(.semibold))
                             .foregroundStyle(Theme.navy)
                             .frame(maxWidth: .infinity)
                             .frame(height: 44)
-                            .background(Theme.navyTint, in: .rect(cornerRadius: 12))
+                            .background(Theme.navyTint, in: .rect(cornerRadius: Theme.controlRadius))
                     }
                 } else {
                     Button {
                         ribURL = RIBDocument.makePDF(club: club, account: draft, reference: nil)
                     } label: {
-                        Label(tr("Générer le PDF", "Generate PDF"), systemImage: "doc.text")
+                        Label(tr("generate_pdf"), systemImage: "doc.text")
                             .font(.footnote.weight(.semibold))
                             .foregroundStyle(Theme.navy)
                             .frame(maxWidth: .infinity)
                             .frame(height: 44)
-                            .background(Theme.navyTint, in: .rect(cornerRadius: 12))
+                            .background(Theme.navyTint, in: .rect(cornerRadius: Theme.controlRadius))
                     }
                     .buttonStyle(PressableButtonStyle())
                 }
@@ -534,8 +509,8 @@ struct BankSettingsView: View {
         VStack(spacing: 10) {
             PrimaryButton(
                 title: didSave
-                    ? tr("Coordonnées enregistrées", "Details saved")
-                    : tr("Enregistrer", "Save"),
+                    ? tr("details_saved")
+                    : tr("save"),
                 symbol: didSave ? "checkmark" : nil,
                 isEnabled: canSave
             ) {
@@ -548,10 +523,7 @@ struct BankSettingsView: View {
                 }
             }
 
-            Text(tr(
-                "Ces informations ne sont visibles que par le bureau et par les membres de votre club.",
-                "These details are only visible to the committee and to the members of your club."
-            ))
+            Text(tr("these_details_are_only_visible_to_the_committee_and_to_t"))
                 .font(.caption)
                 .multilineTextAlignment(.center)
                 .foregroundStyle(Theme.inkSecondary)

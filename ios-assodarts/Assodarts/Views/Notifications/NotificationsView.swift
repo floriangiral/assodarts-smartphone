@@ -16,12 +16,12 @@ struct NotificationsView: View {
             }
         }
         .assoCanvas()
-        .navigationTitle(tr("Notifications", "Notifications"))
+        .navigationTitle(tr("notifications"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if store.unreadNotificationCount > 0 {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button(tr("Tout lire", "Read all")) {
+                    Button(tr("read_all")) {
                         withAnimation(.easeInOut(duration: 0.2)) {
                             store.markAllNotificationsRead()
                         }
@@ -75,18 +75,12 @@ struct NotificationsView: View {
             Image(systemName: "bell.slash")
                 .font(.system(size: 44))
                 .foregroundStyle(Theme.inkSecondary.opacity(0.5))
-            Text(tr("Aucune notification", "No notifications"))
+            Text(tr("no_notifications"))
                 .font(.headline)
                 .foregroundStyle(Theme.ink)
             Text(store.mode == .demo
-                 ? tr(
-                    "Les notifications arrivent une fois connecté au serveur de votre club.",
-                    "Notifications arrive once you are connected to your club's server."
-                 )
-                 : tr(
-                    "Annonces, appels à paiement et validations s'afficheront ici.",
-                    "Announcements, payment requests and confirmations will show up here."
-                 ))
+                 ? tr("notifications_arrive_once_you_are_connected_to_your_club")
+                 : tr("announcements_payment_requests_and_confirmations_will_sh"))
                 .font(.footnote)
                 .multilineTextAlignment(.center)
                 .foregroundStyle(Theme.inkSecondary)
@@ -147,7 +141,7 @@ private extension View {
     func swipeActionsCompat(onDelete: @escaping () -> Void) -> some View {
         contextMenu {
             Button(role: .destructive, action: onDelete) {
-                Label(tr("Supprimer", "Delete"), systemImage: "trash")
+                Label(tr("delete"), systemImage: "trash")
             }
         }
     }

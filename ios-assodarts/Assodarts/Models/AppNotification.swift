@@ -110,17 +110,17 @@ nonisolated struct AppNotification: Identifiable, Codable, Sendable, Hashable {
     var localizedTitle: String {
         switch kind {
         case .announcement:
-            return tr("Nouvelle annonce", "New announcement")
+            return tr("new_announcement")
         case .paymentDue:
-            return tr("Nouveau paiement à régler", "New payment to settle")
+            return tr("new_payment_to_settle")
         case .paymentToConfirm:
-            return tr("Paiement à valider", "Payment to confirm")
+            return tr("payment_to_confirm")
         case .paymentConfirmed:
-            return tr("Paiement confirmé", "Payment confirmed")
+            return tr("payment_confirmed")
         case .event:
-            return tr("Nouvel événement", "New event")
+            return tr("new_event")
         case .unknown:
-            return title.isEmpty ? tr("Notification", "Notification") : title
+            return title.isEmpty ? tr("notification") : title
         }
     }
 
@@ -134,16 +134,16 @@ nonisolated struct AppNotification: Identifiable, Codable, Sendable, Hashable {
             return title.isEmpty ? body : title
         case .paymentDue:
             guard let amount else { return label }
-            return tr("\(label) · \(amount) à régler", "\(label) · \(amount) to settle")
+            return tr("to_settle \(label) \(amount)")
         case .paymentToConfirm:
-            let who = payload.memberName ?? tr("Un membre", "A member")
+            let who = payload.memberName ?? tr("a_member")
             guard let amount else {
-                return tr("\(who) a déclaré un paiement.", "\(who) declared a payment.")
+                return tr("declared_a_payment \(who)")
             }
-            return tr("\(who) déclare \(amount) pour \(label).", "\(who) declared \(amount) for \(label).")
+            return tr("declared_for \(who) \(amount) \(label)")
         case .paymentConfirmed:
             guard let amount else { return label }
-            return tr("\(label) · \(amount) encaissé", "\(label) · \(amount) received")
+            return tr("received \(label) \(amount)")
         case .event:
             return body.isEmpty ? label : "\(label) · \(body)"
         case .unknown:

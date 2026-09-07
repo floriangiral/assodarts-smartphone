@@ -29,14 +29,14 @@ struct EditProfileSheet: View {
                 }
             }
             .keyboardDoneBar(isVisible: focusedField != nil) { focusedField = nil }
-            .navigationTitle(tr("Modifier mon profil", "Edit my profile"))
+            .navigationTitle(tr("edit_my_profile"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(tr("Annuler", "Cancel")) { dismiss() }
+                    Button(tr("cancel")) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(tr("Enregistrer", "Save"), action: save)
+                    Button(tr("save"), action: save)
                         .fontWeight(.semibold)
                         .disabled(draft == nil)
                 }
@@ -63,11 +63,11 @@ struct EditProfileSheet: View {
                 VStack(spacing: 12) {
                     AvatarView(initials: member.initials, photoData: member.photoData, size: 88)
                     PhotosPicker(selection: $photoItem, matching: .images) {
-                        Label(tr("Changer la photo", "Change photo"), systemImage: "camera.fill")
+                        Label(tr("change_photo"), systemImage: "camera.fill")
                             .font(.subheadline.weight(.semibold))
                     }
                     if member.photoData != nil {
-                        Button(tr("Retirer la photo", "Remove photo"), role: .destructive) {
+                        Button(tr("remove_photo"), role: .destructive) {
                             draft?.photoData = nil
                             photoItem = nil
                         }
@@ -79,8 +79,8 @@ struct EditProfileSheet: View {
                 .listRowBackground(Color.clear)
             }
 
-            Section(tr("Identité", "Identity")) {
-                TextField(tr("Prénom", "First name"), text: Binding(
+            Section(tr("identity")) {
+                TextField(tr("first_name"), text: Binding(
                     get: { draft?.firstName ?? "" },
                     set: { draft?.firstName = $0 }
                 ))
@@ -89,7 +89,7 @@ struct EditProfileSheet: View {
                 .onSubmit { focusedField = .lastName }
                 .foregroundStyle(Theme.ink)
 
-                TextField(tr("Nom", "Last name"), text: Binding(
+                TextField(tr("last_name"), text: Binding(
                     get: { draft?.lastName ?? "" },
                     set: { draft?.lastName = $0 }
                 ))
@@ -98,14 +98,14 @@ struct EditProfileSheet: View {
                 .onSubmit { focusedField = .email }
                 .foregroundStyle(Theme.ink)
 
-                Toggle(tr("Date de naissance", "Date of birth"), isOn: $hasBirthDate)
+                Toggle(tr("date_of_birth"), isOn: $hasBirthDate)
                 if hasBirthDate {
-                    DatePicker(tr("Né(e) le", "Born on"), selection: $birthDate, displayedComponents: .date)
+                    DatePicker(tr("born_on"), selection: $birthDate, displayedComponents: .date)
                 }
             }
 
             Section {
-                TextField(tr("Email", "Email"), text: Binding(
+                TextField(tr("email"), text: Binding(
                     get: { draft?.email ?? "" },
                     set: { draft?.email = $0 }
                 ))
@@ -114,7 +114,7 @@ struct EditProfileSheet: View {
                 .onSubmit { focusedField = .phone }
                 .foregroundStyle(Theme.ink)
 
-                TextField(tr("Téléphone", "Phone"), text: Binding(
+                TextField(tr("phone"), text: Binding(
                     get: { draft?.phone ?? "" },
                     set: { draft?.phone = $0 }
                 ))
@@ -122,39 +122,36 @@ struct EditProfileSheet: View {
                 .focused($focusedField, equals: .phone)
                 .foregroundStyle(Theme.ink)
             } header: {
-                Text(tr("Contact", "Contact"))
+                Text(tr("contact"))
             } footer: {
-                Text(tr("Visible par le bureau du club.", "Visible to the club committee."))
+                Text(tr("visible_to_the_club_committee"))
             }
 
             Section {
-                Toggle(tr("Annonces du club", "Club announcements"), isOn: Binding(
+                Toggle(tr("club_announcements"), isOn: Binding(
                     get: { draft?.notifyAnnouncements ?? true },
                     set: { draft?.notifyAnnouncements = $0 }
                 ))
-                Toggle(tr("Événements et convocations", "Events and call-ups"), isOn: Binding(
+                Toggle(tr("events_and_call_ups"), isOn: Binding(
                     get: { draft?.notifyEvents ?? true },
                     set: { draft?.notifyEvents = $0 }
                 ))
-                Toggle(tr("Appels à paiement", "Payment requests"), isOn: Binding(
+                Toggle(tr("payment_requests"), isOn: Binding(
                     get: { draft?.notifyPayments ?? true },
                     set: { draft?.notifyPayments = $0 }
                 ))
-                Toggle(tr("Résultats de tournois", "Tournament results"), isOn: Binding(
+                Toggle(tr("tournament_results"), isOn: Binding(
                     get: { draft?.notifyTournaments ?? false },
                     set: { draft?.notifyTournaments = $0 }
                 ))
             } header: {
-                Text(tr("Notifications", "Notifications"))
+                Text(tr("notifications"))
             } footer: {
-                Text(tr(
-                    "Notifications push sur iPhone et Android, et rappel par email pour les paiements.",
-                    "Push notifications on iPhone and Android, plus email reminders for payments."
-                ))
+                Text(tr("push_notifications_on_iphone_and_android_plus_email_remi"))
             }
 
             Section {
-                Button(tr("Se déconnecter", "Sign out"), role: .destructive) {
+                Button(tr("sign_out"), role: .destructive) {
                     dismiss()
                     store.signOut()
                 }

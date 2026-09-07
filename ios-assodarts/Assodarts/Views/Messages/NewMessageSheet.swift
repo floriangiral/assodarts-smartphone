@@ -42,31 +42,25 @@ struct NewMessageSheet: View {
             Form {
                 if !isBureauUser {
                     Section {
-                        Picker(tr("Destinataire", "Recipient"), selection: $target) {
-                            Text(tr("Le Bureau", "The Committee")).tag(Target.bureau)
-                            Text(tr("Un membre du bureau", "One committee member")).tag(Target.person)
+                        Picker(tr("recipient"), selection: $target) {
+                            Text(tr("the_committee")).tag(Target.bureau)
+                            Text(tr("one_committee_member")).tag(Target.person)
                         }
                         .pickerStyle(.segmented)
                     } header: {
-                        Text(tr("Destinataire", "Recipient"))
+                        Text(tr("recipient"))
                     } footer: {
                         Text(target == .bureau
-                             ? tr(
-                                "Votre message sera visible par tous les membres du bureau.",
-                                "Your message will be visible to every committee member."
-                             )
-                             : tr(
-                                "Votre message restera privé entre vous et cette personne.",
-                                "Your message stays private between you and this person."
-                             ))
+                             ? tr("your_message_will_be_visible_to_every_committee_member")
+                             : tr("your_message_stays_private_between_you_and_this_person"))
                     }
                 }
 
                 if isBureauUser || target == .person {
                     Section(isBureauUser
-                        ? tr("Membre du club", "Club member")
-                        : tr("Membre du bureau", "Committee member")) {
-                        TextField(tr("Rechercher…", "Search…"), text: $search)
+                        ? tr("club_member")
+                        : tr("committee_member")) {
+                        TextField(tr("search"), text: $search)
                             .keyboardField(.name, submit: .search)
                             .focused($isEditing)
                             .foregroundStyle(Theme.ink)
@@ -104,32 +98,29 @@ struct NewMessageSheet: View {
                 }
 
                 Section {
-                    TextField(tr("Votre message…", "Your message…"), text: $draft, axis: .vertical)
+                    TextField(tr("your_message"), text: $draft, axis: .vertical)
                         .lineLimit(4...10)
                         .keyboardField(.freeText, submit: .return)
                         .focused($isEditing)
                         .foregroundStyle(Theme.ink)
                 } header: {
-                    Text(tr("Votre message", "Your message"))
+                    Text(tr("your_message_newmessagesheet"))
                 } footer: {
-                    Text(tr(
-                        "Le destinataire recevra une notification.",
-                        "The recipient will get a notification."
-                    ))
+                    Text(tr("the_recipient_will_get_a_notification"))
                 }
             }
             .scrollContentBackground(.hidden)
             .background(Theme.canvas)
             .keyboardDismissable()
             .keyboardDoneBar(isVisible: isEditing) { isEditing = false }
-            .navigationTitle(tr("Nouveau message", "New message"))
+            .navigationTitle(tr("new_message"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(tr("Annuler", "Cancel")) { dismiss() }
+                    Button(tr("cancel")) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(tr("Envoyer", "Send"), action: send)
+                    Button(tr("send"), action: send)
                         .fontWeight(.semibold)
                         .disabled(!canSend)
                 }
@@ -149,8 +140,8 @@ struct NewMessageSheet: View {
         }
         store.send(text: draft, in: conversation.id, from: user.id)
         NotificationService.notify(
-            title: tr("Message envoyé", "Message sent"),
-            body: tr("Votre message a bien été transmis.", "Your message has been delivered.")
+            title: tr("message_sent"),
+            body: tr("your_message_has_been_delivered")
         )
         dismiss()
     }

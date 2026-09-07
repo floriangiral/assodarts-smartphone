@@ -14,18 +14,18 @@ struct CreateClubView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(tr("Créer mon club", "Create my club")).font(.title3.bold()).foregroundStyle(Theme.ink)
-            TextField(tr("Nom du club", "Club name"), text: $name)
+            Text(tr("create_my_club")).font(.title3.bold()).foregroundStyle(Theme.ink)
+            TextField(tr("club_name"), text: $name)
                 .keyboardField(.default, submit: .done)
                 .focused($isFocused)
                 .foregroundStyle(Theme.ink)
                 .padding(14)
-                .background(Theme.surface, in: .rect(cornerRadius: 12))
+                .background(Theme.surface, in: .rect(cornerRadius: Theme.controlRadius))
             if let errorMessage {
                 Text(errorMessage).font(.subheadline).foregroundStyle(.red)
             }
-            PrimaryButton(title: tr("Créer le club", "Create club"), symbol: "plus", isEnabled: isValid && !isSubmitting, action: submit)
-            Button(tr("Retour", "Back"), action: onCancel)
+            PrimaryButton(title: tr("create_club"), symbol: "plus", isEnabled: isValid && !isSubmitting, action: submit)
+            Button(tr("back"), action: onCancel)
                 .foregroundStyle(Theme.inkSecondary)
                 .frame(maxWidth: .infinity)
         }

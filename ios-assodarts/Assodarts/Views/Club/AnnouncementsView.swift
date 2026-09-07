@@ -26,13 +26,10 @@ struct AnnouncementsView: View {
                 }
 
                 if announcements.isEmpty {
-                    ContentUnavailableView(
-                        tr("Aucune annonce", "No announcements"),
+                    EmptyStateView(
+                        tr("no_announcements"),
                         systemImage: "megaphone",
-                        description: Text(tr(
-                            "Les informations du bureau apparaîtront ici.",
-                            "Updates from the committee will appear here."
-                        ))
+                        description: Text(tr("updates_from_the_committee_will_appear_here"))
                     )
                     .padding(.top, 60)
                 }
@@ -41,7 +38,7 @@ struct AnnouncementsView: View {
             .padding(.vertical, 12)
         }
         .assoCanvas()
-        .navigationTitle(tr("Annonces", "News"))
+        .navigationTitle(tr("news"))
         .toolbar {
             if store.canManageClub {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -50,7 +47,7 @@ struct AnnouncementsView: View {
                     } label: {
                         Image(systemName: "square.and.pencil")
                     }
-                    .accessibilityLabel(tr("Nouvelle annonce", "New announcement"))
+                    .accessibilityLabel(tr("new_announcement"))
                 }
             }
         }
@@ -71,7 +68,7 @@ struct AnnouncementCard: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
                 if announcement.isPinned {
-                    Label(tr("Épinglée", "Pinned"), systemImage: "pin.fill")
+                    Label(tr("pinned"), systemImage: "pin.fill")
                         .font(.caption2.weight(.bold))
                         .foregroundStyle(Theme.orange)
                         .padding(.horizontal, 8)
@@ -130,7 +127,7 @@ struct AnnouncementDetailView: View {
             if let announcement {
                 VStack(alignment: .leading, spacing: 16) {
                     if announcement.isPinned {
-                        Label(tr("Annonce épinglée", "Pinned announcement"), systemImage: "pin.fill")
+                        Label(tr("pinned_announcement"), systemImage: "pin.fill")
                             .font(.caption.weight(.bold))
                             .foregroundStyle(Theme.orange)
                     }
@@ -168,13 +165,13 @@ struct AnnouncementDetailView: View {
             }
         }
         .assoCanvas()
-        .navigationTitle(tr("Annonce", "Announcement"))
+        .navigationTitle(tr("announcement"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if store.canManageClub, let announcement {
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
-                        Button(tr("Supprimer l'annonce", "Delete announcement"), systemImage: "trash", role: .destructive) {
+                        Button(tr("delete_announcement"), systemImage: "trash", role: .destructive) {
                             store.deleteAnnouncement(announcement.id)
                             dismiss()
                         }

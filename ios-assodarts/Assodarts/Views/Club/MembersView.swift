@@ -18,9 +18,9 @@ struct MembersView: View {
 
         var label: String {
             switch self {
-            case .all: tr("Tous", "All")
-            case .licensed: tr("Licenciés", "Licensed")
-            case .late: tr("À relancer", "To chase")
+            case .all: tr("all")
+            case .licensed: tr("licensed_admindashboardcontent")
+            case .late: tr("to_chase")
             }
         }
     }
@@ -41,7 +41,7 @@ struct MembersView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 12) {
-                Picker(tr("Filtre", "Filter"), selection: $filter) {
+                Picker(tr("filter"), selection: $filter) {
                     ForEach(MemberFilter.allCases) { option in
                         Text(option.label).tag(option)
                     }
@@ -50,10 +50,10 @@ struct MembersView: View {
 
                 if store.canManageClub {
                     HStack(spacing: 12) {
-                        SecondaryButton(title: tr("Inviter", "Invite"), symbol: "person.badge.plus") {
+                        SecondaryButton(title: tr("invite"), symbol: "person.badge.plus") {
                             showsInvite = true
                         }
-                        SecondaryButton(title: tr("Appel à paiement", "Payment request"), symbol: "eurosign.circle") {
+                        SecondaryButton(title: tr("payment_request"), symbol: "eurosign.circle") {
                             showsPaymentCall = true
                         }
                     }
@@ -74,16 +74,15 @@ struct MembersView: View {
                 .assoCard(padding: 14)
 
                 if members.isEmpty {
-                    ContentUnavailableView.search(text: search)
-                        .padding(.top, 40)
+                    EmptyStateView.search(text: search)
                 }
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
         }
         .assoCanvas()
-        .navigationTitle(tr("Membres", "Members"))
-        .searchable(text: $search, prompt: tr("Rechercher un membre", "Search for a member"))
+        .navigationTitle(tr("members"))
+        .searchable(text: $search, prompt: tr("search_for_a_member"))
         .sheet(isPresented: $showsInvite) {
             InviteMemberSheet()
         }
@@ -117,8 +116,8 @@ struct MemberRow: View {
                         .font(.caption2)
                         .foregroundStyle(member.isLicensed ? Theme.orange : Theme.inkSecondary)
                     Text(member.isLicensed
-                        ? tr("Licencié · \(member.licenceNumber)", "Licensed · \(member.licenceNumber)")
-                        : tr("Membre simple", "Standard member"))
+                        ? tr("licensed_membersview \(member.licenceNumber)")
+                        : tr("standard_member"))
                         .font(.caption)
                         .foregroundStyle(Theme.inkSecondary)
                         .lineLimit(1)
@@ -128,7 +127,7 @@ struct MemberRow: View {
             Spacer(minLength: 4)
 
             StatusChip(
-                text: state == .paid ? tr("À jour", "Up to date") : state.label,
+                text: state == .paid ? tr("up_to_date") : state.label,
                 tint: state.tint,
                 background: state.background
             )

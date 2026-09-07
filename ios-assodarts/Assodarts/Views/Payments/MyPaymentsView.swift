@@ -37,7 +37,7 @@ struct MyPaymentsView: View {
 
                 if !due.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
-                        SectionLabel(text: tr("À régler", "Due"))
+                        SectionLabel(text: tr("due"))
                         VStack(spacing: 14) {
                             ForEach(due, id: \.item.id) { entry in
                                 dueRow(entry)
@@ -52,7 +52,7 @@ struct MyPaymentsView: View {
 
                 if !history.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
-                        SectionLabel(text: tr("Historique", "History"))
+                        SectionLabel(text: tr("history"))
                         VStack(spacing: 0) {
                             ForEach(history, id: \.item.id) { entry in
                                 historyRow(entry)
@@ -72,7 +72,7 @@ struct MyPaymentsView: View {
             .padding(.vertical, 12)
         }
         .assoCanvas()
-        .navigationTitle(tr("Mes paiements", "My payments"))
+        .navigationTitle(tr("my_payments"))
         .navigationBarTitleDisplayMode(.inline)
         .sheet(item: Binding(
             get: { payingCallId.map(PaymentSheetTarget.init(id:)) },
@@ -84,28 +84,26 @@ struct MyPaymentsView: View {
 
     private var summaryCard: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(tr("À régler", "Due"))
+            Text(tr("due"))
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Theme.inkSecondary)
 
-            Text(Fmt.money(dueCents))
-                .font(.system(size: 42, weight: .bold, design: .rounded))
-                .monospacedDigit()
-                .foregroundStyle(dueCents > 0 ? Theme.orange : Theme.green)
+            MetricNumber(
+                value: Fmt.money(dueCents),
+                size: .prominent,
+                color: dueCents > 0 ? Theme.orange : Theme.green
+            )
                 .contentTransition(.numericText())
 
             Text(dueCents > 0
-                 ? Fmt.count(due.count, "paiement en attente", "paiements en attente", "pending payment", "pending payments")
-                 : tr("Vous êtes à jour de vos paiements", "All your payments are up to date"))
+                 ? Fmt.count(due.count, key: .pendingPayments)
+                 : tr("all_your_payments_are_up_to_date"))
                 .font(.footnote)
                 .foregroundStyle(Theme.inkSecondary)
 
             if awaitingCents > 0 {
                 Label(
-                    tr(
-                        "dont \(Fmt.money(awaitingCents)) en attente de validation du bureau",
-                        "including \(Fmt.money(awaitingCents)) awaiting the committee's confirmation"
-                    ),
+                    tr("including_awaiting_the_committee_s_confirmation \(Fmt.money(awaitingCents))"),
                     systemImage: "clock.badge.checkmark"
                 )
                     .font(.caption.weight(.medium))
@@ -121,10 +119,7 @@ struct MyPaymentsView: View {
         VStack(spacing: 6) {
             if methods.isEmpty {
                 Label(
-                    tr(
-                        "Le bureau n'a pas encore activé les paiements",
-                        "The committee has not enabled payments yet"
-                    ),
+                    tr("the_committee_has_not_enabled_payments_yet"),
                     systemImage: "info.circle"
                 )
             } else {
@@ -146,10 +141,7 @@ struct MyPaymentsView: View {
                     Text(entry.call.label)
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Theme.ink)
-                    Text(tr(
-                        "\(Fmt.money(entry.call.amountCents)) · échéance \(Fmt.shortDate(entry.call.dueDate))",
-                        "\(Fmt.money(entry.call.amountCents)) · due \(Fmt.shortDate(entry.call.dueDate))"
-                    ))
+                    Text(tr("due_mypaymentsview \(Fmt.money(entry.call.amountCents)) \(Fmt.shortDate(entry.call.dueDate))"))
                         .font(.caption)
                         .monospacedDigit()
                         .foregroundStyle(Theme.inkSecondary)
@@ -164,15 +156,12 @@ struct MyPaymentsView: View {
                 Button {
                     payingCallId = entry.call.id
                 } label: {
-                    Text(tr(
-                        "Payer \(Fmt.money(entry.call.amountCents))",
-                        "Pay \(Fmt.money(entry.call.amountCents))"
-                    ))
+                    Text(tr("pay \(Fmt.money(entry.call.amountCents))"))
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .frame(height: 42)
-                        .background(Theme.navy, in: .rect(cornerRadius: 12))
+                        .background(Theme.navy, in: .rect(cornerRadius: Theme.controlRadius))
                 }
                 .buttonStyle(PressableButtonStyle())
             }
@@ -187,23 +176,17 @@ struct MyPaymentsView: View {
                 Image(systemName: (entry.item.method ?? .transfer).symbol)
                     .font(.caption)
                     .foregroundStyle(Theme.navy)
-                Text(tr(
-                    "\((entry.item.method ?? .transfer).label) déclaré le \(Fmt.shortDate(entry.item.declaredAt ?? .now))",
-                    "\((entry.item.method ?? .transfer).label) declared on \(Fmt.shortDate(entry.item.declaredAt ?? .now))"
-                ))
+                Text(tr("declared_on \((entry.item.method ?? .transfer).label) \(Fmt.shortDate(entry.item.declaredAt ?? .now))"))
                     .font(.caption.weight(.medium))
                     .foregroundStyle(Theme.navy)
                 Spacer(minLength: 0)
             }
 
-            Text(tr(
-                "Le bureau validera dès réception des fonds.",
-                "The committee will confirm as soon as the money arrives."
-            ))
+            Text(tr("the_committee_will_confirm_as_soon_as_the_money_arrives"))
                 .font(.caption)
                 .foregroundStyle(Theme.inkSecondary)
 
-            Button(tr("Annuler ma déclaration", "Cancel my declaration")) {
+            Button(tr("cancel_my_declaration")) {
                 guard let user = store.currentUser else { return }
                 withAnimation {
                     store.cancelDeclaration(callId: entry.call.id, memberId: user.id)
@@ -214,7 +197,7 @@ struct MyPaymentsView: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Theme.navyTint.opacity(0.7), in: .rect(cornerRadius: 12))
+        .background(Theme.navyTint.opacity(0.7), in: .rect(cornerRadius: Theme.controlRadius))
     }
 
     private func historyRow(_ entry: (call: PaymentCall, item: PaymentItem)) -> some View {
@@ -229,10 +212,7 @@ struct MyPaymentsView: View {
                 Text(entry.call.label)
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(Theme.ink)
-                Text(tr(
-                    "\(Fmt.money(entry.call.amountCents)) · payé le \(Fmt.shortDate(entry.item.paidAt ?? entry.call.dueDate))",
-                    "\(Fmt.money(entry.call.amountCents)) · paid on \(Fmt.shortDate(entry.item.paidAt ?? entry.call.dueDate))"
-                ))
+                Text(tr("paid_on \(Fmt.money(entry.call.amountCents)) \(Fmt.shortDate(entry.item.paidAt ?? entry.call.dueDate))"))
                     .font(.caption)
                     .monospacedDigit()
                     .foregroundStyle(Theme.inkSecondary)

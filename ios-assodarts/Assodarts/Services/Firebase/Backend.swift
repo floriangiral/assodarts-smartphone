@@ -49,8 +49,8 @@ enum BackendMode: String, Sendable {
 
     var label: String {
         switch self {
-        case .demo: tr("Mode démonstration", "Demo mode")
-        case .live: tr("Données du club", "Club data")
+        case .demo: tr("demo_mode")
+        case .live: tr("club_data")
         }
     }
 }
@@ -64,15 +64,9 @@ nonisolated enum BackendError: LocalizedError, Sendable {
     nonisolated var errorDescription: String? {
         switch self {
         case .notConfigured:
-            tr(
-                "La connexion au serveur n'est pas configurée sur cette version.",
-                "The server connection is not configured in this build."
-            )
+            tr("the_server_connection_is_not_configured_in_this_build")
         case .noMembership:
-            tr(
-                "Votre compte n'est rattaché à aucun club. Demandez une invitation au bureau.",
-                "Your account is not linked to any club yet. Ask the committee for an invitation."
-            )
+            tr("your_account_is_not_linked_to_any_club_yet_ask_the_commi")
         case let .message(text):
             text
         }
@@ -88,22 +82,13 @@ nonisolated func friendlyMessage(for error: Error) -> String {
     if let authErrorCode = AuthErrorCode(rawValue: (error as NSError).code) {
         switch authErrorCode {
         case .wrongPassword, .invalidCredential, .userNotFound:
-            return tr("Adresse email ou mot de passe incorrect.", "Incorrect email address or password.")
+            return tr("incorrect_email_address_or_password")
         case .emailAlreadyInUse:
-            return tr(
-                "Un compte existe déjà avec cette adresse.",
-                "An account already exists with this email address."
-            )
+            return tr("an_account_already_exists_with_this_email_address")
         case .weakPassword:
-            return tr(
-                "Le mot de passe doit contenir au moins 6 caractères.",
-                "The password must be at least 6 characters long."
-            )
+            return tr("the_password_must_be_at_least_6_characters_long")
         case .networkError:
-            return tr(
-                "Connexion impossible. Vérifiez votre réseau puis réessayez.",
-                "Cannot reach the server. Check your connection and try again."
-            )
+            return tr("cannot_reach_the_server_check_your_connection_and_try_ag")
         default:
             break
         }
@@ -111,14 +96,8 @@ nonisolated func friendlyMessage(for error: Error) -> String {
 
     let raw = error.localizedDescription.lowercased()
     if raw.contains("offline") || raw.contains("internet") || raw.contains("network") {
-        return tr(
-            "Connexion impossible. Vérifiez votre réseau puis réessayez.",
-            "Cannot reach the server. Check your connection and try again."
-        )
+        return tr("cannot_reach_the_server_check_your_connection_and_try_ag")
     }
 
-    return tr(
-        "Une erreur est survenue. Réessayez dans un instant.",
-        "Something went wrong. Please try again in a moment."
-    )
+    return tr("something_went_wrong_please_try_again_in_a_moment")
 }

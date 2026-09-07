@@ -24,6 +24,11 @@ enum Theme {
     static let redTint = Color(hex: 0xFBE9E7, dark: 0x3D1613)
 
     static let cardRadius: CGFloat = 16
+    static let controlRadius: CGFloat = 12
+    static let compactRadius: CGFloat = 10
+    static let buttonRadius: CGFloat = 14
+    static let largeRadius: CGFloat = 20
+    static let microRadius: CGFloat = 3
 }
 
 extension Color {

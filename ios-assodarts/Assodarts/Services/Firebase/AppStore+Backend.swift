@@ -25,12 +25,19 @@ extension AppStore {
         }
 
         do {
+            isPlatformAdmin = await RemoteRepository.isPlatformAdmin(authUid: user.uid)
             guard let userId = try await RemoteRepository.memberId(forAuthUid: user.uid) else {
-                mode = .demo
+                if isPlatformAdmin {
+                    mode = .live
+                    await loadPlatformData()
+                } else {
+                    mode = .demo
+                }
                 isRestoringSession = false
                 return
             }
             _ = await loadRemote(userId: userId)
+            await loadPlatformData()
         } catch {
             print("Session restore failed: \(error)")
             mode = .demo
@@ -46,13 +53,18 @@ extension AppStore {
 
         do {
             let result = try await Backend.auth.signIn(withEmail: normalized, password: password)
+            isPlatformAdmin = await RemoteRepository.isPlatformAdmin(authUid: result.user.uid)
             guard let userId = try await RemoteRepository.memberId(forAuthUid: result.user.uid) else {
-                return friendlyMessage(for: BackendError.message(tr(
-                    "Profil introuvable. Contactez le support.",
-                    "Profile not found. Contact support."
-                )))
+                if isPlatformAdmin {
+                    mode = .live
+                    await loadPlatformData()
+                    return nil
+                }
+                return friendlyMessage(for: BackendError.message(tr("profile_not_found_contact_support")))
             }
-            return await loadRemote(userId: userId)
+            let message = await loadRemote(userId: userId)
+            await loadPlatformData()
+            return message
         } catch {
             print("Sign-in failed: \(error)")
             return friendlyMessage(for: error)
@@ -74,13 +86,10 @@ extension AppStore {
         let last = lastName.trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard !first.isEmpty, !last.isEmpty else {
-            return tr("Indiquez votre prénom et votre nom.", "Enter your first and last name.")
+            return tr("enter_your_first_and_last_name")
         }
         guard password.count >= 6 else {
-            return tr(
-                "Le mot de passe doit contenir au moins 6 caractères.",
-                "The password must be at least 6 characters long."
-            )
+            return tr("the_password_must_be_at_least_6_characters_long")
         }
 
         do {
@@ -121,16 +130,13 @@ extension AppStore {
         let name = clubName.trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard !first.isEmpty, !last.isEmpty else {
-            return tr("Indiquez votre prénom et votre nom.", "Enter your first and last name.")
+            return tr("enter_your_first_and_last_name")
         }
         guard password.count >= 6 else {
-            return tr(
-                "Le mot de passe doit contenir au moins 6 caractères.",
-                "The password must be at least 6 characters long."
-            )
+            return tr("the_password_must_be_at_least_6_characters_long")
         }
         guard !name.isEmpty else {
-            return tr("Indiquez le nom de votre club.", "Enter your club's name.")
+            return tr("enter_your_club_s_name")
         }
 
         do {
@@ -179,18 +185,12 @@ extension AppStore {
     func sendPasswordReset(email: String) async -> String {
         let normalized = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard Backend.isConfigured, !normalized.isEmpty else {
-            return tr(
-                "Renseignez votre adresse email pour recevoir un lien.",
-                "Enter your email address to receive a link."
-            )
+            return tr("enter_your_email_address_to_receive_a_link")
         }
 
         do {
             try await Backend.auth.sendPasswordReset(withEmail: normalized)
-            return tr(
-                "Un lien de réinitialisation vient de vous être envoyé.",
-                "A reset link has just been sent to you."
-            )
+            return tr("a_reset_link_has_just_been_sent_to_you")
         } catch {
             print("Password reset failed: \(error)")
             return friendlyMessage(for: error)
@@ -207,6 +207,7 @@ extension AppStore {
         do {
             let snapshot = try await loadSnapshotAcceptingInvitations(for: userId)
             applySnapshot(snapshot)
+            platformAnnouncementsRemote = (try? await RemoteRepository.loadPlatformAnnouncements()) ?? []
             mode = .live
             needsOnboardingChoice = false
             syncError = nil
@@ -258,6 +259,7 @@ extension AppStore {
         do {
             let snapshot = try await loadSnapshotAcceptingInvitations(for: userId)
             applySnapshot(snapshot)
+            platformAnnouncementsRemote = (try? await RemoteRepository.loadPlatformAnnouncements()) ?? []
             syncError = nil
             save()
             await loadNotifications()

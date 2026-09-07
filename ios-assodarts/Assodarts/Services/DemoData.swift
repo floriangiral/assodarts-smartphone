@@ -71,14 +71,8 @@ enum DemoData {
                 stripeAccountId: "acct_demolyonclub01",
                 acceptsTransfer: true,
                 acceptsCash: true,
-                transferNote: tr(
-                    "Merci d'indiquer la référence de l'appel à paiement dans le libellé du virement.",
-                    "Please quote the payment request reference in your transfer label."
-                ),
-                cashNote: tr(
-                    "Remise possible au club house les mardis et jeudis soir, auprès du trésorier.",
-                    "Cash accepted at the club house on Tuesday and Thursday evenings, from the treasurer."
-                ),
+                transferNote: tr("please_quote_the_payment_request_reference_in_your_trans"),
+                cashNote: tr("cash_accepted_at_the_club_house_on_tuesday_and_thursday_"),
                 updatedAt: day(-30)
             )
         }
@@ -162,50 +156,30 @@ enum DemoData {
         db.announcements = [
             Announcement(
                 clubId: lyon.id,
-                title: tr("Reprise des entraînements", "Training is back"),
-                body: tr(
-                    "Les entraînements reprennent tous les mardis et jeudis à 19h au club house. "
-                        + "Pensez à ramener vos fléchettes personnelles, les jeux du club restent disponibles pour les nouveaux.",
-                    "Training resumes every Tuesday and Thursday at 7pm at the club house. "
-                        + "Bring your own darts — the club sets stay available for newcomers."
-                ),
+                title: tr("training_is_back"),
+                body: tr("training_resumes_every_tuesday_and_thursday_at_7pm_at_th"),
                 authorId: julien.id,
                 publishedAt: day(-2),
                 isPinned: true
             ),
             Announcement(
                 clubId: lyon.id,
-                title: tr("Licences 2026–2027 : dernière ligne droite", "2026–2027 licences: final stretch"),
-                body: tr(
-                    "Le bureau boucle les dossiers de licence cette semaine. "
-                        + "Si votre numéro n'apparaît pas encore sur votre profil, écrivez au bureau depuis la messagerie.",
-                    "The committee is closing licence files this week. "
-                        + "If your number is not on your profile yet, message the committee from the app."
-                ),
+                title: tr("20262027_licences_final_stretch"),
+                body: tr("the_committee_is_closing_licence_files_this_week_if_your"),
                 authorId: karim.id,
                 publishedAt: day(-6)
             ),
             Announcement(
                 clubId: lyon.id,
-                title: tr("Nouvelles tenues du club", "New club kit"),
-                body: tr(
-                    "Les maillots floqués sont arrivés. Un appel à paiement de 62 € a été envoyé aux membres concernés, "
-                        + "retrait au club house les soirs d'entraînement.",
-                    "The printed shirts have arrived. A €62 payment request was sent to the members concerned; "
-                        + "collect yours at the club house on training nights."
-                ),
+                title: tr("new_club_kit"),
+                body: tr("the_printed_shirts_have_arrived_a_62_payment_request_was"),
                 authorId: karim.id,
                 publishedAt: day(-11)
             ),
             Announcement(
                 clubId: lyon.id,
-                title: tr("Assemblée générale le 12 décembre", "General meeting on 12 December"),
-                body: tr(
-                    "Convocation officielle à l'assemblée générale ordinaire. Ordre du jour : bilan sportif, "
-                        + "bilan financier, renouvellement du tiers sortant du bureau.",
-                    "Official notice for the annual general meeting. Agenda: season review, "
-                        + "financial report, and election of the outgoing third of the committee."
-                ),
+                title: tr("general_meeting_on_12_december"),
+                body: tr("official_notice_for_the_annual_general_meeting_agenda_se"),
                 authorId: julien.id,
                 publishedAt: day(-19)
             )
@@ -216,14 +190,11 @@ enum DemoData {
         db.events = [
             ClubEvent(
                 clubId: lyon.id,
-                title: tr("Entraînement hebdomadaire", "Weekly training"),
+                title: tr("weekly_training"),
                 kind: .entrainement,
                 date: day(2),
                 location: "Club house · Lyon 7e",
-                details: tr(
-                    "Séance ouverte à tous, travail des doubles et série de 501.",
-                    "Open session for everyone: doubles practice and a 501 series."
-                ),
+                details: tr("open_session_for_everyone_doubles_practice_and_a_501_ser"),
                 attendeeIds: [julien.id, karim.id, nadia.id]
             ),
             ClubEvent(
@@ -232,43 +203,34 @@ enum DemoData {
                 kind: .competition,
                 date: day(9),
                 location: "Salle des sports · Villeurbanne",
-                details: tr(
-                    "Départ groupé du club house à 8h30. Déplacement facturé 33 € par joueur.",
-                    "Group departure from the club house at 8:30am. Travel billed at €33 per player."
-                ),
+                details: tr("group_departure_from_the_club_house_at_8_30am_travel_bil"),
                 attendeeIds: [sophie.id, karim.id]
             ),
             ClubEvent(
                 clubId: lyon.id,
-                title: tr("Réunion du bureau", "Committee meeting"),
+                title: tr("committee_meeting"),
                 kind: .reunion,
                 date: day(14),
-                location: tr("Club house · salle du haut", "Club house · upstairs room"),
-                details: tr(
-                    "Point licences, budget tenues et préparation de l'assemblée générale.",
-                    "Licence update, kit budget and preparation of the general meeting."
-                ),
+                location: tr("club_house_upstairs_room"),
+                details: tr("licence_update_kit_budget_and_preparation_of_the_general"),
                 attendeeIds: [julien.id, karim.id]
             ),
             ClubEvent(
                 clubId: lyon.id,
-                title: tr("Soirée de rentrée du club", "Club season opening night"),
+                title: tr("club_season_opening_night"),
                 kind: .convivial,
                 date: day(21),
                 location: "Club house · Lyon 7e",
-                details: tr(
-                    "Buffet partagé et tournoi amical en doublettes tirées au sort.",
-                    "Shared buffet and a friendly tournament in randomly drawn pairs."
-                ),
+                details: tr("shared_buffet_and_a_friendly_tournament_in_randomly_draw"),
                 attendeeIds: [sophie.id, nadia.id, julien.id]
             ),
             ClubEvent(
                 clubId: lyon.id,
-                title: tr("Interclubs · journée 1", "Interclub · round 1"),
+                title: tr("interclub_round_1"),
                 kind: .competition,
                 date: day(-8),
                 location: "Saint-Priest",
-                details: tr("Victoire 5-3 face à Saint-Priest.", "5-3 win against Saint-Priest."),
+                details: tr("5_3_win_against_saint_priest"),
                 attendeeIds: [sophie.id, karim.id, julien.id]
             )
         ]
@@ -284,19 +246,19 @@ enum DemoData {
         )
         open.entries = [
             TournamentEntry(
-                tableau: tr("Tableau principal", "Main draw"),
-                tour: tr("Poule A", "Group A"),
+                tableau: tr("main_draw"),
+                tour: tr("group_a"),
                 playerA: "Sophie Laurent",
                 playerB: "Marion Dubois",
                 scoreA: 3,
                 scoreB: 1,
-                note: tr("Sortie sur double 16.", "Checkout on double 16."),
+                note: tr("checkout_on_double_16"),
                 recordedById: karim.id,
                 recordedAt: day(-1)
             ),
             TournamentEntry(
-                tableau: tr("Tableau principal", "Main draw"),
-                tour: tr("Poule A", "Group A"),
+                tableau: tr("main_draw"),
+                tour: tr("group_a"),
                 playerA: "Karim Benali",
                 playerB: "Yanis Rocher",
                 scoreA: 2,
@@ -309,7 +271,7 @@ enum DemoData {
 
         var interclubs = Tournament(
             clubId: lyon.id,
-            name: tr("Interclubs Rhône · journée 1", "Rhône interclub · round 1"),
+            name: tr("rhone_interclub_round_1"),
             date: day(-8),
             location: "Saint-Priest",
             markerIds: [karim.id, julien.id],
@@ -317,27 +279,24 @@ enum DemoData {
         )
         interclubs.entries = [
             TournamentEntry(
-                tableau: tr("Rencontre par équipes", "Team fixture"),
-                tour: tr("Simples 1", "Singles 1"),
+                tableau: tr("team_fixture"),
+                tour: tr("singles_1"),
                 playerA: "Julien Morel",
                 playerB: "Franck Ledoux",
                 scoreA: 3,
                 scoreB: 0,
-                note: tr("Moyenne 68,1.", "68.1 average."),
+                note: tr("68_1_average"),
                 recordedById: julien.id,
                 recordedAt: day(-8)
             ),
             TournamentEntry(
-                tableau: tr("Rencontre par équipes", "Team fixture"),
-                tour: tr("Doublettes", "Doubles"),
+                tableau: tr("team_fixture"),
+                tour: tr("doubles"),
                 playerA: "Sophie Laurent / Karim Benali",
-                playerB: tr("Équipe Saint-Priest 2", "Saint-Priest team 2"),
+                playerB: tr("saint_priest_team_2"),
                 scoreA: 2,
                 scoreB: 3,
-                note: tr(
-                    "Match très serré, décidé au dernier leg.",
-                    "Very tight match, decided on the last leg."
-                ),
+                note: tr("very_tight_match_decided_on_the_last_leg"),
                 recordedById: karim.id,
                 recordedAt: day(-8)
             )
@@ -350,7 +309,7 @@ enum DemoData {
 
         var cotisation = PaymentCall(
             clubId: lyon.id,
-            label: tr("Cotisation 2026–2027", "Membership fee 2026–2027"),
+            label: tr("membership_fee_20262027"),
             category: .cotisation,
             amountCents: 4500,
             dueDate: day(45),
@@ -378,7 +337,7 @@ enum DemoData {
 
         var tenue = PaymentCall(
             clubId: lyon.id,
-            label: tr("Tenue du club 2026", "Club kit 2026"),
+            label: tr("club_kit_2026"),
             category: .tenue,
             amountCents: 6200,
             dueDate: day(90),
@@ -398,7 +357,7 @@ enum DemoData {
 
         var deplacement = PaymentCall(
             clubId: lyon.id,
-            label: tr("Déplacement Open de Villeurbanne", "Travel — Villeurbanne Open"),
+            label: tr("travel_villeurbanne_open"),
             category: .deplacement,
             amountCents: 3300,
             dueDate: day(-6),
@@ -420,15 +379,12 @@ enum DemoData {
         if let sophieIndex = deplacement.items.firstIndex(where: { $0.memberId == sophie.id }) {
             deplacement.items[sophieIndex].method = .cash
             deplacement.items[sophieIndex].declaredAt = day(-1)
-            deplacement.items[sophieIndex].reference = tr(
-                "Remis à Karim Benali au club house",
-                "Handed to Karim Benali at the club house"
-            )
+            deplacement.items[sophieIndex].reference = tr("handed_to_karim_benali_at_the_club_house")
         }
 
         var previousSeason = PaymentCall(
             clubId: lyon.id,
-            label: tr("Cotisation 2025–2026", "Membership fee 2025–2026"),
+            label: tr("membership_fee_20252026"),
             category: .cotisation,
             amountCents: 4500,
             dueDate: day(-300),
@@ -453,19 +409,13 @@ enum DemoData {
             messages: [
                 Message(
                     senderId: karim.id,
-                    text: tr(
-                        "Bonjour Sophie, ta licence 2026–2027 est validée par le club ✅",
-                        "Hi Sophie, your 2026–2027 licence has been approved by the club ✅"
-                    ),
+                    text: tr("hi_sophie_your_20262027_licence_has_been_approved_by_the"),
                     sentAt: hour(-5),
                     readBy: [karim.id]
                 ),
                 Message(
                     senderId: karim.id,
-                    text: tr(
-                        "Tu peux passer récupérer ta carte de membre au club house.",
-                        "You can pick up your membership card at the club house."
-                    ),
+                    text: tr("you_can_pick_up_your_membership_card_at_the_club_house"),
                     sentAt: hour(-4),
                     readBy: [karim.id]
                 )
@@ -479,19 +429,13 @@ enum DemoData {
             messages: [
                 Message(
                     senderId: julien.id,
-                    text: tr(
-                        "Tu peux passer récupérer les tee-shirts avant samedi ?",
-                        "Could you pick up the shirts before Saturday?"
-                    ),
+                    text: tr("could_you_pick_up_the_shirts_before_saturday"),
                     sentAt: day(-1),
                     readBy: [julien.id, sophie.id]
                 ),
                 Message(
                     senderId: sophie.id,
-                    text: tr(
-                        "Oui sans souci, je passe jeudi soir après l'entraînement.",
-                        "Sure, I'll come by Thursday evening after training."
-                    ),
+                    text: tr("sure_i_ll_come_by_thursday_evening_after_training"),
                     sentAt: day(-1),
                     readBy: [julien.id, sophie.id]
                 )
@@ -505,19 +449,13 @@ enum DemoData {
             messages: [
                 Message(
                     senderId: nadia.id,
-                    text: tr(
-                        "Bonjour, est-ce que je peux régler la cotisation en deux fois ?",
-                        "Hello, can I pay the membership fee in two instalments?"
-                    ),
+                    text: tr("hello_can_i_pay_the_membership_fee_in_two_instalments"),
                     sentAt: day(-2),
                     readBy: [nadia.id]
                 ),
                 Message(
                     senderId: karim.id,
-                    text: tr(
-                        "Merci pour le retour, on voit ça en réunion de bureau mardi.",
-                        "Thanks for asking — we'll discuss it at Tuesday's committee meeting."
-                    ),
+                    text: tr("thanks_for_asking_we_ll_discuss_it_at_tuesday_s_committe"),
                     sentAt: day(-1),
                     readBy: [karim.id, nadia.id]
                 )
@@ -531,10 +469,7 @@ enum DemoData {
             messages: [
                 Message(
                     senderId: nadia.id,
-                    text: tr(
-                        "Bonjour, je souhaiterais m'inscrire au déplacement de Villeurbanne.",
-                        "Hello, I'd like to sign up for the trip to Villeurbanne."
-                    ),
+                    text: tr("hello_i_d_like_to_sign_up_for_the_trip_to_villeurbanne"),
                     sentAt: day(-3),
                     readBy: [nadia.id]
                 )
@@ -566,33 +501,20 @@ enum DemoData {
 
         db.platformAnnouncements = [
             PlatformAnnouncement(
-                title: tr("Nouveauté : paiements dans l'application", "New: in-app payments"),
-                body: tr(
-                    "Les membres peuvent désormais régler leurs cotisations, tenues et déplacements "
-                        + "directement depuis l'application. Le bureau suit les encaissements en temps réel.",
-                    "Members can now pay their fees, kit and travel directly in the app. "
-                        + "The committee tracks collections in real time."
-                ),
+                title: tr("new_in_app_payments"),
+                body: tr("members_can_now_pay_their_fees_kit_and_travel_directly_i"),
                 audience: .all,
                 publishedAt: day(-3)
             ),
             PlatformAnnouncement(
-                title: tr("Maintenance planifiée", "Scheduled maintenance"),
-                body: tr(
-                    "L'application sera indisponible dimanche de 2h à 4h pour une mise à jour serveur. "
-                        + "Aucune action n'est requise de votre côté.",
-                    "The app will be unavailable on Sunday from 2am to 4am for a server update. "
-                        + "No action is needed on your side."
-                ),
+                title: tr("scheduled_maintenance"),
+                body: tr("the_app_will_be_unavailable_on_sunday_from_2am_to_4am_fo"),
                 audience: .admins,
                 publishedAt: day(-9)
             ),
             PlatformAnnouncement(
-                title: tr("Bienvenue sur Assodarts", "Welcome to Assodarts"),
-                body: tr(
-                    "La plateforme s'ouvre aux premiers clubs de la fédération. Merci de votre confiance !",
-                    "The platform is opening to the federation's first clubs. Thank you for your trust!"
-                ),
+                title: tr("welcome_to_assodarts"),
+                body: tr("the_platform_is_opening_to_the_federation_s_first_clubs_"),
                 audience: .all,
                 publishedAt: day(-25)
             )

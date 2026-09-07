@@ -21,7 +21,7 @@ struct PrimaryButton: View {
             .frame(height: 52)
             .foregroundStyle(.white)
             .background(isEnabled ? Theme.navy : Theme.navy.opacity(0.35))
-            .clipShape(.rect(cornerRadius: 14))
+            .clipShape(.rect(cornerRadius: Theme.buttonRadius))
         }
         .buttonStyle(PressableButtonStyle())
         .disabled(!isEnabled)
@@ -49,9 +49,9 @@ struct SecondaryButton: View {
             .frame(height: 50)
             .foregroundStyle(tint)
             .background(Theme.surface)
-            .clipShape(.rect(cornerRadius: 14))
+            .clipShape(.rect(cornerRadius: Theme.buttonRadius))
             .overlay {
-                RoundedRectangle(cornerRadius: 14)
+                RoundedRectangle(cornerRadius: Theme.buttonRadius)
                     .stroke(tint.opacity(0.35), lineWidth: 1.5)
             }
         }

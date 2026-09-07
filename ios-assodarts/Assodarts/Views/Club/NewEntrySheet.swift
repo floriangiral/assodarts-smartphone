@@ -31,28 +31,25 @@ struct NewEntrySheet: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField(tr("Ex. Tableau principal", "E.g. Main draw"), text: $tableau)
+                    TextField(tr("e_g_main_draw"), text: $tableau)
                         .keyboardField(.freeText, submit: .next)
                         .focused($isEditing)
                         .foregroundStyle(Theme.ink)
                     TextField(
-                        tr("Ex. Poule A, quart, barrage…", "E.g. Group A, quarter-final, play-off…"),
+                        tr("e_g_group_a_quarter_final_play_off"),
                         text: $tour
                     )
                     .keyboardField(.freeText, submit: .next)
                     .focused($isEditing)
                     .foregroundStyle(Theme.ink)
                 } header: {
-                    Text(tr("Où en est-on ?", "Where are we?"))
+                    Text(tr("where_are_we"))
                 } footer: {
-                    Text(tr(
-                        "Décrivez librement le tableau et le tour : l'application n'impose aucun format.",
-                        "Describe the draw and the round in your own words — the app imposes no format."
-                    ))
+                    Text(tr("describe_the_draw_and_the_round_in_your_own_words_the_ap"))
                 }
 
                 if let tournament, !tournament.tableaux.isEmpty {
-                    Section(tr("Tableaux déjà utilisés", "Draws already used")) {
+                    Section(tr("draws_already_used")) {
                         ForEach(tournament.tableaux, id: \.self) { existing in
                             Button(existing) { tableau = existing }
                                 .font(.subheadline)
@@ -60,21 +57,21 @@ struct NewEntrySheet: View {
                     }
                 }
 
-                Section(tr("Rencontre", "Match")) {
-                    TextField(tr("Joueur ou équipe A", "Player or team A"), text: $playerA)
+                Section(tr("match")) {
+                    TextField(tr("player_or_team_a"), text: $playerA)
                         .keyboardField(.name, submit: .next)
                         .focused($isEditing)
                         .foregroundStyle(Theme.ink)
-                    Stepper(tr("Score A · \(scoreA)", "Score A · \(scoreA)"), value: $scoreA, in: 0...30)
-                    TextField(tr("Joueur ou équipe B", "Player or team B"), text: $playerB)
+                    Stepper(tr("score_a \(scoreA)"), value: $scoreA, in: 0...30)
+                    TextField(tr("player_or_team_b"), text: $playerB)
                         .keyboardField(.name, submit: .next)
                         .focused($isEditing)
                         .foregroundStyle(Theme.ink)
-                    Stepper(tr("Score B · \(scoreB)", "Score B · \(scoreB)"), value: $scoreB, in: 0...30)
+                    Stepper(tr("score_b \(scoreB)"), value: $scoreB, in: 0...30)
                 }
 
-                Section(tr("Note (facultatif)", "Note (optional)")) {
-                    TextField(tr("Détail du match…", "Match details…"), text: $note, axis: .vertical)
+                Section(tr("note_optional")) {
+                    TextField(tr("match_details"), text: $note, axis: .vertical)
                         .lineLimit(3...6)
                         .keyboardField(.freeText, submit: .return)
                         .focused($isEditing)
@@ -85,14 +82,14 @@ struct NewEntrySheet: View {
             .background(Theme.canvas)
             .keyboardDismissable()
             .keyboardDoneBar(isVisible: isEditing) { isEditing = false }
-            .navigationTitle(tr("Saisir un résultat", "Record a result"))
+            .navigationTitle(tr("record_a_result"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(tr("Annuler", "Cancel")) { dismiss() }
+                    Button(tr("cancel")) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(tr("Enregistrer", "Save"), action: save)
+                    Button(tr("save"), action: save)
                         .fontWeight(.semibold)
                         .disabled(!canSave)
                 }
@@ -105,7 +102,7 @@ struct NewEntrySheet: View {
         let entry = TournamentEntry(
             tableau: tableau.trimmingCharacters(in: .whitespaces),
             tour: tour.trimmingCharacters(in: .whitespaces).isEmpty
-                ? tr("Rencontre", "Match")
+                ? tr("match")
                 : tour.trimmingCharacters(in: .whitespaces),
             playerA: playerA.trimmingCharacters(in: .whitespaces),
             playerB: playerB.trimmingCharacters(in: .whitespaces),

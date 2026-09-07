@@ -159,7 +159,7 @@ enum RemoteRepository {
             renewalDate: remoteClub.trialEndsAt ?? remoteClub.createdAt.addingTimeInterval(365 * 86_400),
             status: .fromRemote(remoteClub.subscriptionStatus),
             seedMemberCount: clubMemberships.count,
-            couponCode: nil,
+            couponCode: remoteClub.couponCode,
             bank: bankAccount.map(ClubBankAccount.init(remote:))
         )
         club.seedMemberCount = clubMemberships.filter { $0.status == "active" }.count
@@ -621,10 +621,7 @@ enum RemoteRepository {
         do {
             let result = try await Backend.functions.httpsCallable("createClub").call(["name": name])
             guard let data = result.data as? [String: Any], let clubId = data["clubId"] as? String else {
-                throw BackendError.message(tr(
-                    "Réponse inattendue du serveur.",
-                    "Unexpected server response."
-                ))
+                throw BackendError.message(tr("unexpected_server_response"))
             }
             return clubId
         } catch let error as BackendError {
@@ -632,29 +629,112 @@ enum RemoteRepository {
         } catch {
             let description = error.localizedDescription.lowercased()
             if description.contains("invalid-argument") {
-                throw BackendError.message(tr(
-                    "Le nom du club doit contenir entre 2 et 80 caractères.",
-                    "The club name must be between 2 and 80 characters."
-                ))
+                throw BackendError.message(tr("the_club_name_must_be_between_2_and_80_characters"))
             }
             if description.contains("already-exists") {
-                throw BackendError.message(tr(
-                    "Un club avec un nom très proche existe déjà. Choisissez un autre nom.",
-                    "A club with a very similar name already exists. Choose another name."
-                ))
+                throw BackendError.message(tr("a_club_with_a_very_similar_name_already_exists_choose_an"))
             }
             if description.contains("failed-precondition") {
                 print("createClub failed precondition: \(error)")
-                throw BackendError.message(tr(
-                    "Votre profil n'est pas encore prêt. Réessayez dans un instant.",
-                    "Your profile is not ready yet. Please try again in a moment."
-                ))
+                throw BackendError.message(tr("your_profile_is_not_ready_yet_please_try_again_in_a_mome"))
             }
-            throw BackendError.message(tr(
-                "Impossible de créer le club. Vérifiez votre connexion puis réessayez.",
-                "The club could not be created. Check your connection and try again."
+            throw BackendError.message(tr("the_club_could_not_be_created_check_your_connection_and_"))
+        }
+    }
+
+    // MARK: - Platform admin
+
+    static func isPlatformAdmin(authUid: String) async -> Bool {
+        (try? await Backend.firestore.collection("platform_admins")
+            .document(authUid).getDocument().exists) == true
+    }
+
+    static func loadPlatformClubs() async throws -> [Club] {
+        let db = Backend.firestore
+        let clubs = try await db.collection("clubs").getDocuments().documents.compactMap {
+            try? $0.data(as: RemoteClub.self)
+        }
+        var result: [Club] = []
+        for remote in clubs {
+            guard let id = remote.id else { continue }
+            let clubUUID = remoteId(id)
+            let memberships = try await db.collection("memberships")
+                .whereField("clubId", isEqualTo: id)
+                .whereField("status", isEqualTo: "active")
+                .getDocuments()
+            result.append(Club(
+                id: clubUUID,
+                name: remote.name,
+                city: remote.address ?? remote.country ?? "",
+                createdAt: remote.createdAt,
+                renewalDate: remote.trialEndsAt ?? remote.createdAt.addingTimeInterval(365 * 86_400),
+                status: .fromRemote(remote.subscriptionStatus),
+                seedMemberCount: memberships.documents.count,
+                couponCode: remote.couponCode,
+                bank: nil
             ))
         }
+        return result.sorted { $0.createdAt > $1.createdAt }
+    }
+
+    static func loadCoupons() async throws -> [Coupon] {
+        let documents = try await Backend.firestore.collection("coupons")
+            .getDocuments().documents
+        return documents.compactMap { document in
+            guard let remote = try? document.data(as: RemoteCoupon.self),
+                  let id = remote.id.flatMap(UUID.init(uuidString:)) else { return nil }
+            return Coupon(
+                id: id,
+                code: remote.code,
+                percent: remote.percent,
+                expiresAt: remote.expiresAt,
+                clubIds: remote.clubIds.map(remoteId),
+                autoRenew: remote.autoRenew,
+                createdAt: remote.createdAt ?? .now
+            )
+        }.sorted { $0.createdAt > $1.createdAt }
+    }
+
+    static func loadPlatformAnnouncements() async throws -> [PlatformAnnouncement] {
+        let documents = try await Backend.firestore.collection("platform_announcements")
+            .order(by: "publishedAt", descending: true)
+            .getDocuments().documents
+        return documents.compactMap { document in
+            guard let remote = try? document.data(as: RemotePlatformAnnouncement.self),
+                  let id = remote.id.flatMap(UUID.init(uuidString:)),
+                  let audience = BroadcastAudience(rawValue: remote.audience) else { return nil }
+            return PlatformAnnouncement(
+                id: id,
+                title: remote.title,
+                body: remote.body,
+                audience: audience,
+                publishedAt: remote.publishedAt ?? .now
+            )
+        }
+    }
+
+    static func broadcast(title: String, body: String, audience: BroadcastAudience) async throws {
+        _ = try await Backend.functions.httpsCallable("broadcastAnnouncement").call([
+            "title": title,
+            "body": body,
+            "audience": audience.rawValue,
+        ])
+    }
+
+    static func createCoupon(_ coupon: Coupon) async throws {
+        _ = try await Backend.functions.httpsCallable("createCoupon").call([
+            "code": coupon.code,
+            "percent": coupon.percent,
+            "expiresAt": Timestamp(date: coupon.expiresAt),
+            "clubIds": coupon.clubIds.map(\.uuidString),
+            "autoRenew": coupon.autoRenew,
+        ])
+    }
+
+    static func deleteCoupon(id: UUID) async throws {
+        _ = try await Backend.functions.httpsCallable("deleteCoupon").call([
+            "couponId": id.uuidString,
+        ])
     }
 
     // MARK: - Invitations

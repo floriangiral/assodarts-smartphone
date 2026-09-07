@@ -9,17 +9,17 @@ struct OnboardingChoiceView: View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 22) {
                 BrandMark(size: 72)
-                Text(tr("Comment souhaitez-vous rejoindre Assodarts ?", "How would you like to join Assodarts?"))
+                Text(tr("how_would_you_like_to_join_assodarts"))
                     .font(.title2.bold())
                     .foregroundStyle(Theme.ink)
-                Text(tr("Choisissez une option. Vous pourrez modifier votre choix plus tard.", "Choose an option. You can change your choice later."))
+                Text(tr("choose_an_option_you_can_change_your_choice_later"))
                     .foregroundStyle(Theme.inkSecondary)
                 VStack(spacing: 12) {
-                    onboardingButton(title: tr("J'ai été invité(e) par mon club", "I was invited by my club"), detail: tr("Attendez que le bureau enregistre votre invitation avec cette adresse email.", "Wait for your club board to register your invitation with this email address."), symbol: "envelope.badge") { showsCreateClub = false }
-                    onboardingButton(title: tr("Créer mon club", "Create my club"), detail: tr("Créez votre club et devenez automatiquement administrateur.", "Create your club and become an administrator automatically."), symbol: "plus.circle") { showsCreateClub = true }
+                    onboardingButton(title: tr("i_was_invited_by_my_club"), detail: tr("wait_for_your_club_board_to_register_your_invitation_wit"), symbol: "envelope.badge") { showsCreateClub = false }
+                    onboardingButton(title: tr("create_my_club"), detail: tr("create_your_club_and_become_an_administrator_automatical"), symbol: "plus.circle") { showsCreateClub = true }
                 }
                 if !showsCreateClub {
-                    PrimaryButton(title: tr("Rafraîchir", "Refresh"), symbol: "arrow.clockwise", isEnabled: !isRefreshing, action: refresh)
+                    PrimaryButton(title: tr("refresh"), symbol: "arrow.clockwise", isEnabled: !isRefreshing, action: refresh)
                 } else {
                     CreateClubView(onCancel: { showsCreateClub = false })
                 }
@@ -27,7 +27,7 @@ struct OnboardingChoiceView: View {
             }
             .padding(24)
             .assoCanvas()
-            .navigationTitle(tr("Bienvenue", "Welcome"))
+            .navigationTitle(tr("welcome"))
             .navigationBarTitleDisplayMode(.inline)
         }
     }
@@ -43,7 +43,7 @@ struct OnboardingChoiceView: View {
                 Spacer()
             }
             .padding(16)
-            .background(Theme.surface, in: .rect(cornerRadius: 14))
+            .background(Theme.surface, in: .rect(cornerRadius: Theme.buttonRadius))
         }
         .buttonStyle(.plain)
     }

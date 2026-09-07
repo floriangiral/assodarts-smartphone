@@ -11,7 +11,7 @@ struct DashboardHeader: View {
 
     private var greeting: String {
         let hour = Calendar.current.component(.hour, from: .now)
-        return hour < 18 ? tr("Bonjour", "Hello") : tr("Bonsoir", "Good evening")
+        return hour < 18 ? tr("hello") : tr("good_evening")
     }
 
     var body: some View {
@@ -20,7 +20,7 @@ struct DashboardHeader: View {
                 AvatarView(initials: user.initials, photoData: user.photoData, size: 48)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(tr("Mon profil", "My profile"))
+            .accessibilityLabel(tr("my_profile"))
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("\(greeting), \(user.firstName)")
@@ -45,7 +45,7 @@ struct DashboardHeader: View {
                 )
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(tr("Notifications", "Notifications"))
+            .accessibilityLabel(tr("notifications"))
 
             NavigationLink(value: ClubRoute.messages) {
                 iconButton(
@@ -54,13 +54,13 @@ struct DashboardHeader: View {
                 )
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(tr("Messages", "Messages"))
+            .accessibilityLabel(tr("messages_dashboardheader"))
         }
         .alert(
-            tr("Changement de club impossible", "Couldn't switch club"),
+            tr("couldn_t_switch_club"),
             isPresented: Binding(get: { clubSwitchError != nil }, set: { if !$0 { clubSwitchError = nil } })
         ) {
-            Button(tr("OK", "OK"), role: .cancel) {}
+            Button(tr("ok"), role: .cancel) {}
         } message: {
             Text(clubSwitchError ?? "")
         }
@@ -97,7 +97,7 @@ struct DashboardHeader: View {
             }
         }
         .disabled(store.isSyncing)
-        .accessibilityLabel(tr("Changer de club actif", "Switch active club"))
+        .accessibilityLabel(tr("switch_active_club"))
     }
 
     /// Round toolbar button with an optional unread count.

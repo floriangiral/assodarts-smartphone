@@ -16,6 +16,25 @@ struct RemoteClub: Codable {
     let createdAt: Date
     let subscriptionStatus: String
     let trialEndsAt: Date?
+    let couponCode: String?
+}
+
+struct RemoteCoupon: Codable {
+    @DocumentID var id: String?
+    let code: String
+    let percent: Int
+    let expiresAt: Date
+    let clubIds: [String]
+    let autoRenew: Bool
+    let createdAt: Date?
+}
+
+struct RemotePlatformAnnouncement: Codable {
+    @DocumentID var id: String?
+    let title: String
+    let body: String
+    let audience: String
+    let publishedAt: Date?
 }
 
 struct RemoteMembership: Codable {
@@ -381,5 +400,25 @@ extension PaymentCategory {
 /// Invalid/missing IDs fall back to a fresh `UUID` rather than crashing —
 /// such a row is simply orphaned from the rest of that sync.
 nonisolated func remoteId(_ raw: String?) -> UUID {
-    raw.flatMap(UUID.init(uuidString:)) ?? UUID()
+    guard let raw else { return UUID() }
+    if let uuid = UUID(uuidString: raw) { return uuid }
+
+    // Staging still contains a few legacy slug IDs. Derive a stable UUID for
+    // those strings so repeated snapshots keep the same local identity.
+    var first: UInt64 = 14_695_981_039_346_656_037
+    var second: UInt64 = 10_959_211_624_259_903_921
+    for byte in raw.utf8 {
+        first ^= UInt64(byte)
+        first &*= 1_099_511_628_211
+        second ^= UInt64(byte &+ 17)
+        second &*= 1_099_511_628_211
+    }
+    let bytes = withUnsafeBytes(of: first.bigEndian) { Array($0) }
+        + withUnsafeBytes(of: second.bigEndian) { Array($0) }
+    return UUID(uuid: (
+        bytes[0], bytes[1], bytes[2], bytes[3],
+        bytes[4], bytes[5], bytes[6], bytes[7],
+        bytes[8], bytes[9], bytes[10], bytes[11],
+        bytes[12], bytes[13], bytes[14], bytes[15]
+    ))
 }

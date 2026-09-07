@@ -77,51 +77,48 @@ struct ClubTabView: View {
             NavigationStack {
                 DashboardView()
             }
-            .tabItem { Label(tr("Accueil", "Home"), systemImage: "house.fill") }
+            .tabItem { Label(tr("home"), systemImage: "house.fill") }
             .tag(0)
 
             NavigationStack {
                 AnnouncementsView()
             }
-            .tabItem { Label(tr("Annonces", "News"), systemImage: "megaphone.fill") }
+            .tabItem { Label(tr("news"), systemImage: "megaphone.fill") }
             .tag(1)
 
             NavigationStack {
                 EventsView()
             }
-            .tabItem { Label(tr("Événements", "Events"), systemImage: "calendar") }
+            .tabItem { Label(tr("events"), systemImage: "calendar") }
             .tag(2)
 
             NavigationStack {
                 MembersView()
             }
-            .tabItem { Label(tr("Membres", "Members"), systemImage: "person.3.fill") }
+            .tabItem { Label(tr("members"), systemImage: "person.3.fill") }
             .tag(3)
 
             NavigationStack {
                 TournamentsView()
             }
-            .tabItem { Label(tr("Tournois", "Tournaments"), systemImage: "trophy.fill") }
+            .tabItem { Label(tr("tournaments"), systemImage: "trophy.fill") }
             .tag(4)
         }
         .tint(Theme.navy)
         .alert(
-            tr("Nouveau club rejoint", "Joined a new club"),
+            tr("joined_a_new_club"),
             isPresented: Binding(
                 get: { store.pendingClubSwitchOffer != nil },
                 set: { if !$0 { store.dismissPendingClubSwitch() } }
             )
         ) {
-            Button(tr("Plus tard", "Later"), role: .cancel) { store.dismissPendingClubSwitch() }
-            Button(tr("Basculer maintenant", "Switch now")) {
+            Button(tr("later"), role: .cancel) { store.dismissPendingClubSwitch() }
+            Button(tr("switch_now")) {
                 Task { await store.confirmPendingClubSwitch() }
             }
         } message: {
             if let club = store.pendingClubSwitchOffer {
-                Text(tr(
-                    "Vous avez rejoint \(club.name). Basculer sur ce club maintenant ?",
-                    "You just joined \(club.name). Switch to this club now?"
-                ))
+                Text(tr("you_just_joined_switch_to_this_club_now \(club.name)"))
             }
         }
         .sheet(isPresented: Binding(
