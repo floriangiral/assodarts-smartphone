@@ -613,6 +613,21 @@ enum RemoteRepository {
             .setData(from: payload, merge: true)
     }
 
+    /// Creates a brand-new club for the signed-in member, who becomes its
+    /// admin. Must be called after `createSelfMember` — the member profile
+    /// has to exist first, its `clubId` is completed by this call.
+    /// - Returns: The real Firestore id of the newly created club.
+    static func createClub(name: String) async throws -> String {
+        let result = try await Backend.functions.httpsCallable("createClub").call(["name": name])
+        guard let data = result.data as? [String: Any], let clubId = data["clubId"] as? String else {
+            throw BackendError.message(tr(
+                "Le club n'a pas pu être créé. Réessayez.",
+                "The club couldn't be created. Please try again."
+            ))
+        }
+        return clubId
+    }
+
     // MARK: - Invitations
 
     /// The board invites someone by email; the membership is only created once

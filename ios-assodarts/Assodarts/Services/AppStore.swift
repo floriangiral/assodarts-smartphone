@@ -30,6 +30,9 @@ final class AppStore {
     /// Set when accepting a pending invitation just joined a club other than
     /// the currently active one, so the UI can offer an immediate switch.
     var pendingClubSwitchOffer: RemoteRepository.AvailableClub?
+    /// Set right after a member creates their own club, so the app can offer
+    /// inviting board members before landing on the normal dashboard.
+    var showsPostCreationInviteOffer: Bool = false
 
     init() {
         if let data = UserDefaults.standard.data(forKey: Self.storageKey),
@@ -118,6 +121,7 @@ final class AppStore {
         availableClubs = []
         activeClubRemoteId = nil
         pendingClubSwitchOffer = nil
+        showsPostCreationInviteOffer = false
         NotificationService.clearScheduledReminders()
         if wasLive {
             db = DemoData.seed()

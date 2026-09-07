@@ -102,6 +102,63 @@ extension AppStore {
         }
     }
 
+    /// Creates an account, its member profile, then a brand-new club with the
+    /// signer as its admin. Unlike `signUpRemote` (the invited-member path),
+    /// this doesn't require any pending invitation.
+    func signUpAndCreateClub(
+        firstName: String,
+        lastName: String,
+        email: String,
+        password: String,
+        phone: String,
+        clubName: String
+    ) async -> String? {
+        guard Backend.isConfigured else { return BackendError.notConfigured.errorDescription }
+
+        let normalized = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let first = firstName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let last = lastName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let name = clubName.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !first.isEmpty, !last.isEmpty else {
+            return tr("Indiquez votre prénom et votre nom.", "Enter your first and last name.")
+        }
+        guard password.count >= 6 else {
+            return tr(
+                "Le mot de passe doit contenir au moins 6 caractères.",
+                "The password must be at least 6 characters long."
+            )
+        }
+        guard !name.isEmpty else {
+            return tr("Indiquez le nom de votre club.", "Enter your club's name.")
+        }
+
+        do {
+            let result = try await Backend.auth.createUser(withEmail: normalized, password: password)
+            let userId = UUID()
+
+            try await RemoteRepository.createSelfMember(
+                userId: userId,
+                authUid: result.user.uid,
+                firstName: first,
+                lastName: last,
+                email: normalized,
+                phone: phone.isEmpty ? nil : phone
+            )
+
+            _ = try await RemoteRepository.createClub(name: name)
+
+            let message = await loadRemote(userId: userId)
+            if message == nil {
+                showsPostCreationInviteOffer = true
+            }
+            return message
+        } catch {
+            print("Club creation failed: \(error)")
+            return friendlyMessage(for: error)
+        }
+    }
+
     /// Sends a password reset email.
     func sendPasswordReset(email: String) async -> String {
         let normalized = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
