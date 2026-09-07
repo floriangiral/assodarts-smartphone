@@ -27,3 +27,13 @@ export async function requireClubBoard(
     );
   }
 }
+
+export async function requirePlatformAdmin(uid: string): Promise<void> {
+  const snap = await getFirestore()
+    .collection("platform_admins")
+    .doc(uid)
+    .get();
+  if (!snap.exists) {
+    throw new HttpsError("permission-denied", "Platform admin access required");
+  }
+}

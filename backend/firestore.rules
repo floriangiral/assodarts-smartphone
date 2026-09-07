@@ -13,6 +13,11 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isPlatformAdmin() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/platform_admins/$(request.auth.uid));
+    }
+
     function membership(clubId) {
       return get(/databases/$(database)/documents/memberships/$(clubId + '_' + request.auth.uid)).data;
     }
@@ -68,13 +73,20 @@ service cloud.firestore {
     }
 
     match /clubs/{clubId} {
-      allow read: if isActiveMember(clubId);
+      allow read: if isActiveMember(clubId) || isPlatformAdmin();
       allow write: if isBoard(clubId);
+    }
+
+    match /platform_admins/{uid} {
+      allow read: if isSignedIn() && request.auth.uid == uid;
+      allow write: if false;
     }
 
     match /memberships/{membershipId} {
       allow read: if isSignedIn()
-        && (resource.data.authUid == request.auth.uid || isBoard(resource.data.clubId));
+        && (resource.data.authUid == request.auth.uid
+            || isBoard(resource.data.clubId)
+            || isPlatformAdmin());
       allow create, update: if isBoard(request.resource.data.clubId);
       allow delete: if isBoard(resource.data.clubId);
     }
@@ -111,6 +123,16 @@ service cloud.firestore {
       allow read: if isActiveMember(resource.data.clubId);
       allow create: if isBoard(request.resource.data.clubId);
       allow update, delete: if isBoard(resource.data.clubId);
+    }
+
+    match /platform_announcements/{announcementId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    match /coupons/{couponId} {
+      allow read: if isPlatformAdmin();
+      allow write: if false;
     }
 
     match /events/{eventId} {

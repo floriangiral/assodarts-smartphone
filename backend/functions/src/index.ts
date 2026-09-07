@@ -23,3 +23,8 @@ export {
   acceptInvitation,
 } from "./invitations";
 export { createClub } from "./createClub";
+export {
+  broadcastAnnouncement,
+  createCoupon,
+  deleteCoupon,
+} from "./platformAdmin";
