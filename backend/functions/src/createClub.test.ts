@@ -18,19 +18,27 @@ const mockMemberGet = jest.fn();
 const mockClubGet = jest.fn();
 const mockMembershipSet = jest.fn();
 const mockMemberSet = jest.fn();
-const mockRunTransaction = jest.fn(async (updateFn) => updateFn({
-  get: async (ref: { path?: string }) => {
-    if (ref.path === "clubs/demo-club") return { exists: false };
-    if (ref.path === "members/m1") return { exists: true, data: () => ({ clubId: null }) };
-    return { exists: false };
-  },
-  set: (ref: { path?: string }, value: unknown) => {
-    if (ref.path === "clubs/demo-club") mockClubGet(value);
-    if (ref.path === "memberships/demo-club_u1") mockMembershipSet(value);
-    if (ref.path === "members/m1") mockMemberSet(value);
-    return undefined;
-  },
-}));
+let createdClubId = "";
+const mockRunTransaction = jest.fn(async (updateFn) =>
+  updateFn({
+    get: async (ref: { path?: string }) => {
+      if (ref.path === `clubs/${createdClubId}`) return { exists: false };
+      if (ref.path === "members/m1")
+        return { exists: true, data: () => ({ clubId: null }) };
+      return { exists: false };
+    },
+    set: (ref: { path?: string }, value: unknown) => {
+      if (ref.path?.startsWith("clubs/")) {
+        createdClubId = ref.path.slice("clubs/".length);
+        mockClubGet(value);
+      }
+      if (ref.path === `memberships/${createdClubId}_u1`)
+        mockMembershipSet(value);
+      if (ref.path === "members/m1") mockMemberSet(value);
+      return undefined;
+    },
+  }),
+);
 
 jest.mock("firebase-admin/firestore", () => ({
   getFirestore: () => ({
@@ -63,12 +71,24 @@ describe("createClub", () => {
 
   it("creates a club and membership for an authenticated member", async () => {
     const response = await wrapped(makeRequest({ name: "Demo Club" }, "u1"));
-    expect(response).toEqual({ clubId: "demo-club" });
+    expect(response).toEqual({
+      clubId: expect.stringMatching(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+      ),
+    });
     expect(mockMembershipSet).toHaveBeenCalledWith(
       expect.objectContaining({
-        clubId: "demo-club",
+        clubId: expect.stringMatching(
+          /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+        ),
         role: "admin",
         status: "active",
+      }),
+    );
+    expect(mockClubGet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Demo Club",
+        displayName: "Demo Club",
       }),
     );
   });

@@ -1,15 +1,6 @@
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
-
-function slugify(value: string): string {
-  return value
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
+import { randomUUID } from "node:crypto";
 
 export const createClub = onCall(async (request) => {
   if (!request.auth) {
@@ -41,7 +32,7 @@ export const createClub = onCall(async (request) => {
   }
 
   const memberDoc = memberQuery.docs[0];
-  const clubId = slugify(rawName);
+  const clubId = randomUUID();
   const now = FieldValue.serverTimestamp();
   const trialEndsAt = Timestamp.fromDate(
     new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
@@ -70,6 +61,7 @@ export const createClub = onCall(async (request) => {
       clubRef,
       {
         name: rawName,
+        displayName: rawName,
         createdAt: now,
         subscriptionStatus: "trial",
         trialEndsAt,
