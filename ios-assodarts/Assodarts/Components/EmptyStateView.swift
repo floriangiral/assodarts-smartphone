@@ -38,14 +38,20 @@ struct EmptyStateView: View {
                         .multilineTextAlignment(.center)
                 }
             } else if let title, let systemImage {
-                if let description {
-                    ContentUnavailableView(
-                        title,
-                        systemImage: systemImage,
-                        description: { description }
-                    )
-                } else {
-                    ContentUnavailableView(title, systemImage: systemImage)
+                VStack(spacing: 12) {
+                    Image(systemName: systemImage)
+                        .font(.largeTitle)
+                        .foregroundStyle(Theme.inkSecondary)
+                    Text(title)
+                        .font(.headline)
+                        .foregroundStyle(Theme.ink)
+                        .multilineTextAlignment(.center)
+                    if let description {
+                        description
+                            .font(.subheadline)
+                            .foregroundStyle(Theme.inkSecondary)
+                            .multilineTextAlignment(.center)
+                    }
                 }
             }
         }
