@@ -11,6 +11,7 @@ struct LoginView: View {
     @State private var email: String = ""
     @State private var phone: String = ""
     @State private var password: String = ""
+    @State private var clubName: String = ""
     @State private var errorMessage: String?
     @State private var infoMessage: String?
     @State private var isSubmitting: Bool = false
@@ -20,15 +21,40 @@ struct LoginView: View {
     private enum Intent: String, CaseIterable, Identifiable {
         case signIn
         case signUp
+        case createClub
 
         var id: String { rawValue }
+
+        /// Top-level choices shown in the main segmented control.
+        static var topLevelCases: [Intent] { [.signIn, .signUp] }
 
         var label: String {
             switch self {
             case .signIn: tr("Se connecter", "Sign in")
             case .signUp: tr("Créer un compte", "Sign up")
+            case .createClub: tr("Créer mon club", "Create my club")
             }
         }
+
+        /// Distinct phrasing for the invited-vs-founder sub-choice shown once
+        /// "Sign up" is selected — clearer there than the generic `label`.
+        var signUpChoiceLabel: String {
+            switch self {
+            case .signUp: tr("J'ai été invité(e) par mon club", "I was invited by my club")
+            case .createClub: tr("Je crée le club de mon association", "I'm creating my club")
+            case .signIn: label
+            }
+        }
+    }
+
+    /// The top segmented control only ever shows "Sign in"/"Sign up"; picking
+    /// between the invited/founder sub-choice happens one level down and
+    /// keeps this binding on `.signUp` so the top control stays highlighted.
+    private var topIntentBinding: Binding<Intent> {
+        Binding(
+            get: { intent == .createClub ? .signUp : intent },
+            set: { intent = $0 }
+        )
     }
 
     private enum Field: Hashable {
@@ -36,6 +62,7 @@ struct LoginView: View {
         case lastName
         case email
         case phone
+        case clubName
         case password
     }
 
@@ -87,8 +114,8 @@ struct LoginView: View {
 
     private var form: some View {
         VStack(spacing: 14) {
-            Picker("", selection: $intent) {
-                ForEach(Intent.allCases) { option in
+            Picker("", selection: topIntentBinding) {
+                ForEach(Intent.topLevelCases) { option in
                     Text(option.label).tag(option)
                 }
             }
@@ -98,7 +125,17 @@ struct LoginView: View {
                 infoMessage = nil
             }
 
-            if intent == .signUp {
+            if intent == .signUp || intent == .createClub {
+                Picker("", selection: $intent) {
+                    ForEach([Intent.signUp, .createClub]) { option in
+                        Text(option.signUpChoiceLabel).tag(option)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+
+            if intent == .signUp || intent == .createClub {
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 8) {
                         SectionLabel(text: tr("Prénom", "First name"))
@@ -133,13 +170,26 @@ struct LoginView: View {
                     .background(Theme.canvas, in: .rect(cornerRadius: 12))
             }
 
-            if intent == .signUp {
+            if intent == .signUp || intent == .createClub {
                 VStack(alignment: .leading, spacing: 8) {
                     SectionLabel(text: tr("Téléphone (facultatif)", "Phone (optional)"))
                     TextField("06 12 34 56 78", text: $phone)
                         .keyboardType(.phonePad)
                         .textContentType(.telephoneNumber)
                         .focused($focusedField, equals: .phone)
+                        .foregroundStyle(Theme.ink)
+                        .padding(14)
+                        .background(Theme.canvas, in: .rect(cornerRadius: 12))
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+
+            if intent == .createClub {
+                VStack(alignment: .leading, spacing: 8) {
+                    SectionLabel(text: tr("Nom du club", "Club name"))
+                    TextField(tr("Fléchettes Club Lyon", "Lyon Darts Club"), text: $clubName)
+                        .focused($focusedField, equals: .clubName)
+                        .onSubmit { focusedField = .password }
                         .foregroundStyle(Theme.ink)
                         .padding(14)
                         .background(Theme.canvas, in: .rect(cornerRadius: 12))
@@ -156,7 +206,7 @@ struct LoginView: View {
                     .foregroundStyle(Theme.ink)
                     .padding(14)
                     .background(Theme.canvas, in: .rect(cornerRadius: 12))
-                if intent == .signUp {
+                if intent == .signUp || intent == .createClub {
                     Text(tr("6 caractères minimum.", "At least 6 characters."))
                         .font(.caption)
                         .foregroundStyle(Theme.inkSecondary)
@@ -209,7 +259,7 @@ struct LoginView: View {
             } label: {
                 HStack {
                     Image(systemName: "person.2.badge.key")
-                    Text(tr("Explorer en démonstration", "Explore in demo mode"))
+                    Text(tr("Explorer en mode démo (hors ligne)", "Explore in demo mode (offline)"))
                         .font(.subheadline.weight(.semibold))
                     Spacer()
                     Image(systemName: "chevron.down")
@@ -284,6 +334,15 @@ struct LoginView: View {
                     email: email,
                     password: password,
                     phone: phone
+                )
+            case .createClub:
+                result = await store.signUpAndCreateClub(
+                    firstName: firstName,
+                    lastName: lastName,
+                    email: email,
+                    password: password,
+                    phone: phone,
+                    clubName: clubName
                 )
             }
 

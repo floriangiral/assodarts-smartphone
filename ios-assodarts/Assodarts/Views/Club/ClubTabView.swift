@@ -124,6 +124,14 @@ struct ClubTabView: View {
                 ))
             }
         }
+        .sheet(isPresented: Binding(
+            get: { store.showsPostCreationInviteOffer },
+            set: { store.showsPostCreationInviteOffer = $0 }
+        )) {
+            // Reuses InviteMemberSheet as-is: its own Cancel button doubles as
+            // "Skip", never blocking access to the freshly created club.
+            InviteMemberSheet()
+        }
     }
 }
 
