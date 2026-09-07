@@ -102,6 +102,23 @@ native upload in both CodeQL steps by changing `upload: never` to
 permissions. Keep the local artifact and summary steps so results remain
 available for manual inspection.
 
+## Platform admin bootstrap
+
+The developer console is granted through the server-only `platform_admins`
+collection. Resolve an existing Firebase Auth account and create the first
+admin with:
+
+```sh
+node backend/scripts/grant-platform-admin.js \
+	--project-id assodarts-staging \
+	--email admin@assodarts.test
+```
+
+The command uses `GOOGLE_APPLICATION_CREDENTIALS` or Application Default
+Credentials and refuses to overwrite an existing record unless `--force` is
+provided. The staging seeder can also grant the optional account directly with
+`--platform-admin-email`.
+
 ## Manual checklist
 
 - [ ] Create/confirm the staging iOS app in Firebase with bundle ID `com.assodarts.app`.

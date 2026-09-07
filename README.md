@@ -186,6 +186,31 @@ Do not include any of these values in Git, issue comments, or application logs.
 
 The flow is intentionally server controlled: Checkout reloads the payment amount and ownership from Firestore, Stripe Connect routes payment proceeds to the club account, and only the verified webhook marks a payment line as paid.
 
+## Seeder un club de test
+
+Le seeder staging crée ou réutilise quatre comptes, un club complet (annonce,
+événement, paiement, tournoi avec match joué et deux conversations), ainsi
+qu'un second club où le compte membre devient `board` pour tester le switch
+multi-club. Les entités de test utilisent des identifiants `seed__`
+déterministes : relancer la commande met à jour les mêmes documents sans les
+dupliquer.
+
+```sh
+node backend/scripts/seed-staging.js \
+  --project-id assodarts-staging \
+  --club-name "Saint-Flour Fléchettes" \
+  --second-club-name "Clermont Darts Club" \
+  --admin-email admin@assodarts.test \
+  --board-email bureau@assodarts.test \
+  --member-email membre@assodarts.test \
+  --apple-review-email apple-review@assodarts.app
+```
+
+Le script utilise les identifiants Firebase Admin locaux (`GOOGLE_APPLICATION_CREDENTIALS` ou `applicationDefault()`). Pour créer également un compte Stripe Express de test, exportez `STRIPE_SECRET_KEY` avec une clé `sk_test_...`. Le compte reste volontairement `pending` : terminez une fois l'onboarding dans `BankSettingsView` pour déclencher la vérification Stripe. Sans cette variable, les données bancaires sont tout de même créées et le résumé final indique l'étape manuelle restante.
+
+Les coupons ne sont pas seedés : ils sont actuellement consommés uniquement
+par la console développeur locale, qui n'est pas connectée à Firestore.
+
 ## Cloud Functions
 
 | Function                                                          | Type              | Authentication                                | Description                                                                                                   |
