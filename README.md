@@ -79,8 +79,6 @@ and environment plist files remain outside version control.
 
 > TODO avant de repasser ce repo en privé : migrer docs/index.html (politique de confidentialité, requise par Apple pour TestFlight/App Store) vers un repo public dédié, sinon GitHub Pages cessera de servir cette URL sur le plan Free.
 
-> TODO avant de repasser ce repo en privé : migrer docs/index.html (politique de confidentialité, requise par Apple pour TestFlight/App Store) vers un repo public dédié, sinon GitHub Pages cessera de servir cette URL sur le plan Free.
-
 ## Requirements
 
 For local UI exploration:
