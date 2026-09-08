@@ -38,6 +38,7 @@ struct AnnouncementsView: View {
             .padding(.vertical, 12)
         }
         .assoCanvas()
+        .refreshable { await store.refresh() }
         .navigationTitle(tr("news"))
         .toolbar {
             if store.canManageClub {
@@ -165,6 +166,7 @@ struct AnnouncementDetailView: View {
             }
         }
         .assoCanvas()
+        .task { await store.refresh() }
         .navigationTitle(tr("announcement"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

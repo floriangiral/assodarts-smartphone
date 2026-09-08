@@ -34,6 +34,7 @@ struct TournamentsView: View {
             .padding(.vertical, 12)
         }
         .assoCanvas()
+        .refreshable { await store.refresh() }
         .navigationTitle(tr("tournaments"))
         .toolbar {
             if store.canManageClub {

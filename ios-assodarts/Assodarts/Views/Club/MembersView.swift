@@ -81,6 +81,7 @@ struct MembersView: View {
             .padding(.vertical, 12)
         }
         .assoCanvas()
+        .refreshable { await store.refresh() }
         .navigationTitle(tr("members"))
         .searchable(text: $search, prompt: tr("search_for_a_member"))
         .sheet(isPresented: $showsInvite) {

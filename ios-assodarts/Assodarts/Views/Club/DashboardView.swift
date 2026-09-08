@@ -25,6 +25,7 @@ struct DashboardView: View {
             }
         }
         .assoCanvas()
+        .refreshable { await store.refresh() }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .navigationBar)
         .clubDestinations()
