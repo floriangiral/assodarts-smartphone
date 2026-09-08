@@ -304,13 +304,16 @@ jobs:
   # le binaire distribué.
   deploy-firestore-staging:
     name: Deploy Firestore rules, indexes and functions (staging)
+    # Un secret détecté bloque dès ici : ce job déploie des Cloud Functions,
+    # il ne doit pas partir sur un commit qui fuite une clé.
     if: >-
       always() &&
       github.event_name == 'push' && startsWith(github.ref, 'refs/heads/release-') &&
       (needs.ios.result == 'success' || needs.ios.result == 'skipped') &&
       needs.backend.result == 'success' &&
+      needs.secret-scan.result == 'success' &&
       (needs.sonarqube.result == 'success' || needs.sonarqube.result == 'skipped')
-    needs: [changes, ios, backend, sonarqube]
+    needs: [changes, ios, backend, sonarqube, secret-scan]
     uses: ./.github/workflows/deploy-firebase.yml
     with:
       environment: staging
@@ -327,9 +330,10 @@ jobs:
       github.event_name == 'push' && startsWith(github.ref, 'refs/heads/release-') &&
       (needs.ios.result == 'success' || needs.ios.result == 'skipped') &&
       needs.backend.result == 'success' &&
+      needs.secret-scan.result == 'success' &&
       (needs.sonarqube.result == 'success' || needs.sonarqube.result == 'skipped') &&
       needs.deploy-firestore-staging.result == 'success'
-    needs: [changes, ios, backend, sonarqube, deploy-firestore-staging]
+    needs: [changes, ios, backend, sonarqube, deploy-firestore-staging, secret-scan]
     runs-on: ubuntu-latest
     environment: staging
     timeout-minutes: 30
