@@ -30,7 +30,7 @@ nonisolated enum NotificationKind: String, Codable, Sendable {
         }
     }
 
-    var tint: Color {
+    @MainActor var tint: Color {
         switch self {
         case .announcement: Theme.orange
         case .paymentDue: Theme.amber
@@ -42,7 +42,7 @@ nonisolated enum NotificationKind: String, Codable, Sendable {
         }
     }
 
-    var background: Color {
+    @MainActor var background: Color {
         switch self {
         case .announcement: Theme.orangeTint
         case .paymentDue: Theme.amberTint

@@ -5,6 +5,10 @@ import SwiftUI
 enum Lang: String, Codable, Sendable, Hashable {
     case fr
     case en
+
+    nonisolated var locale: Locale {
+        self == .fr ? Locale(identifier: "fr_FR") : Locale(identifier: "en_GB")
+    }
 }
 
 /// What the user picked in the settings: follow the device, or force a language.
@@ -54,7 +58,7 @@ nonisolated(unsafe) private var activeLanguage: Lang = detectDeviceLanguage()
 /// Resolves a String Catalog key using the app-selected locale, independently
 /// from the device's preferred language list.
 nonisolated func tr(_ key: String.LocalizationValue) -> String {
-    String(localized: key, locale: Localization.shared.locale)
+    String(localized: key, locale: currentLang.locale)
 }
 
 /// The active language, readable from anywhere.
