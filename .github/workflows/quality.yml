@@ -4,12 +4,13 @@ name: Quality
   pull_request:
     branches:
       - main
+      - develop
       - "release-*"
   push:
     branches:
       - main
+      - develop
       - "release-*"
-      - staging
   workflow_dispatch:
 
 permissions:
@@ -291,14 +292,37 @@ jobs:
             -Dsonar.qualitygate.wait=true
             -Dsonar.qualitygate.timeout=300
 
+  # Le déploiement Firestore passe avant la distribution iOS : les règles,
+  # indexes et functions du serveur sont toujours au moins aussi récents que
+  # le binaire distribué.
+  deploy-firestore-staging:
+    name: Deploy Firestore rules, indexes and functions (staging)
+    if: >-
+      always() &&
+      github.event_name == 'push' && startsWith(github.ref, 'refs/heads/release-') &&
+      (needs.ios.result == 'success' || needs.ios.result == 'skipped') &&
+      needs.backend.result == 'success' &&
+      (needs.sonarqube.result == 'success' || needs.sonarqube.result == 'skipped')
+    needs: [changes, ios, backend, sonarqube]
+    uses: ./.github/workflows/deploy-firebase.yml
+    with:
+      environment: staging
+    secrets: inherit
+
   staging-distribute:
     name: Archive and distribute iOS staging build
-    # MODIFIÉ : accepte "skipped" pour ios ici aussi, par cohérence — même si en
-    # pratique un push staging touche presque toujours ios-assodarts/.
+    # Le déploiement Firestore doit avoir réussi avant toute distribution : une
+    # app livrée sur des règles obsolètes est le bug qu'on cherche à éliminer.
+    # `always()` est nécessaire pour que les résultats `skipped` ci-dessous
+    # soient évalués au lieu de faire sauter le job d'office.
     if: >-
-      github.event_name == 'push' && github.ref == 'refs/heads/staging' &&
-      (needs.ios.result == 'success' || needs.ios.result == 'skipped')
-    needs: [changes, ios, backend, sonarqube]
+      always() &&
+      github.event_name == 'push' && startsWith(github.ref, 'refs/heads/release-') &&
+      (needs.ios.result == 'success' || needs.ios.result == 'skipped') &&
+      needs.backend.result == 'success' &&
+      (needs.sonarqube.result == 'success' || needs.sonarqube.result == 'skipped') &&
+      needs.deploy-firestore-staging.result == 'success'
+    needs: [changes, ios, backend, sonarqube, deploy-firestore-staging]
     runs-on: ubuntu-latest
     environment: staging
     timeout-minutes: 30
@@ -311,7 +335,7 @@ jobs:
             --request POST https://api.codemagic.io/builds \
             --header "Content-Type: application/json" \
             --header "x-auth-token: $CODEMAGIC_API_TOKEN" \
-            --data "$(jq -nc --arg appId "$CODEMAGIC_APP_ID" '{appId: $appId, workflowId: "ios-staging-distribute", branch: "staging"}')")
+            --data "$(jq -nc --arg appId "$CODEMAGIC_APP_ID" --arg branch "$GITHUB_REF_NAME" '{appId: $appId, workflowId: "ios-staging-distribute", branch: $branch}')")
           build_id=$(jq -r '.buildId // empty' <<< "$response")
           test -n "$build_id" || { echo "Codemagic did not return buildId: $response"; exit 1; }
           echo "CODEMAGIC_BUILD_ID=$build_id" >> "$GITHUB_ENV"

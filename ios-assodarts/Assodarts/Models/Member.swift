@@ -43,7 +43,7 @@ struct Member: Identifiable, Codable, Sendable, Hashable {
         firstName: String,
         lastName: String,
         email: String,
-        password: String = "demo",
+        password: String = "",
         phone: String = "",
         birthDate: Date? = nil,
         role: Role = .membre,

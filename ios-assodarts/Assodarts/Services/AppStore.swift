@@ -6,8 +6,10 @@ import SwiftUI
 /// reads and every mutation. Persisted locally between launches.
 @Observable
 final class AppStore {
-    private static let storageKey = "assodarts.database.v1"
-    private static let sessionKey = "assodarts.session.v1"
+    // Bumpées en v2 pour jeter toute base locale persistée avant le nettoyage
+    // du backend. Aucune migration : l'intention est bien de repartir de zéro.
+    private static let storageKey = "assodarts.database.v2"
+    private static let sessionKey = "assodarts.session.v2"
     /// Cached once an administrator is known to exist, so the bootstrap check
     /// never costs a network round-trip again.
     private static let platformAdminConfirmedKey = "assodarts.platformAdminConfirmedExists.v1"
@@ -15,9 +17,8 @@ final class AppStore {
     var db: Database
     var currentUserId: UUID?
 
-    /// Where the displayed data comes from. `.demo` keeps the app fully usable
-    /// offline; `.live` mirrors the club's Firebase data.
-    var mode: BackendMode = .demo
+    /// True once the signed-in member's Firebase data has been loaded.
+    var isLive: Bool = false
     /// True while a full refresh is in flight.
     var isSyncing: Bool = false
     /// Last backend failure, already translated for display.
@@ -26,7 +27,7 @@ final class AppStore {
     var isRestoringSession: Bool = true
     /// The signed-in member's notification inbox, filled by the server.
     var notifications: [AppNotification] = []
-    /// Every club the signed-in member belongs to (`.live` mode only).
+    /// Every club the signed-in member belongs to (live data only).
     var availableClubs: [RemoteRepository.AvailableClub] = []
     /// The real Firestore club id backing `currentClub`, needed to switch clubs.
     var activeClubRemoteId: String?
@@ -52,7 +53,7 @@ final class AppStore {
            let decoded = try? JSONDecoder().decode(Database.self, from: data) {
             db = decoded
         } else {
-            db = DemoData.seed()
+            db = Database()
         }
         if let raw = UserDefaults.standard.string(forKey: Self.sessionKey),
            let id = UUID(uuidString: raw),
@@ -73,13 +74,6 @@ final class AppStore {
         } else {
             UserDefaults.standard.removeObject(forKey: Self.sessionKey)
         }
-    }
-
-    /// Restores the demo platform to its initial state.
-    func resetDemoData() {
-        db = DemoData.seed()
-        currentUserId = nil
-        save()
     }
 
     var hasConfirmedPlatformAdminExists: Bool {
@@ -103,30 +97,7 @@ final class AppStore {
 
     var canManageClub: Bool { currentUser?.role.canManageClub ?? false }
 
-    /// Returns `nil` on success, otherwise a user-facing error message.
-    func signIn(email: String, password: String) -> String? {
-        let normalized = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard let member = db.members.first(where: { $0.email.lowercased() == normalized }) else {
-            return tr("no_account_matches_this_email_address")
-        }
-        guard member.password == password else {
-            return tr("incorrect_password")
-        }
-        guard member.isActive else {
-            return tr("this_account_has_been_deactivated_by_the_club")
-        }
-        currentUserId = member.id
-        save()
-        return nil
-    }
-
-    func signIn(as member: Member) {
-        currentUserId = member.id
-        save()
-    }
-
     func signOut() {
-        let wasLive = mode == .live
         currentUserId = nil
         syncError = nil
         notifications = []
@@ -139,12 +110,10 @@ final class AppStore {
         platformClubsRemote = []
         platformCoupons = []
         platformAnnouncementsRemote = []
+        db = Database()
+        isLive = false
         NotificationService.clearScheduledReminders()
-        if wasLive {
-            db = DemoData.seed()
-            mode = .demo
-            try? Backend.auth.signOut()
-        }
+        try? Backend.auth.signOut()
         save()
     }
 
@@ -389,9 +358,9 @@ final class AppStore {
         save()
     }
 
-    /// Adds a member locally; in demo mode this is the whole story. In live
-    /// mode it also sends a real invitation — the row shown here is only a
-    /// placeholder until that person actually signs up and joins the club.
+    /// Adds a member locally, then sends a real invitation — the row shown
+    /// here is only a placeholder until that person actually signs up and
+    /// joins the club.
     func addMember(_ member: Member) {
         db.members.append(member)
         save()
