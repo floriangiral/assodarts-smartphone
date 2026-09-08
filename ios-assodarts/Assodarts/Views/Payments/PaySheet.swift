@@ -469,8 +469,8 @@ struct PaySheet: View {
         phase = .processing
 
         // Live clubs are charged through Stripe Checkout, which handles Apple Pay
-        // and card entry outside the app. Demo mode keeps a simulated payment.
-        guard store.mode == .live, let item = call.item(for: user.id) else {
+        // and card entry outside the app.
+        guard store.isLive, let item = call.item(for: user.id) else {
             Task {
                 try? await Task.sleep(for: .seconds(1.2))
                 store.markPaid(callId: call.id, memberId: user.id, method: method)

@@ -62,10 +62,10 @@ struct DevHeaderBand: View {
                         }
                     }
                     Button(
-                        tr("Réinitialiser les données de démo", "Reset demo data"),
+                        tr("Réinitialiser les données locales", "Reset local data"),
                         systemImage: "arrow.counterclockwise"
                     ) {
-                        store.resetDemoData()
+                        store.clearLocalData()
                     }
                     Button(
                         tr("Se déconnecter", "Sign out"),

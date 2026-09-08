@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// Entry point of the app: sign in against the club server, create an account,
-/// or explore the app with the local demo data.
+/// Entry point of the app: sign in against the club server or create an account.
 struct LoginView: View {
     @Environment(AppStore.self) private var store
 
@@ -14,7 +13,6 @@ struct LoginView: View {
     @State private var errorMessage: String?
     @State private var infoMessage: String?
     @State private var isSubmitting: Bool = false
-    @State private var showsDemoAccounts: Bool = false
     @FocusState private var focusedField: Field?
 
     private enum Intent: String, CaseIterable, Identifiable {
@@ -39,19 +37,11 @@ struct LoginView: View {
         case password
     }
 
-    private var demoAccounts: [Member] {
-        let wanted = ["admin@fcl-lyon.fr", "bureau@fcl-lyon.fr", "sophie@fcl-lyon.fr", "dev@assodarts.fr"]
-        return wanted.compactMap { mail in
-            store.db.members.first { $0.email == mail }
-        }
-    }
-
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
                 header
                 form
-                demoSection
             }
             .padding(.horizontal, 20)
             .padding(.top, 24)
@@ -193,69 +183,6 @@ struct LoginView: View {
         }
         .assoCard(padding: 20)
         .animation(.spring(response: 0.32, dampingFraction: 0.88), value: intent)
-    }
-
-    private var demoSection: some View {
-        VStack(spacing: 12) {
-            Button {
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-                    showsDemoAccounts.toggle()
-                }
-            } label: {
-                HStack {
-                    Image(systemName: "person.2.badge.key")
-                    Text(tr("Explorer en démonstration", "Explore in demo mode"))
-                        .font(.subheadline.weight(.semibold))
-                    Spacer()
-                    Image(systemName: "chevron.down")
-                        .rotationEffect(.degrees(showsDemoAccounts ? 180 : 0))
-                        .font(.caption.weight(.bold))
-                }
-                .foregroundStyle(Theme.navy)
-            }
-            .buttonStyle(.plain)
-
-            if showsDemoAccounts {
-                VStack(spacing: 10) {
-                    Text(tr(
-                        "Données fictives stockées sur cet iPhone, sans connexion au serveur.",
-                        "Sample data kept on this iPhone only, with no server connection."
-                    ))
-                    .font(.caption)
-                    .foregroundStyle(Theme.inkSecondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                    ForEach(demoAccounts) { account in
-                        Button {
-                            store.mode = .demo
-                            store.signIn(as: account)
-                        } label: {
-                            HStack(spacing: 12) {
-                                AvatarView(initials: account.initials, photoData: account.photoData, size: 38)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(account.fullName)
-                                        .font(.subheadline.weight(.semibold))
-                                        .foregroundStyle(Theme.ink)
-                                    Text(account.email)
-                                        .font(.caption)
-                                        .foregroundStyle(Theme.inkSecondary)
-                                }
-                                Spacer()
-                                RoleBadge(role: account.role)
-                            }
-                            .padding(.vertical, 8)
-                        }
-                        .buttonStyle(.plain)
-
-                        if account.id != demoAccounts.last?.id {
-                            Divider().overlay(Theme.border)
-                        }
-                    }
-                }
-                .transition(.opacity.combined(with: .move(edge: .top)))
-            }
-        }
-        .assoCard(padding: 18)
     }
 
     // MARK: - Actions

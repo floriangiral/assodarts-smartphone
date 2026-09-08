@@ -15,24 +15,9 @@ enum Backend {
     )
 
     /// False when the build carries no Supabase credentials. The app then stays
-    /// in local demo mode instead of failing every single request.
+    /// on the login screen with an empty local database.
     static var isConfigured: Bool {
         !Config.EXPO_PUBLIC_SUPABASE_URL.isEmpty && !Config.EXPO_PUBLIC_SUPABASE_ANON_KEY.isEmpty
-    }
-}
-
-/// Where the data currently displayed comes from.
-enum BackendMode: String, Sendable {
-    /// Local seeded data — lets anyone explore the app without an account.
-    case demo
-    /// Live Supabase data for the signed-in member.
-    case live
-
-    var label: String {
-        switch self {
-        case .demo: tr("Mode démonstration", "Demo mode")
-        case .live: tr("Données du club", "Club data")
-        }
     }
 }
 

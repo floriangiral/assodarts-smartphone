@@ -78,15 +78,10 @@ struct NotificationsView: View {
             Text(tr("Aucune notification", "No notifications"))
                 .font(.headline)
                 .foregroundStyle(Theme.ink)
-            Text(store.mode == .demo
-                 ? tr(
-                    "Les notifications arrivent une fois connecté au serveur de votre club.",
-                    "Notifications arrive once you are connected to your club's server."
-                 )
-                 : tr(
-                    "Annonces, appels à paiement et validations s'afficheront ici.",
-                    "Announcements, payment requests and confirmations will show up here."
-                 ))
+            Text(tr(
+                "Annonces, appels à paiement et validations s'afficheront ici.",
+                "Announcements, payment requests and confirmations will show up here."
+            ))
                 .font(.footnote)
                 .multilineTextAlignment(.center)
                 .foregroundStyle(Theme.inkSecondary)

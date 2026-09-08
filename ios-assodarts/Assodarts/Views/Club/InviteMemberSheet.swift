@@ -78,10 +78,8 @@ struct InviteMemberSheet: View {
                     .disabled(!canInvite)
                 } footer: {
                     Text(tr(
-                        "Le membre reçoit un email d'invitation avec un mot de passe provisoire. "
-                            + "Mot de passe de démonstration : demo",
-                        "The member receives an invitation email with a temporary password. "
-                            + "Demo password: demo"
+                        "Le membre reçoit un email d'invitation avec un mot de passe provisoire.",
+                        "The member receives an invitation email with a temporary password."
                     ))
                 }
             }

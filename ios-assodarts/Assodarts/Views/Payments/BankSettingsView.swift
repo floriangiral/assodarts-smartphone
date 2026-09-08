@@ -172,12 +172,12 @@ struct BankSettingsView: View {
         return tr("Activer l'encaissement en ligne", "Activate online collection")
     }
 
-    /// Live clubs go through the real Stripe Connect onboarding; the demo mode
-    /// keeps its simulated activation so the app stays explorable offline.
+    /// Clubs synced with the server go through the real Stripe Connect
+    /// onboarding; otherwise the activation stays local.
     private func activateOnlineCollection(_ club: Club) {
         store.saveBankAccount(draft, for: club.id, by: store.currentUser?.id)
 
-        guard store.mode == .live else {
+        guard store.isLive else {
             simulateActivation(club)
             return
         }
@@ -200,7 +200,7 @@ struct BankSettingsView: View {
     /// Pulls the account state back from Stripe once the bureau closes the
     /// hosted form.
     private func refreshStripeStatus() {
-        guard store.mode == .live, let club else { return }
+        guard store.isLive, let club else { return }
         isVerifying = true
         Task {
             do {

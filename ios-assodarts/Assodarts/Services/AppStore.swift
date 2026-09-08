@@ -6,15 +6,15 @@ import SwiftUI
 /// reads and every mutation. Persisted locally between launches.
 @Observable
 final class AppStore {
-    private static let storageKey = "assodarts.database.v1"
-    private static let sessionKey = "assodarts.session.v1"
+    // Bumped to v2 to discard every local database persisted before the backend reset.
+    private static let storageKey = "assodarts.database.v2"
+    private static let sessionKey = "assodarts.session.v2"
 
     var db: Database
     var currentUserId: UUID?
 
-    /// Where the displayed data comes from. `.demo` keeps the app fully usable
-    /// offline; `.live` mirrors the club's Supabase data.
-    var mode: BackendMode = .demo
+    /// True once the signed-in member's Supabase data has been loaded.
+    var isLive: Bool = false
     /// True while a full refresh is in flight.
     var isSyncing: Bool = false
     /// Last backend failure, already translated for display.
@@ -29,7 +29,7 @@ final class AppStore {
            let decoded = try? JSONDecoder().decode(Database.self, from: data) {
             db = decoded
         } else {
-            db = DemoData.seed()
+            db = Database()
         }
         if let raw = UserDefaults.standard.string(forKey: Self.sessionKey),
            let id = UUID(uuidString: raw),
@@ -52,11 +52,17 @@ final class AppStore {
         }
     }
 
-    /// Restores the demo platform to its initial state.
-    func resetDemoData() {
-        db = DemoData.seed()
+    /// Wipes everything stored on this device and returns to the login screen.
+    func clearLocalData() {
+        UserDefaults.standard.removeObject(forKey: Self.storageKey)
+        UserDefaults.standard.removeObject(forKey: Self.sessionKey)
+        db = Database()
         currentUserId = nil
-        save()
+        notifications = []
+        syncError = nil
+        isLive = false
+        NotificationService.clearScheduledReminders()
+        Task { try? await Backend.client.auth.signOut() }
     }
 
     // MARK: - Session
@@ -75,45 +81,14 @@ final class AppStore {
 
     var canManageClub: Bool { currentUser?.role.canManageClub ?? false }
 
-    /// Returns `nil` on success, otherwise a user-facing error message.
-    func signIn(email: String, password: String) -> String? {
-        let normalized = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard let member = db.members.first(where: { $0.email.lowercased() == normalized }) else {
-            return tr(
-                "Aucun compte ne correspond à cette adresse.",
-                "No account matches this email address."
-            )
-        }
-        guard member.password == password else {
-            return tr("Mot de passe incorrect.", "Incorrect password.")
-        }
-        guard member.isActive else {
-            return tr(
-                "Ce compte a été désactivé par le club.",
-                "This account has been deactivated by the club."
-            )
-        }
-        currentUserId = member.id
-        save()
-        return nil
-    }
-
-    func signIn(as member: Member) {
-        currentUserId = member.id
-        save()
-    }
-
     func signOut() {
-        let wasLive = mode == .live
         currentUserId = nil
         syncError = nil
         notifications = []
+        db = Database()
+        isLive = false
         NotificationService.clearScheduledReminders()
-        if wasLive {
-            db = DemoData.seed()
-            mode = .demo
-            Task { try? await Backend.client.auth.signOut() }
-        }
+        Task { try? await Backend.client.auth.signOut() }
         save()
     }
 

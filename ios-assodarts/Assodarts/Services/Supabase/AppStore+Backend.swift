@@ -10,21 +10,35 @@ import Supabase
 extension AppStore {
     // MARK: - Session
 
-    /// Restores a stored Supabase session at launch. Falls back to demo mode
-    /// when nobody is signed in or the device is offline.
+    /// Restores a stored Supabase session at launch. Leaves the app on the login
+    /// screen with an empty database when nobody is signed in or the session
+    /// cannot be restored.
     func restoreSession() async {
         guard Backend.isConfigured else {
+            resetToSignedOutState()
             isRestoringSession = false
             return
         }
 
         do {
             let session = try await Backend.client.auth.session
-            _ = await loadRemote(userId: session.user.id)
+            if await loadRemote(userId: session.user.id) != nil {
+                resetToSignedOutState()
+            }
         } catch {
-            mode = .demo
+            resetToSignedOutState()
         }
         isRestoringSession = false
+    }
+
+    /// Drops any locally cached club data so no stale content survives a failed
+    /// or absent session.
+    private func resetToSignedOutState() {
+        db = Database()
+        currentUserId = nil
+        notifications = []
+        isLive = false
+        save()
     }
 
     /// Signs a member in against Supabase.
@@ -124,7 +138,7 @@ extension AppStore {
             let snapshot = try await RemoteRepository.loadSnapshot(for: userId)
             db = snapshot.database
             currentUserId = snapshot.currentMemberId
-            mode = .live
+            isLive = true
             syncError = nil
             save()
             await loadNotifications()
@@ -139,7 +153,7 @@ extension AppStore {
     /// Re-reads everything from the server: pull-to-refresh, and recovery after
     /// a rejected write.
     func refresh() async {
-        guard mode == .live, let userId = currentUserId, !isSyncing else { return }
+        guard isLive, let userId = currentUserId, !isSyncing else { return }
         isSyncing = true
         defer { isSyncing = false }
 
@@ -163,7 +177,7 @@ extension AppStore {
     }
 
     func loadNotifications() async {
-        guard mode == .live else { return }
+        guard isLive else { return }
         do {
             notifications = try await NotificationsRepository.load()
         } catch {
@@ -197,7 +211,7 @@ extension AppStore {
     /// Stores the APNs token for this device so real push can be switched on
     /// without asking members to do anything.
     func registerPushToken(_ token: String) {
-        guard mode == .live, let memberId = currentUserId else { return }
+        guard isLive, let memberId = currentUserId else { return }
         push { try await NotificationsRepository.registerDeviceToken(token, memberId: memberId) }
     }
 
@@ -221,7 +235,7 @@ extension AppStore {
     /// failure is surfaced and the club re-synced, so the screen never keeps a
     /// change the server rejected.
     func push(_ operation: @escaping @Sendable () async throws -> Void) {
-        guard mode == .live else { return }
+        guard isLive else { return }
         Task { @MainActor in
             do {
                 try await operation()
