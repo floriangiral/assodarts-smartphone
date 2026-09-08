@@ -60,6 +60,7 @@ struct AssodartsApp: App {
                 .environment(store)
                 .environment(localization)
                 .environment(\.locale, localization.locale)
+                .preferredColorScheme(.light)
                 .tint(Theme.navyText)
                 .id(localization.lang)
                 .onReceive(NotificationCenter.default.publisher(for: AppDelegate.didRegisterToken)) { note in
