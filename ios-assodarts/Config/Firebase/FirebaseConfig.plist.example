@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Template for Config/Firebase/<Environment>/FirebaseConfig.plist.
+
+  Copy it to Config/Firebase/Staging/FirebaseConfig.plist (or .../Production/)
+  and fill in the values from Firebase Console > Project settings > General >
+  Your apps, or let Config/generate-firebase-config.sh build it from the
+  FIREBASE_*_STAGING / FIREBASE_*_PRODUCTION environment variables.
+
+  The generated file is gitignored: never commit real values.
+  Leaving a value empty keeps the app in local demo mode.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>FIREBASE_API_KEY</key>
+	<string></string>
+	<key>FIREBASE_APP_ID</key>
+	<string></string>
+	<key>FIREBASE_PROJECT_ID</key>
+	<string></string>
+	<key>FIREBASE_GCM_SENDER_ID</key>
+	<string></string>
+	<key>FIREBASE_STORAGE_BUCKET</key>
+	<string></string>
+</dict>
+</plist>

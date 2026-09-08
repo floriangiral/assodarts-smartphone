@@ -26,6 +26,14 @@ workflows:
         script: |
           mkdir -p "$CM_BUILD_DIR/ios-assodarts/Config/Firebase/Staging"
           echo "$GOOGLE_SERVICE_INFO_PLIST_STAGING_BASE64" | base64 --decode > "$CM_BUILD_DIR/ios-assodarts/Config/Firebase/Staging/GoogleService-Info.plist"
+      # Builds Config/Firebase/Staging/FirebaseConfig.plist from the FIREBASE_*_STAGING
+      # variables of the "staging" group, so no client identifier is committed.
+      # A production workflow uses the same step with the Production argument and the
+      # FIREBASE_*_PRODUCTION variables:
+      #   sh "$CM_BUILD_DIR/ios-assodarts/Config/generate-firebase-config.sh" Production
+      - name: Generate staging Firebase client configuration
+        script: |
+          sh "$CM_BUILD_DIR/ios-assodarts/Config/generate-firebase-config.sh" Staging
       - name: Set up code signing settings on Xcode project
         script: xcode-project use-profiles
       - name: Increment build number

@@ -267,11 +267,11 @@
 			);
 			inputPaths = (
 				"$(SRCROOT)/Config/copy-firebase-plist.sh",
-				"$(SRCROOT)/Config/Firebase/$(FIREBASE_ENVIRONMENT)/GoogleService-Info.plist",
 			);
 			name = "Copy Firebase configuration";
 			outputPaths = (
 				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/GoogleService-Info.plist",
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/FirebaseConfig.plist",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;

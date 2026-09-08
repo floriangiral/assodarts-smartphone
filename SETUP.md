@@ -15,9 +15,10 @@ one device. `Release` is reserved for production distribution.
 
 The project uses `Config/Debug.xcconfig`, `Config/Staging.xcconfig`, and
 `Config/Release.xcconfig` for environment-specific build values. Firebase
-loads `GoogleService-Info.plist` from the app bundle when it is available; a
-compile-time fallback in `Assodarts/Config.swift` keeps local builds usable
-without credentials.
+loads `GoogleService-Info.plist` from the app bundle when it is available, and
+falls back to the values `Assodarts/Config.swift` reads from
+`FirebaseConfig.plist`. Neither file is committed: with no credentials the app
+stays in local demo mode.
 
 ## Firebase plist placement
 
@@ -28,14 +29,63 @@ ios-assodarts/Config/Firebase/Staging/GoogleService-Info.plist
 ios-assodarts/Config/Firebase/Production/GoogleService-Info.plist
 ```
 
-The Xcode build phase `Copy Firebase configuration` copies only the plist for
+The fallback client identifiers used by `Config.swift` live next to them:
+
+```text
+ios-assodarts/Config/Firebase/Staging/FirebaseConfig.plist
+ios-assodarts/Config/Firebase/Production/FirebaseConfig.plist
+```
+
+Generate them from environment variables:
+
+```sh
+cd ios-assodarts
+FIREBASE_API_KEY_STAGING=... \
+FIREBASE_APP_ID_STAGING=... \
+FIREBASE_PROJECT_ID_STAGING=... \
+FIREBASE_GCM_SENDER_ID_STAGING=... \
+FIREBASE_STORAGE_BUCKET_STAGING=... \
+  sh Config/generate-firebase-config.sh Staging
+```
+
+Use `Production` and the `*_PRODUCTION` variables for the production project.
+Alternatively copy `Config/Firebase/FirebaseConfig.plist.example` into the
+environment folder and fill it in by hand.
+
+The Xcode build phase `Copy Firebase configuration` copies only the plists for
 the active configuration into the app bundle. The staging workflow creates the
-staging file from the GitHub Actions secret and removes it in an `always()`
+staging files from the Codemagic environment and removes it in an `always()`
 cleanup step.
 
 Download each plist from Firebase Console > Project settings > General > Your
 apps. The iOS app bundle ID must be `com.assodarts.app` in both staging and
 production. The Firebase project and plist remain environment-specific.
+
+## Codemagic environment variables
+
+Create these in app.codemagic.io > Environment variables, group `staging`.
+Mark every one of them as secure. They feed
+`Config/generate-firebase-config.sh` during the `ios-staging-distribute`
+workflow, which is why no client identifier is committed anymore.
+
+| Name                                       | Description                                                       | Where to find it                                                        |
+| ------------------------------------------ | ----------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `FIREBASE_API_KEY_STAGING`                 | Staging iOS API key (`AIza...`)                                   | Firebase Console > Project settings > General > Your apps > iOS         |
+| `FIREBASE_APP_ID_STAGING`                  | Staging Firebase App ID (`1:...:ios:...`)                         | Same screen, field "App ID"                                             |
+| `FIREBASE_PROJECT_ID_STAGING`              | `assodarts-staging`                                               | Same screen, field "Project ID"                                         |
+| `FIREBASE_GCM_SENDER_ID_STAGING`           | Staging sender ID (project number)                                | Firebase Console > Project settings > Cloud Messaging                   |
+| `FIREBASE_STORAGE_BUCKET_STAGING`          | `assodarts-staging.firebasestorage.app`                           | Firebase Console > Storage                                              |
+| `GOOGLE_SERVICE_INFO_PLIST_STAGING_BASE64` | Staging `GoogleService-Info.plist`, base64 encoded (already used) | `base64 -i GoogleService-Info.plist`                                    |
+
+A future production workflow needs the same five values in a `production`
+group, named `FIREBASE_API_KEY_PRODUCTION`, `FIREBASE_APP_ID_PRODUCTION`,
+`FIREBASE_PROJECT_ID_PRODUCTION`, `FIREBASE_GCM_SENDER_ID_PRODUCTION` and
+`FIREBASE_STORAGE_BUCKET_PRODUCTION`, plus
+`GOOGLE_SERVICE_INFO_PLIST_PRODUCTION_BASE64`. The build step is identical,
+with `Production` as the script argument.
+
+Regenerate the API keys in Google Cloud Console before entering them here if
+they were ever committed, and restrict each key to the iOS bundle identifier.
 
 ## Staging distribution
 
