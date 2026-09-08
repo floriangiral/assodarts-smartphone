@@ -4,6 +4,8 @@ const mockCouponQueryGet = jest.fn();
 const mockCouponDocGet = jest.fn();
 const mockCouponSet = jest.fn();
 const mockCouponDelete = jest.fn();
+const mockAdminQueryGet = jest.fn();
+const mockAdminSet = jest.fn();
 const mockClubSnapshots = new Map<
   string,
   { exists: boolean; data: () => Record<string, unknown> }
@@ -41,11 +43,21 @@ jest.mock("firebase-admin/firestore", () => ({
           }),
         };
       }
+      if (name === "platform_admins") {
+        return {
+          doc: (id: string) => ({
+            path: `platform_admins/${id}`,
+            kind: "doc",
+          }),
+          limit: () => ({ kind: "adminQuery", get: mockAdminQueryGet }),
+        };
+      }
       throw new Error(`Unexpected collection ${name}`);
     },
     runTransaction: async (callback: (transaction: unknown) => Promise<void>) =>
       callback({
         get: async (ref: { kind: string; path?: string }) => {
+          if (ref.kind === "adminQuery") return mockAdminQueryGet();
           if (ref.kind === "query") return mockCouponQueryGet();
           if (ref.path === "coupons/coupon-1") return mockCouponDocGet();
           return (
@@ -58,6 +70,8 @@ jest.mock("firebase-admin/firestore", () => ({
         set: (ref: { path?: string }, value: unknown, options?: unknown) => {
           if (ref.path?.startsWith("coupons/")) {
             mockCouponSet(ref.path, value, options);
+          } else if (ref.path?.startsWith("platform_admins/")) {
+            mockAdminSet(ref.path, value, options);
           } else if (ref.path?.startsWith("clubs/")) {
             if (!mockClubSets.has(ref.path))
               mockClubSets.set(ref.path, jest.fn());
@@ -73,8 +87,10 @@ jest.mock("firebase-admin/firestore", () => ({
 import type { CallableRequest } from "firebase-functions/v2/https";
 import {
   broadcastAnnouncement,
+  claimPlatformAdmin,
   createCoupon,
   deleteCoupon,
+  platformAdminExists,
 } from "./platformAdmin";
 
 function makeRequest(
@@ -91,12 +107,16 @@ const handlers = {
   broadcast: broadcastAnnouncement.run.bind(broadcastAnnouncement),
   create: createCoupon.run.bind(createCoupon),
   delete: deleteCoupon.run.bind(deleteCoupon),
+  adminExists: platformAdminExists.run.bind(platformAdminExists),
+  claimAdmin: claimPlatformAdmin.run.bind(claimPlatformAdmin),
 };
 
 beforeEach(() => {
   mockRequirePlatformAdmin.mockResolvedValue(undefined);
   mockAnnouncementSet.mockResolvedValue(undefined);
   mockCouponQueryGet.mockResolvedValue({ empty: true });
+  mockAdminQueryGet.mockResolvedValue({ empty: true });
+  mockAdminSet.mockClear();
   mockCouponDocGet.mockResolvedValue({
     exists: true,
     data: () => ({ code: "SPRING", clubIds: ["club-1"] }),
@@ -222,5 +242,54 @@ describe("platform admin callables", () => {
       { merge: true },
     );
     expect(result).toEqual({ deleted: true });
+  });
+});
+
+describe("platform admin bootstrap", () => {
+  it("reports no admin on an empty collection without authentication", async () => {
+    mockAdminQueryGet.mockResolvedValue({ empty: true });
+
+    await expect(handlers.adminExists(makeRequest({}))).resolves.toEqual({
+      exists: false,
+    });
+    expect(mockRequirePlatformAdmin).not.toHaveBeenCalled();
+  });
+
+  it("reports an existing admin without authentication", async () => {
+    mockAdminQueryGet.mockResolvedValue({ empty: false });
+
+    await expect(handlers.adminExists(makeRequest({}))).resolves.toEqual({
+      exists: true,
+    });
+    expect(mockRequirePlatformAdmin).not.toHaveBeenCalled();
+  });
+
+  it("claims the first admin slot and writes the document", async () => {
+    mockAdminQueryGet.mockResolvedValue({ empty: true });
+
+    const result = await handlers.claimAdmin(makeRequest({}, "first-uid"));
+
+    expect(mockAdminSet).toHaveBeenCalledWith(
+      "platform_admins/first-uid",
+      { claimedAt: "SERVER_TIMESTAMP" },
+      undefined,
+    );
+    expect(result).toEqual({ claimed: true });
+  });
+
+  it("refuses to claim when an admin already exists", async () => {
+    mockAdminQueryGet.mockResolvedValue({ empty: false });
+
+    await expect(
+      handlers.claimAdmin(makeRequest({}, "second-uid")),
+    ).rejects.toMatchObject({ code: "already-exists" });
+    expect(mockAdminSet).not.toHaveBeenCalled();
+  });
+
+  it("rejects an unauthenticated claim", async () => {
+    await expect(handlers.claimAdmin(makeRequest({}))).rejects.toMatchObject({
+      code: "unauthenticated",
+    });
+    expect(mockAdminSet).not.toHaveBeenCalled();
   });
 });

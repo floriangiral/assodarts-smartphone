@@ -59,6 +59,7 @@ enum BackendMode: String, Sendable {
 nonisolated enum BackendError: LocalizedError, Sendable {
     case notConfigured
     case noMembership
+    case platformAdminAlreadyExists
     case message(String)
 
     nonisolated var errorDescription: String? {
@@ -67,6 +68,8 @@ nonisolated enum BackendError: LocalizedError, Sendable {
             tr("the_server_connection_is_not_configured_in_this_build")
         case .noMembership:
             tr("your_account_is_not_linked_to_any_club_yet_ask_the_commi")
+        case .platformAdminAlreadyExists:
+            tr("an_administrator_has_already_been_created_sign_in_instead")
         case let .message(text):
             text
         }

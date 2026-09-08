@@ -9,6 +9,9 @@ struct ContentView: View {
             if store.isRestoringSession {
                 SplashView()
                     .transition(.opacity)
+            } else if store.needsPlatformAdminBootstrap {
+                PlatformAdminSetupView()
+                    .transition(.opacity)
             } else if store.isDeveloper {
                 DeveloperTabView()
                     .transition(.opacity)
@@ -25,6 +28,7 @@ struct ContentView: View {
         }
         .animation(.easeInOut(duration: 0.25), value: store.currentUserId)
         .animation(.easeInOut(duration: 0.25), value: store.isRestoringSession)
+        .animation(.easeInOut(duration: 0.25), value: store.needsPlatformAdminBootstrap)
         .task {
             await store.restoreSession()
             await NotificationService.requestAuthorization()
