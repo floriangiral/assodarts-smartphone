@@ -1409,22 +1409,6 @@
         }
       }
     },
-    "club_data": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Données du club"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Club data"
-          }
-        }
-      }
-    },
     "club_house_upstairs_room": {
       "localizations": {
         "fr": {
@@ -2433,22 +2417,6 @@
         }
       }
     },
-    "demo_mode": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mode démonstration"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Demo mode"
-          }
-        }
-      }
-    },
     "describe_the_draw_and_the_round_in_your_own_words_the_ap": {
       "localizations": {
         "fr": {
@@ -3101,22 +3069,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Expired"
-          }
-        }
-      }
-    },
-    "explore_in_demo_mode_offline": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Explorer en mode démo (hors ligne)"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Explore in demo mode (offline)"
           }
         }
       }
@@ -5505,22 +5457,6 @@
         }
       }
     },
-    "notifications_arrive_once_you_are_connected_to_your_club": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Les notifications arrivent une fois connecté au serveur de votre club."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Notifications arrive once you are connected to your club's server."
-          }
-        }
-      }
-    },
     "notify_by_push_and_email": {
       "localizations": {
         "fr": {
@@ -7169,22 +7105,6 @@
         }
       }
     },
-    "reset_demo_data": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Réinitialiser les données de démo"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reset demo data"
-          }
-        }
-      }
-    },
     "resume_verification": {
       "localizations": {
         "fr": {
@@ -7293,22 +7213,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Saint-Priest team 2"
-          }
-        }
-      }
-    },
-    "sample_data_kept_on_this_iphone_only_with_no_server_conn": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Données fictives stockées sur cet iPhone, sans connexion au serveur."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sample data kept on this iPhone only, with no server connection."
           }
         }
       }
@@ -8278,13 +8182,13 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Le membre reçoit un email d'invitation avec un mot de passe provisoire. Mot de passe de démonstration : demo"
+            "value": "Le membre reçoit un email d'invitation avec un mot de passe provisoire."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The member receives an invitation email with a temporary password. Demo password: demo"
+            "value": "The member receives an invitation email with a temporary password."
           }
         }
       }
