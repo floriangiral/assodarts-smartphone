@@ -20,6 +20,7 @@ extension AppStore {
 
         guard let user = Backend.auth.currentUser else {
             mode = .demo
+            await checkPlatformAdminBootstrap()
             isRestoringSession = false
             return
         }
@@ -43,6 +44,35 @@ extension AppStore {
             mode = .demo
         }
         isRestoringSession = false
+    }
+
+    /// Asks the server, only while nobody is signed in, whether the very first
+    /// platform administrator still has to be created. Any failure is treated
+    /// as "an admin exists" so a network glitch can never strand a normal user
+    /// on the bootstrap screen.
+    func checkPlatformAdminBootstrap() async {
+        guard Backend.isConfigured, !hasConfirmedPlatformAdminExists else {
+            needsPlatformAdminBootstrap = false
+            return
+        }
+
+        do {
+            let exists = try await RemoteRepository.platformAdminExists()
+            if exists {
+                confirmPlatformAdminExists()
+            } else {
+                needsPlatformAdminBootstrap = true
+            }
+        } catch {
+            print("Platform admin bootstrap check failed: \(error)")
+            needsPlatformAdminBootstrap = false
+        }
+    }
+
+    /// Records for good that the platform has an administrator.
+    func confirmPlatformAdminExists() {
+        hasConfirmedPlatformAdminExists = true
+        needsPlatformAdminBootstrap = false
     }
 
     /// Signs a member in against Firebase.

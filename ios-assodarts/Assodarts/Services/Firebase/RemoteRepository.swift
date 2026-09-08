@@ -649,6 +649,34 @@ enum RemoteRepository {
             .document(authUid).getDocument().exists) == true
     }
 
+    /// Asks the server whether the platform already has an administrator.
+    /// Callable without being signed in, and returns nothing but the boolean.
+    static func platformAdminExists() async throws -> Bool {
+        let result = try await Backend.functions
+            .httpsCallable("platformAdminExists").call([String: Any]())
+        guard let data = result.data as? [String: Any], let exists = data["exists"] as? Bool else {
+            throw BackendError.message(tr("unexpected_server_response"))
+        }
+        return exists
+    }
+
+    /// Claims the one and only bootstrap administrator slot for the signed-in
+    /// auth user. Throws `.platformAdminAlreadyExists` when another device won
+    /// the race.
+    static func claimPlatformAdmin() async throws {
+        do {
+            _ = try await Backend.functions
+                .httpsCallable("claimPlatformAdmin").call([String: Any]())
+        } catch {
+            let nsError = error as NSError
+            if nsError.domain == FunctionsErrorDomain,
+               FunctionsErrorCode(rawValue: nsError.code) == .alreadyExists {
+                throw BackendError.platformAdminAlreadyExists
+            }
+            throw error
+        }
+    }
+
     static func loadPlatformClubs() async throws -> [Club] {
         let db = Backend.firestore
         let clubs = try await db.collection("clubs").getDocuments().documents.compactMap {

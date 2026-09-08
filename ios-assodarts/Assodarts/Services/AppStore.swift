@@ -8,6 +8,9 @@ import SwiftUI
 final class AppStore {
     private static let storageKey = "assodarts.database.v1"
     private static let sessionKey = "assodarts.session.v1"
+    /// Cached once an administrator is known to exist, so the bootstrap check
+    /// never costs a network round-trip again.
+    private static let platformAdminConfirmedKey = "assodarts.platformAdminConfirmedExists.v1"
 
     var db: Database
     var currentUserId: UUID?
@@ -35,6 +38,11 @@ final class AppStore {
     var showsPostCreationInviteOffer: Bool = false
     var needsOnboardingChoice: Bool = false
     var isPlatformAdmin: Bool = false
+    /// True when the platform has no administrator yet and the very first one
+    /// must be created before anything else.
+    var needsPlatformAdminBootstrap: Bool = false
+    /// One-shot message handed over to `LoginView`, consumed on display.
+    var authNotice: String?
     var platformClubsRemote: [Club] = []
     var platformCoupons: [Coupon] = []
     var platformAnnouncementsRemote: [PlatformAnnouncement] = []
@@ -72,6 +80,11 @@ final class AppStore {
         db = DemoData.seed()
         currentUserId = nil
         save()
+    }
+
+    var hasConfirmedPlatformAdminExists: Bool {
+        get { UserDefaults.standard.bool(forKey: Self.platformAdminConfirmedKey) }
+        set { UserDefaults.standard.set(newValue, forKey: Self.platformAdminConfirmedKey) }
     }
 
     // MARK: - Session

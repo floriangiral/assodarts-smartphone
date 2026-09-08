@@ -577,6 +577,22 @@
         }
       }
     },
+    "an_administrator_has_already_been_created_sign_in_instead": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un administrateur a déjà été créé entre-temps, connectez-vous."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An administrator has already been created in the meantime, please sign in."
+          }
+        }
+      }
+    },
     "announcement": {
       "localizations": {
         "fr": {
@@ -1793,6 +1809,22 @@
         }
       }
     },
+    "confirm_the_password": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirmer le mot de passe"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirm the password"
+          }
+        }
+      }
+    },
     "confirmed_by_the_committee": {
       "localizations": {
         "fr": {
@@ -2033,6 +2065,38 @@
         }
       }
     },
+    "create_the_administrator_account": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Créer le compte administrateur"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create the administrator account"
+          }
+        }
+      }
+    },
+    "create_the_platform_administrator": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Créer l'administrateur de la plateforme"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create the platform administrator"
+          }
+        }
+      }
+    },
     "create_your_club_and_become_an_administrator_automatical": {
       "localizations": {
         "fr": {
@@ -2045,6 +2109,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Create your club and become an administrator automatically."
+          }
+        }
+      }
+    },
+    "creating": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Création…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Creating…"
           }
         }
       }
@@ -3217,6 +3297,22 @@
         }
       }
     },
+    "first_launch": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Première configuration"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "First launch"
+          }
+        }
+      }
+    },
     "first_name": {
       "localizations": {
         "fr": {
@@ -4205,6 +4301,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Licensed · %@"
+          }
+        }
+      }
+    },
+    "no_platform_administrator_exists_yet_this_first_account_": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun administrateur de la plateforme n'existe encore. Ce premier compte pilotera la console développeur."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No platform administrator exists yet. This first account will run the developer console."
+          }
+        }
+      }
+    },
+    "the_two_passwords_do_not_match": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les deux mots de passe ne correspondent pas."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The two passwords do not match."
           }
         }
       }

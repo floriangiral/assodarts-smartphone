@@ -93,6 +93,12 @@ struct LoginView: View {
                 .padding(.top, 8)
         }
         .onTapGesture { focusedField = nil }
+        .onAppear {
+            if let notice = store.authNotice {
+                infoMessage = notice
+                store.authNotice = nil
+            }
+        }
     }
 
     private var header: some View {

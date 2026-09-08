@@ -25,6 +25,8 @@ export {
 } from "./invitations";
 export { createClub } from "./createClub";
 export {
+  platformAdminExists,
+  claimPlatformAdmin,
   broadcastAnnouncement,
   createCoupon,
   deleteCoupon,

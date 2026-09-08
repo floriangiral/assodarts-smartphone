@@ -35,6 +35,44 @@ function parseExpiry(value: unknown): Date {
   return date;
 }
 
+/**
+ * Deliberately unauthenticated: the app asks this before anyone can sign in, to
+ * decide whether the very first platform admin still has to be created. Only a
+ * boolean is returned, never any content of the collection.
+ */
+export const platformAdminExists = onCall(async () => {
+  const snapshot = await getFirestore()
+    .collection("platform_admins")
+    .limit(1)
+    .get();
+  return { exists: !snapshot.empty };
+});
+
+/**
+ * Claims the single bootstrap slot for the platform admin. The transaction is
+ * what makes the "first one wins" race safe; `platform_admins` is read-only for
+ * clients in firestore.rules, so this is the only write path.
+ */
+export const claimPlatformAdmin = onCall(async (request) => {
+  const uid = requireAuth(request);
+  const db = getFirestore();
+
+  await db.runTransaction(async (transaction) => {
+    const existing = await transaction.get(
+      db.collection("platform_admins").limit(1),
+    );
+    if (!existing.empty) {
+      throw new HttpsError("already-exists", "Un administrateur existe déjà.");
+    }
+
+    transaction.set(db.collection("platform_admins").doc(uid), {
+      claimedAt: FieldValue.serverTimestamp(),
+    });
+  });
+
+  return { claimed: true };
+});
+
 export const broadcastAnnouncement = onCall(async (request) => {
   const uid = requireAuth(request);
   await requirePlatformAdmin(uid);
