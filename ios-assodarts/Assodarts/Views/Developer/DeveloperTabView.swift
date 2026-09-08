@@ -62,12 +62,6 @@ struct DevHeaderBand: View {
                         }
                     }
                     Button(
-                        tr("reset_demo_data"),
-                        systemImage: "arrow.counterclockwise"
-                    ) {
-                        store.resetDemoData()
-                    }
-                    Button(
                         tr("sign_out"),
                         systemImage: "rectangle.portrait.and.arrow.right",
                         role: .destructive

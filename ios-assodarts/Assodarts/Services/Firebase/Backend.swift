@@ -31,27 +31,12 @@ enum Backend {
     static var functions: Functions { Functions.functions() }
 
     /// False when the build carries no Firebase credentials. The app then
-    /// stays in local demo mode instead of failing every single request.
+    /// stays on the login screen with an empty local database.
     static var isConfigured: Bool {
         !Config.FIREBASE_API_KEY.isEmpty
             && !Config.FIREBASE_APP_ID.isEmpty
             && !Config.FIREBASE_PROJECT_ID.isEmpty
             && !Config.FIREBASE_GCM_SENDER_ID.isEmpty
-    }
-}
-
-/// Where the data currently displayed comes from.
-enum BackendMode: String, Sendable {
-    /// Local seeded data — lets anyone explore the app without an account.
-    case demo
-    /// Live Firebase data for the signed-in member.
-    case live
-
-    var label: String {
-        switch self {
-        case .demo: tr("demo_mode")
-        case .live: tr("club_data")
-        }
     }
 }
 

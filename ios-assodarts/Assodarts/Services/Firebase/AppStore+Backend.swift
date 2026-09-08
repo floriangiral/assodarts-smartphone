@@ -10,16 +10,18 @@ import Foundation
 extension AppStore {
     // MARK: - Session
 
-    /// Restores a stored Firebase session at launch. Falls back to demo mode
-    /// when nobody is signed in or the device is offline.
+    /// Restores a stored Firebase session at launch. Leaves the app on the
+    /// login screen with an empty database when nobody is signed in or the
+    /// session cannot be restored.
     func restoreSession() async {
         guard Backend.isConfigured else {
+            resetToSignedOutState()
             isRestoringSession = false
             return
         }
 
         guard let user = Backend.auth.currentUser else {
-            mode = .demo
+            resetToSignedOutState()
             await checkPlatformAdminBootstrap()
             isRestoringSession = false
             return
@@ -29,10 +31,10 @@ extension AppStore {
             isPlatformAdmin = await RemoteRepository.isPlatformAdmin(authUid: user.uid)
             guard let userId = try await RemoteRepository.memberId(forAuthUid: user.uid) else {
                 if isPlatformAdmin {
-                    mode = .live
+                    isLive = true
                     await loadPlatformData()
                 } else {
-                    mode = .demo
+                    resetToSignedOutState()
                 }
                 isRestoringSession = false
                 return
@@ -41,9 +43,22 @@ extension AppStore {
             await loadPlatformData()
         } catch {
             print("Session restore failed: \(error)")
-            mode = .demo
+            resetToSignedOutState()
         }
         isRestoringSession = false
+    }
+
+    /// Drops any locally cached club data so no stale content survives a
+    /// failed or absent session.
+    private func resetToSignedOutState() {
+        db = Database()
+        currentUserId = nil
+        notifications = []
+        availableClubs = []
+        activeClubRemoteId = nil
+        isPlatformAdmin = false
+        isLive = false
+        save()
     }
 
     /// Asks the server, only while nobody is signed in, whether the very first
@@ -86,7 +101,7 @@ extension AppStore {
             isPlatformAdmin = await RemoteRepository.isPlatformAdmin(authUid: result.user.uid)
             guard let userId = try await RemoteRepository.memberId(forAuthUid: result.user.uid) else {
                 if isPlatformAdmin {
-                    mode = .live
+                    isLive = true
                     await loadPlatformData()
                     return nil
                 }
@@ -238,7 +253,7 @@ extension AppStore {
             let snapshot = try await loadSnapshotAcceptingInvitations(for: userId)
             applySnapshot(snapshot)
             platformAnnouncementsRemote = (try? await RemoteRepository.loadPlatformAnnouncements()) ?? []
-            mode = .live
+            isLive = true
             needsOnboardingChoice = false
             syncError = nil
             save()
@@ -249,7 +264,7 @@ extension AppStore {
             print("Club sync failed: \(error)")
             if case BackendError.noMembership = error {
                 needsOnboardingChoice = true
-                mode = .live
+                isLive = true
             }
             return friendlyMessage(for: error)
         }
@@ -282,7 +297,7 @@ extension AppStore {
     /// Re-reads everything from the server: pull-to-refresh, and recovery after
     /// a rejected write. Stays on the currently active club.
     func refresh() async {
-        guard mode == .live, let userId = currentUserId, !isSyncing else { return }
+        guard isLive, let userId = currentUserId, !isSyncing else { return }
         isSyncing = true
         defer { isSyncing = false }
 
@@ -303,7 +318,7 @@ extension AppStore {
     /// Switches the member's active club to one of their other memberships
     /// and reloads its data. No-op if the member only belongs to one club.
     func switchActiveClub(to clubId: String) async -> String? {
-        guard mode == .live, let userId = currentUserId, clubId != activeClubRemoteId, !isSyncing else { return nil }
+        guard isLive, let userId = currentUserId, clubId != activeClubRemoteId, !isSyncing else { return nil }
         isSyncing = true
         defer { isSyncing = false }
 
@@ -349,7 +364,7 @@ extension AppStore {
     }
 
     func loadNotifications() async {
-        guard mode == .live, let userId = currentUserId else { return }
+        guard isLive, let userId = currentUserId else { return }
         do {
             notifications = try await NotificationsRepository.load(memberId: userId)
         } catch {
@@ -383,7 +398,7 @@ extension AppStore {
     /// Stores the FCM token for this device so real push can be switched on
     /// without asking members to do anything.
     func registerPushToken(_ token: String) {
-        guard mode == .live, let memberId = currentUserId else { return }
+        guard isLive, let memberId = currentUserId else { return }
         push { try await NotificationsRepository.registerDeviceToken(token, memberId: memberId) }
     }
 
@@ -407,7 +422,7 @@ extension AppStore {
     /// failure is surfaced and the club re-synced, so the screen never keeps a
     /// change the server rejected.
     func push(_ operation: @escaping @Sendable () async throws -> Void) {
-        guard mode == .live else { return }
+        guard isLive else { return }
         Task { @MainActor in
             do {
                 try await operation()

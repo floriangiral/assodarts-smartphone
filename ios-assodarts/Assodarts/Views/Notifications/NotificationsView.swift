@@ -78,9 +78,7 @@ struct NotificationsView: View {
             Text(tr("no_notifications"))
                 .font(.headline)
                 .foregroundStyle(Theme.ink)
-            Text(store.mode == .demo
-                 ? tr("notifications_arrive_once_you_are_connected_to_your_club")
-                 : tr("announcements_payment_requests_and_confirmations_will_sh"))
+            Text(tr("announcements_payment_requests_and_confirmations_will_sh"))
                 .font(.footnote)
                 .multilineTextAlignment(.center)
                 .foregroundStyle(Theme.inkSecondary)
