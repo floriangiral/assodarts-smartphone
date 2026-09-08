@@ -1,4 +1,5 @@
-# Real deployments remain manual: Actions > Deploy Firebase Backend > Run workflow.
+# Deployments run either manually (Actions > Deploy Firebase Backend > Run workflow)
+# or as the first stage of the staging pipeline, called by quality.yml.
 # PRs only validate Firestore rules and indexes with Firebase's dry-run mode.
 name: Deploy Firebase Backend
 
@@ -16,6 +17,14 @@ on:
         options:
           - staging
           - production
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+    # Volontairement aucun `secrets:` déclaré ici. FIREBASE_SERVICE_ACCOUNT est
+    # un secret d'environnement : il est résolu par le `environment:` du job
+    # `deploy`, pas transmis par l'appelant, qui n'y a pas accès.
 
 permissions:
   contents: read
@@ -71,7 +80,10 @@ jobs:
 
   deploy:
     name: Deploy Firestore rules and Cloud Functions
-    if: github.event_name == 'workflow_dispatch'
+    # Couvre workflow_dispatch et workflow_call : dans un workflow appelé,
+    # github.event_name reste celui de l'appelant (`push`), jamais
+    # `workflow_call`. Seul le déclencheur pull_request doit rester en dry-run.
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     timeout-minutes: 15
