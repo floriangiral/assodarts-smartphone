@@ -1,6 +1,7 @@
 node_modules
 .env
 .expo
+.rork
 backend/functions/lib/
 backend/functions/coverage/
 firebase-service-account*.json
@@ -9,4 +10,5 @@ ios-assodarts/Config/Firebase/*/GoogleService-Info.plist
 ios-assodarts/Config/Firebase/*/FirebaseConfig.plist
 ios-assodarts/Config/Firebase/*.plist
 __pycache__/
+*.pyc
 .spm-checkouts/

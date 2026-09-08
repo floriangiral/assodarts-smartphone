@@ -8,7 +8,7 @@
 // the app bundle by the `Copy Firebase configuration` build phase.
 //
 // When the file is absent every value is empty, `Backend.isConfigured` returns
-// false and the app stays in local demo mode instead of failing at launch.
+// false and the app stays on the login screen instead of failing at launch.
 
 import Foundation
 import OSLog
@@ -47,7 +47,7 @@ enum Config {
     private static func logConfigurationIsMissing() {
         logger.error(
             """
-            No Firebase credentials in FirebaseConfig.plist: the app runs in demo mode. \
+            No Firebase credentials in FirebaseConfig.plist: the app cannot reach the server. \
             Run Config/generate-firebase-config.sh, or copy \
             Config/Firebase/FirebaseConfig.plist.example and fill it in, before building.
             """

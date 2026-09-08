@@ -4,12 +4,13 @@ name: Quality
   pull_request:
     branches:
       - main
+      - develop
       - "release-*"
   push:
     branches:
       - main
+      - develop
       - "release-*"
-      - staging
   workflow_dispatch:
 
 permissions:
@@ -46,7 +47,7 @@ jobs:
       # et remplace le tag @v3 par ce SHA, comme pour les autres actions ci-dessous.
       - name: Detect changed paths
         id: filter
-        uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3.0.4
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         with:
           filters: |
             ios:
@@ -126,7 +127,7 @@ jobs:
         run: python3 .github/scripts/xccov_to_sonar_generic.py TestResults.xcresult ios-coverage.xml "$GITHUB_WORKSPACE"
 
       - name: Upload coverage report
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ios-coverage
           path: ios-coverage.xml
@@ -134,7 +135,7 @@ jobs:
 
       - name: Upload CodeQL results
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-        uses: github/codeql-action/analyze@5ba2889ada762081db2c4f32a729827dce632c7b # v3
+        uses: github/codeql-action/analyze@6f5948dfacef28e207b48d0905cf90c03365536d # v3
         with:
           category: /language:swift
           upload: never
@@ -153,7 +154,7 @@ jobs:
 
       - name: Upload iOS CodeQL SARIF
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: codeql-sarif-ios
           path: ${{ github.workspace }}/codeql-results/ios.sarif
@@ -211,7 +212,7 @@ jobs:
         run: cp backend/functions/coverage/lcov.info backend-coverage.lcov
 
       - name: Upload coverage report
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: backend-coverage
           path: backend-coverage.lcov
@@ -219,7 +220,7 @@ jobs:
 
       - name: Upload CodeQL results
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-        uses: github/codeql-action/analyze@5ba2889ada762081db2c4f32a729827dce632c7b # v3
+        uses: github/codeql-action/analyze@6f5948dfacef28e207b48d0905cf90c03365536d # v3
         with:
           category: /language:javascript-typescript
           upload: never
@@ -238,7 +239,7 @@ jobs:
 
       - name: Upload backend CodeQL SARIF
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: codeql-sarif-backend
           path: ${{ github.workspace }}/codeql-results/backend.sarif
@@ -282,7 +283,7 @@ jobs:
           fetch-depth: 0
 
       - name: Download backend coverage report
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: backend-coverage
           path: .
@@ -298,14 +299,37 @@ jobs:
             -Dsonar.qualitygate.wait=true
             -Dsonar.qualitygate.timeout=300
 
+  # Le déploiement Firestore passe avant la distribution iOS : les règles,
+  # indexes et functions du serveur sont toujours au moins aussi récents que
+  # le binaire distribué.
+  deploy-firestore-staging:
+    name: Deploy Firestore rules, indexes and functions (staging)
+    if: >-
+      always() &&
+      github.event_name == 'push' && startsWith(github.ref, 'refs/heads/release-') &&
+      (needs.ios.result == 'success' || needs.ios.result == 'skipped') &&
+      needs.backend.result == 'success' &&
+      (needs.sonarqube.result == 'success' || needs.sonarqube.result == 'skipped')
+    needs: [changes, ios, backend, sonarqube]
+    uses: ./.github/workflows/deploy-firebase.yml
+    with:
+      environment: staging
+    secrets: inherit
+
   staging-distribute:
     name: Archive and distribute iOS staging build
-    # MODIFIÉ : accepte "skipped" pour ios ici aussi, par cohérence — même si en
-    # pratique un push staging touche presque toujours ios-assodarts/.
+    # Le déploiement Firestore doit avoir réussi avant toute distribution : une
+    # app livrée sur des règles obsolètes est le bug qu'on cherche à éliminer.
+    # `always()` est nécessaire pour que les résultats `skipped` ci-dessous
+    # soient évalués au lieu de faire sauter le job d'office.
     if: >-
-      github.event_name == 'push' && github.ref == 'refs/heads/staging' &&
-      (needs.ios.result == 'success' || needs.ios.result == 'skipped')
-    needs: [changes, ios, backend, sonarqube]
+      always() &&
+      github.event_name == 'push' && startsWith(github.ref, 'refs/heads/release-') &&
+      (needs.ios.result == 'success' || needs.ios.result == 'skipped') &&
+      needs.backend.result == 'success' &&
+      (needs.sonarqube.result == 'success' || needs.sonarqube.result == 'skipped') &&
+      needs.deploy-firestore-staging.result == 'success'
+    needs: [changes, ios, backend, sonarqube, deploy-firestore-staging]
     runs-on: ubuntu-latest
     environment: staging
     timeout-minutes: 30
@@ -318,7 +342,7 @@ jobs:
             --request POST https://api.codemagic.io/builds \
             --header "Content-Type: application/json" \
             --header "x-auth-token: $CODEMAGIC_API_TOKEN" \
-            --data "$(jq -nc --arg appId "$CODEMAGIC_APP_ID" '{appId: $appId, workflowId: "ios-staging-distribute", branch: "staging"}')")
+            --data "$(jq -nc --arg appId "$CODEMAGIC_APP_ID" --arg branch "$GITHUB_REF_NAME" '{appId: $appId, workflowId: "ios-staging-distribute", branch: $branch}')")
           build_id=$(jq -r '.buildId // empty' <<< "$response")
           test -n "$build_id" || { echo "Codemagic did not return buildId: $response"; exit 1; }
           echo "CODEMAGIC_BUILD_ID=$build_id" >> "$GITHUB_ENV"
