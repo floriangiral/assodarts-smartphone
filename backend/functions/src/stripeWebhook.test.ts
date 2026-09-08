@@ -1,6 +1,9 @@
 const mockConstructEvent = jest.fn();
 const mockItemSet = jest.fn();
 const mockBankAccountsGet = jest.fn();
+const mockClubSet = jest.fn();
+const mockClubsQueryGet = jest.fn();
+const clubDocIds: string[] = [];
 
 jest.mock("./shared/stripe", () => {
   const actual = jest.requireActual("./shared/stripe");
@@ -25,10 +28,20 @@ jest.mock("firebase-admin/firestore", () => ({
           where: () => ({ get: mockBankAccountsGet }),
         };
       }
+      if (name === "clubs") {
+        return {
+          doc: (id: string) => {
+            clubDocIds.push(id);
+            return { set: mockClubSet };
+          },
+          where: () => ({ limit: () => ({ get: mockClubsQueryGet }) }),
+        };
+      }
       throw new Error(`Unexpected collection ${name}`);
     },
   }),
   FieldValue: { serverTimestamp: () => "SERVER_TIMESTAMP" },
+  Timestamp: { fromMillis: (ms: number) => ({ __ms: ms }) },
 }));
 
 import { stripeWebhook } from "./stripeWebhook";
@@ -77,8 +90,13 @@ beforeEach(() => {
   mockConstructEvent.mockReset();
   mockItemSet.mockReset();
   mockBankAccountsGet.mockReset();
+  mockClubSet.mockReset();
+  mockClubsQueryGet.mockReset();
+  clubDocIds.length = 0;
   mockItemSet.mockResolvedValue(undefined);
   mockBankAccountsGet.mockResolvedValue({ docs: [] });
+  mockClubSet.mockResolvedValue(undefined);
+  mockClubsQueryGet.mockResolvedValue({ empty: true, docs: [] });
 });
 
 describe("stripeWebhook", () => {
@@ -280,5 +298,154 @@ describe("stripeWebhook", () => {
     expect(response.json).toHaveBeenCalledWith({ error: "Handler failed" });
     expect(consoleError).toHaveBeenCalledWith("Webhook handling failed", error);
     consoleError.mockRestore();
+  });
+});
+
+describe("stripeWebhook — club subscriptions", () => {
+  it("activates the club on a completed subscription checkout", async () => {
+    mockConstructEvent.mockReturnValue({
+      type: "checkout.session.completed",
+      data: {
+        object: {
+          mode: "subscription",
+          customer: "cus_1",
+          subscription: "sub_1",
+          metadata: { club_id: "club-1" },
+        },
+      },
+    });
+    const response = makeResponse();
+
+    await handler(makeRequest(), response);
+
+    expect(clubDocIds).toContain("club-1");
+    expect(mockClubSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subscriptionStatus: "active",
+        stripeCustomerId: "cus_1",
+        stripeSubscriptionId: "sub_1",
+      }),
+      { merge: true },
+    );
+    // The membership-fee path must not be touched by a subscription event.
+    expect(mockItemSet).not.toHaveBeenCalled();
+    expect(response.json).toHaveBeenCalledWith({ received: true });
+  });
+
+  it("still settles a membership fee checkout, which carries item_id", async () => {
+    mockConstructEvent.mockReturnValue({
+      type: "checkout.session.completed",
+      data: {
+        object: {
+          mode: "payment",
+          payment_status: "paid",
+          payment_intent: "pi_1",
+          metadata: { item_id: "item-1" },
+        },
+      },
+    });
+    const response = makeResponse();
+
+    await handler(makeRequest(), response);
+
+    expect(mockItemSet).toHaveBeenCalledWith(
+      expect.objectContaining({ isPaid: true }),
+      { merge: true },
+    );
+    expect(mockClubSet).not.toHaveBeenCalled();
+  });
+
+  it("keeps the club active and records the period end on invoice.paid", async () => {
+    mockConstructEvent.mockReturnValue({
+      type: "invoice.paid",
+      data: {
+        object: {
+          subscription: "sub_1",
+          metadata: { club_id: "club-1" },
+          lines: { data: [{ period: { end: 1800000000 } }] },
+        },
+      },
+    });
+    const response = makeResponse();
+
+    await handler(makeRequest(), response);
+
+    expect(mockClubSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subscriptionStatus: "active",
+        currentPeriodEnd: { __ms: 1800000000 * 1000 },
+      }),
+      { merge: true },
+    );
+  });
+
+  it("finds the club by subscription id when the invoice has no metadata", async () => {
+    mockClubsQueryGet.mockResolvedValue({
+      empty: false,
+      docs: [{ ref: { set: mockClubSet } }],
+    });
+    mockConstructEvent.mockReturnValue({
+      type: "invoice.paid",
+      data: { object: { subscription: "sub_lookup", metadata: {} } },
+    });
+    const response = makeResponse();
+
+    await handler(makeRequest(), response);
+
+    expect(mockClubSet).toHaveBeenCalledWith(
+      expect.objectContaining({ subscriptionStatus: "active" }),
+      { merge: true },
+    );
+  });
+
+  it("moves the club to grace on a failed renewal, never straight to expired", async () => {
+    mockConstructEvent.mockReturnValue({
+      type: "invoice.payment_failed",
+      data: {
+        object: { subscription: "sub_1", metadata: { club_id: "club-1" } },
+      },
+    });
+    const response = makeResponse();
+
+    await handler(makeRequest(), response);
+
+    expect(mockClubSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subscriptionStatus: "grace",
+        graceStartedAt: "SERVER_TIMESTAMP",
+      }),
+      { merge: true },
+    );
+  });
+
+  it("expires the club when Stripe deletes the subscription", async () => {
+    mockConstructEvent.mockReturnValue({
+      type: "customer.subscription.deleted",
+      data: { object: { id: "sub_1", metadata: { club_id: "club-1" } } },
+    });
+    const response = makeResponse();
+
+    await handler(makeRequest(), response);
+
+    expect(mockClubSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subscriptionStatus: "expired",
+        stripeSubscriptionId: null,
+      }),
+      { merge: true },
+    );
+  });
+
+  it("ignores a subscription event whose club cannot be resolved", async () => {
+    mockConstructEvent.mockReturnValue({
+      type: "invoice.payment_failed",
+      data: { object: { subscription: "sub_unknown", metadata: {} } },
+    });
+    const response = makeResponse();
+
+    await handler(makeRequest(), response);
+
+    expect(mockClubSet).not.toHaveBeenCalled();
+    expect(response.json).toHaveBeenCalledWith({ received: true });
   });
 });

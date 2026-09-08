@@ -67,6 +67,10 @@ struct Club: Identifiable, Codable, Sendable, Hashable {
     var status: SubscriptionStatus
     var seedMemberCount: Int
     var couponCode: String?
+    /// Set once the club has been through Stripe Checkout at least once; gates
+    /// the self-service billing portal.
+    var stripeCustomerId: String?
+    var stripeSubscriptionId: String?
     /// Where the club receives its members' payments. Filled in by the bureau
     /// or the admin from the club settings.
     var bank: ClubBankAccount?
