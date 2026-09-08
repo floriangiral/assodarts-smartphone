@@ -11,6 +11,8 @@ struct DashboardView: View {
                     DashboardHeader(user: user, subtitle: club.name)
                         .padding(.bottom, 2)
 
+                    SubscriptionBanner(club: club)
+
                     if user.role.canManageClub {
                         AdminDashboardContent(user: user, club: club)
                     } else {
@@ -141,4 +143,53 @@ struct EventSummaryCard: View {
     }
     .environment(AppStore())
     .environment(Localization.shared)
+}
+
+/// Non-blocking reminder that the club's own subscription needs attention.
+///
+/// Deliberately a banner and not a modal: an unpaid club keeps full read
+/// access, only its writes are refused by the Firestore rules.
+struct SubscriptionBanner: View {
+    let club: Club
+
+    var body: some View {
+        if club.status == .grace || club.status == .expired {
+            NavigationLink(value: ClubRoute.subscription) {
+                HStack(spacing: 12) {
+                    Image(systemName: club.status == .expired ? "lock.fill" : "exclamationmark.triangle.fill")
+                        .font(.title3)
+                        .foregroundStyle(tint)
+                        .frame(width: 40, height: 40)
+                        .background(tint.opacity(0.15), in: .circle)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(club.status.label)
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(Theme.ink)
+                        Text(message)
+                            .font(.caption)
+                            .multilineTextAlignment(.leading)
+                            .foregroundStyle(Theme.inkSecondary)
+                    }
+
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(Theme.inkSecondary)
+                }
+                .assoCard()
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var tint: Color {
+        club.status == .expired ? Theme.red : Theme.amber
+    }
+
+    private var message: String {
+        club.status == .expired
+            ? tr("the_subscription_has_expired_the_club_is_read_only_until")
+            : tr("the_last_payment_failed_update_your_card_to_keep_the_clu")
+    }
 }

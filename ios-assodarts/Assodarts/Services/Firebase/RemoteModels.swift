@@ -17,6 +17,10 @@ struct RemoteClub: Codable {
     let subscriptionStatus: String
     let trialEndsAt: Date?
     let couponCode: String?
+    let stripeCustomerId: String?
+    let stripeSubscriptionId: String?
+    /// End of the paid period, written by the Stripe webhook on `invoice.paid`.
+    let currentPeriodEnd: Date?
 }
 
 struct RemoteCoupon: Codable {

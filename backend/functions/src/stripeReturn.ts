@@ -28,6 +28,21 @@ const MESSAGES: Record<string, { title: string; body: string; tone: string }> =
       body: "Relancez l'activation depuis Assodarts pour obtenir un nouveau lien sécurisé.",
       tone: "#c2410c",
     },
+    subscribed: {
+      title: "Abonnement activé",
+      body: "L'abonnement de votre club est en cours d'activation. Revenez dans Assodarts, le statut se met à jour automatiquement.",
+      tone: "#1f9d63",
+    },
+    subscription_cancelled: {
+      title: "Abonnement non souscrit",
+      body: "Aucun montant n'a été débité. Vous pouvez relancer la souscription depuis l'application.",
+      tone: "#c2410c",
+    },
+    billing_portal: {
+      title: "Gestion terminée",
+      body: "Vos modifications ont été enregistrées par Stripe. Revenez dans Assodarts pour voir le statut à jour.",
+      tone: "#1E3A5F",
+    },
   };
 
 export const stripeReturn = onRequest((req, res) => {
