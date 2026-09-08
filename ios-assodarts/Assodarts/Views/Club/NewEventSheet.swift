@@ -20,40 +20,43 @@ struct NewEventSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section(tr("Événement", "Event")) {
-                    TextField(tr("Titre", "Title"), text: $title)
+                Section(tr("event")) {
+                    TextField(tr("title"), text: $title)
                         .keyboardField(.freeText, submit: .next)
                         .focused($isEditing)
-                    Picker(tr("Type", "Type"), selection: $kind) {
+                        .foregroundStyle(Theme.ink)
+                    Picker(tr("type"), selection: $kind) {
                         ForEach(EventKind.allCases) { kind in
                             Text(kind.label).tag(kind)
                         }
                     }
-                    DatePicker(tr("Date et heure", "Date and time"), selection: $date)
-                    TextField(tr("Lieu", "Location"), text: $location)
+                    DatePicker(tr("date_and_time"), selection: $date)
+                    TextField(tr("location"), text: $location)
                         .keyboardField(.freeText, submit: .next)
                         .focused($isEditing)
+                        .foregroundStyle(Theme.ink)
                 }
 
-                Section(tr("Détails", "Details")) {
-                    TextField(tr("Informations pratiques…", "Practical information…"), text: $details, axis: .vertical)
+                Section(tr("details")) {
+                    TextField(tr("practical_information"), text: $details, axis: .vertical)
                         .lineLimit(4...8)
                         .keyboardField(.freeText, submit: .return)
                         .focused($isEditing)
+                        .foregroundStyle(Theme.ink)
                 }
             }
             .scrollContentBackground(.hidden)
             .background(Theme.canvas)
             .keyboardDismissable()
             .keyboardDoneBar(isVisible: isEditing) { isEditing = false }
-            .navigationTitle(tr("Nouvel événement", "New event"))
+            .navigationTitle(tr("new_event"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(tr("Annuler", "Cancel")) { dismiss() }
+                    Button(tr("cancel")) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(tr("Créer", "Create"), action: save)
+                    Button(tr("create"), action: save)
                         .disabled(!canSave)
                         .fontWeight(.semibold)
                 }
@@ -72,7 +75,7 @@ struct NewEventSheet: View {
             details: details.trimmingCharacters(in: .whitespaces)
         )
         store.addEvent(event)
-        NotificationService.notify(title: tr("Nouvel événement", "New event"), body: event.title)
+        NotificationService.notify(title: tr("new_event"), body: event.title)
         dismiss()
     }
 }

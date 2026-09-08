@@ -21,7 +21,7 @@ struct AvatarView: View {
                 } else {
                     Text(initials)
                         .font(.system(size: size * 0.36, weight: .semibold))
-                        .foregroundStyle(filled ? .white : Theme.navy)
+                        .foregroundStyle(filled ? .white : Theme.navyText)
                 }
             }
             .clipShape(.circle)

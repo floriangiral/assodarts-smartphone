@@ -1,0 +1,363 @@
+name: Quality
+
+"on":
+  pull_request:
+    branches:
+      - main
+      - "release-*"
+  push:
+    branches:
+      - main
+      - "release-*"
+      - staging
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# NOUVEAU : annule automatiquement tout run en cours sur la même branche/PR
+# dès qu'un nouveau push arrive. Évite de payer pour des runs devenus obsolètes
+# avant même d'avoir fini (gain quasi gratuit, surtout précieux sur le job
+# macOS facturé 10x).
+concurrency:
+  group: quality-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # NOUVEAU : détecte quels dossiers ont changé pour éviter de lancer le job
+  # iOS (macOS, 10x) quand seul le backend a bougé, et inversement.
+  changes:
+    name: Detect changed paths
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      ios: ${{ steps.filter.outputs.ios }}
+      backend: ${{ steps.filter.outputs.backend }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      # NOTE : action non pinnée par SHA ici (contrairement au reste du workflow).
+      # Si tu veux garder la même discipline de pinning que le reste du fichier,
+      # récupère le SHA exact de la release dorny/paths-filter que tu choisis
+      # et remplace le tag @v3 par ce SHA, comme pour les autres actions ci-dessous.
+      - name: Detect changed paths
+        id: filter
+        uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3.0.4
+        with:
+          filters: |
+            ios:
+              - 'ios-assodarts/**'
+              - '.github/workflows/quality.yml'
+            backend:
+              - 'backend/**'
+
+  ios:
+    name: iOS build, test, lint, and SAST
+    needs: changes
+    # NOUVEAU : ne tourne plus que si un fichier iOS (ou ce workflow lui-même) a changé.
+    # workflow_dispatch garde toujours la possibilité de forcer le run manuellement.
+    if: needs.changes.outputs.ios == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: macos-15
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@5ba2889ada762081db2c4f32a729827dce632c7b # v3
+        with:
+          languages: swift
+          build-mode: manual
+
+      - name: Restore Swift package cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData/SourcePackages
+          key: ${{ runner.os }}-xcode-${{ hashFiles('ios-assodarts/Assodarts.xcodeproj/project.pbxproj') }}
+          restore-keys: |
+            ${{ runner.os }}-xcode-
+
+      - name: Install SwiftLint
+        run: |
+          curl --fail --location --retry 3 \
+            --output "$RUNNER_TEMP/portable_swiftlint.zip" \
+            https://github.com/realm/SwiftLint/releases/download/0.65.1/portable_swiftlint.zip
+          echo "c1e429b0599cf1b516f369a2d9ec04eaf0e436f3c12b637df8851fa52ff694d0  $RUNNER_TEMP/portable_swiftlint.zip" | shasum --algorithm 256 --check
+          unzip -q "$RUNNER_TEMP/portable_swiftlint.zip" -d "$RUNNER_TEMP/swiftlint"
+          echo "$RUNNER_TEMP/swiftlint" >> "$GITHUB_PATH"
+
+      - name: Show SwiftLint version
+        run: swiftlint version
+
+      - name: Lint Swift source
+        run: swiftlint lint --lenient --config .swiftlint.yml
+
+      - name: Resolve Swift package dependencies
+        run: >-
+          xcodebuild -resolvePackageDependencies
+          -project ios-assodarts/Assodarts.xcodeproj
+          -scheme Assodarts
+
+      - name: Build and test
+        run: >-
+          xcodebuild test
+          -project ios-assodarts/Assodarts.xcodeproj
+          -scheme Assodarts
+          -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest'
+          -enableCodeCoverage YES
+          -resultBundlePath TestResults.xcresult
+          CODE_SIGNING_ALLOWED=NO
+
+      - name: Export code coverage for SonarQube
+        run: python3 .github/scripts/xccov_to_sonar_generic.py TestResults.xcresult ios-coverage.xml "$GITHUB_WORKSPACE"
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ios-coverage
+          path: ios-coverage.xml
+          retention-days: 1
+
+      - name: Upload CodeQL results
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: github/codeql-action/analyze@5ba2889ada762081db2c4f32a729827dce632c7b # v3
+        with:
+          category: /language:swift
+          upload: never
+          output: ${{ github.workspace }}/codeql-results/ios
+          post-processed-sarif-path: ${{ github.workspace }}/codeql-results/ios-final
+
+      - name: Summarize iOS CodeQL results
+        if: >-
+          always() &&
+          (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        run: |
+          python3 .github/scripts/summarize_codeql_sarif.py \
+            "${{ github.workspace }}/codeql-results/ios-final" \
+            "${{ github.workspace }}/codeql-results/ios.sarif" \
+            "iOS"
+
+      - name: Upload iOS CodeQL SARIF
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: codeql-sarif-ios
+          path: ${{ github.workspace }}/codeql-results/ios.sarif
+          retention-days: 30
+
+  backend:
+    name: Cloud Functions quality and SAST
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@5ba2889ada762081db2c4f32a729827dce632c7b # v3
+        with:
+          languages: javascript-typescript
+          build-mode: none
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: backend/functions/package-lock.json
+
+      - name: Install Cloud Functions dependencies
+        working-directory: backend/functions
+        run: npm ci --loglevel=error
+
+      - name: Audit dependencies
+        working-directory: backend/functions
+        run: npm audit --audit-level=high
+
+      - name: Check formatting
+        working-directory: backend/functions
+        run: npm run format
+
+      - name: Lint Cloud Functions
+        working-directory: backend/functions
+        run: npm run lint
+
+      - name: Type-check and build
+        working-directory: backend/functions
+        run: npm run build
+
+      - name: Run tests with coverage
+        working-directory: backend/functions
+        run: npm run test:coverage
+
+      - name: Copy coverage report for SonarQube
+        run: cp backend/functions/coverage/lcov.info backend-coverage.lcov
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: backend-coverage
+          path: backend-coverage.lcov
+          retention-days: 1
+
+      - name: Upload CodeQL results
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: github/codeql-action/analyze@5ba2889ada762081db2c4f32a729827dce632c7b # v3
+        with:
+          category: /language:javascript-typescript
+          upload: never
+          output: ${{ github.workspace }}/codeql-results/backend
+          post-processed-sarif-path: ${{ github.workspace }}/codeql-results/backend-final
+
+      - name: Summarize backend CodeQL results
+        if: >-
+          always() &&
+          (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        run: |
+          python3 .github/scripts/summarize_codeql_sarif.py \
+            "${{ github.workspace }}/codeql-results/backend-final" \
+            "${{ github.workspace }}/codeql-results/backend.sarif" \
+            "Backend"
+
+      - name: Upload backend CodeQL SARIF
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: codeql-sarif-backend
+          path: ${{ github.workspace }}/codeql-results/backend.sarif
+          retention-days: 30
+
+  secret-scan:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Check out full history
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Scan for secrets
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  sonarqube:
+    name: Analyze and enforce Quality Gate
+    needs: [changes, ios, backend]
+    # MODIFIÉ : accepte "skipped" pour ios (cas où seul le backend a changé),
+    # en plus de "success". Un ios qui a réellement échoué reste bloquant.
+    if: >-
+      always() &&
+      (needs.ios.result == 'success' || needs.ios.result == 'skipped') &&
+      needs.backend.result == 'success' &&
+      vars.SONAR_HOST_URL != '' &&
+      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out full history
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Download backend coverage report
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: backend-coverage
+          path: .
+        continue-on-error: true
+
+      - name: Scan with SonarQube
+        uses: SonarSource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602 # v6
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
+        with:
+          args: >-
+            -Dsonar.qualitygate.wait=true
+            -Dsonar.qualitygate.timeout=300
+
+  staging-distribute:
+    name: Archive and distribute iOS staging build
+    # MODIFIÉ : accepte "skipped" pour ios ici aussi, par cohérence — même si en
+    # pratique un push staging touche presque toujours ios-assodarts/.
+    if: >-
+      github.event_name == 'push' && github.ref == 'refs/heads/staging' &&
+      (needs.ios.result == 'success' || needs.ios.result == 'skipped')
+    needs: [changes, ios, backend, sonarqube]
+    runs-on: ubuntu-latest
+    environment: staging
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Trigger Codemagic build
+        run: |
+          response=$(curl --fail-with-body --silent --show-error \
+            --request POST https://api.codemagic.io/builds \
+            --header "Content-Type: application/json" \
+            --header "x-auth-token: $CODEMAGIC_API_TOKEN" \
+            --data "$(jq -nc --arg appId "$CODEMAGIC_APP_ID" '{appId: $appId, workflowId: "ios-staging-distribute", branch: "staging"}')")
+          build_id=$(jq -r '.buildId // empty' <<< "$response")
+          test -n "$build_id" || { echo "Codemagic did not return buildId: $response"; exit 1; }
+          echo "CODEMAGIC_BUILD_ID=$build_id" >> "$GITHUB_ENV"
+          echo "CODEMAGIC_BUILD_URL=https://codemagic.io/app/$CODEMAGIC_APP_ID/build/$build_id" >> "$GITHUB_ENV"
+        env:
+          CODEMAGIC_API_TOKEN: ${{ secrets.CODEMAGIC_API_TOKEN }}
+          CODEMAGIC_APP_ID: ${{ vars.CODEMAGIC_APP_ID }}
+
+      - name: Wait for Codemagic build completion
+        run: |
+          deadline=$((SECONDS + 1740))
+          while (( SECONDS < deadline )); do
+            response=$(curl --fail-with-body --silent --show-error \
+              --header "x-auth-token: $CODEMAGIC_API_TOKEN" \
+              "https://api.codemagic.io/builds/$CODEMAGIC_BUILD_ID")
+            status=$(jq -r '.status // empty' <<< "$response")
+            echo "Codemagic build $CODEMAGIC_BUILD_ID status: ${status:-unknown}"
+            case "$status" in
+              finished)
+                echo "CODEMAGIC_BUILD_STATUS=$status" >> "$GITHUB_ENV"
+                exit 0
+                ;;
+              failed|canceled|timeout|skipped)
+                echo "CODEMAGIC_BUILD_STATUS=$status" >> "$GITHUB_ENV"
+                echo "Codemagic build ended with status $status: $CODEMAGIC_BUILD_URL"
+                exit 1
+                ;;
+            esac
+            sleep 20
+          done
+          echo "CODEMAGIC_BUILD_STATUS=timeout" >> "$GITHUB_ENV"
+          echo "Timed out waiting for Codemagic build: $CODEMAGIC_BUILD_URL"
+          exit 1
+        env:
+          CODEMAGIC_API_TOKEN: ${{ secrets.CODEMAGIC_API_TOKEN }}
+
+      - name: Publish staging build summary
+        if: always()
+        run: |
+          {
+            echo "## Assodarts Staging"
+            echo "- Status: ${CODEMAGIC_BUILD_STATUS:-not started}"
+            if [ -n "${CODEMAGIC_BUILD_URL:-}" ]; then
+              echo "- Codemagic build: $CODEMAGIC_BUILD_URL"
+            fi
+            if [ "${CODEMAGIC_BUILD_STATUS:-}" = "finished" ]; then
+              echo "- Distributed via TestFlight, group beta-clubs"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

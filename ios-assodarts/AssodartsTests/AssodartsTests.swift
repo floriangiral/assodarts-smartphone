@@ -2,8 +2,6 @@
 //  AssodartsTests.swift
 //  AssodartsTests
 //
-//  Created by Rork on August 31, 2026.
-//
 
 import Testing
 @testable import Assodarts

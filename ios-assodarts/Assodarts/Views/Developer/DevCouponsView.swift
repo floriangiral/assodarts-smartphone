@@ -8,25 +8,22 @@ struct DevCouponsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 18) {
-                DevHeaderBand(title: tr("Coupons", "Coupons"))
+                DevHeaderBand(title: tr("coupons"))
 
-                PrimaryButton(title: tr("Créer un coupon", "Create a coupon"), symbol: "plus") {
+                PrimaryButton(title: tr("create_a_coupon"), symbol: "plus") {
                     showsComposer = true
                 }
 
-                if store.db.coupons.isEmpty {
-                    ContentUnavailableView(
-                        tr("Aucun coupon", "No coupons"),
+                    if store.platformCoupons.isEmpty {
+                    EmptyStateView(
+                        tr("no_coupons"),
                         systemImage: "ticket",
-                        description: Text(tr(
-                            "Créez un code de 10 % à 100 % et ciblez les clubs concernés.",
-                            "Create a 10% to 100% code and target the clubs you want."
-                        ))
+                        description: Text(tr("create_a_10_to_100_code_and_target_the_clubs_you_want"))
                     )
                     .padding(.top, 40)
                 }
 
-                ForEach(store.db.coupons) { coupon in
+                    ForEach(store.platformCoupons) { coupon in
                     couponCard(coupon)
                 }
             }
@@ -38,6 +35,7 @@ struct DevCouponsView: View {
         .sheet(isPresented: $showsComposer) {
             NewCouponSheet()
         }
+        .task { await store.loadPlatformData() }
     }
 
     private func couponCard(_ coupon: Coupon) -> some View {
@@ -58,18 +56,15 @@ struct DevCouponsView: View {
             }
 
             HStack(spacing: 14) {
-                Label(Fmt.count(clubs.count, "club", "clubs", "club", "clubs"), systemImage: "building.2")
+                Label(Fmt.count(clubs.count, key: .clubs), systemImage: "building.2")
                 Label(
                     coupon.isExpired
-                        ? tr("Expiré", "Expired")
-                        : tr(
-                            "Jusqu'au \(Fmt.shortDate(coupon.expiresAt))",
-                            "Until \(Fmt.shortDate(coupon.expiresAt))"
-                        ),
+                        ? tr("expired")
+                        : tr("until \(Fmt.shortDate(coupon.expiresAt))"),
                     systemImage: "calendar"
                 )
                 if coupon.autoRenew {
-                    Label(tr("Renouvelé", "Renewing"), systemImage: "arrow.clockwise")
+                    Label(tr("renewing"), systemImage: "arrow.clockwise")
                 }
             }
             .font(.caption)
@@ -93,8 +88,8 @@ struct DevCouponsView: View {
                 }
             }
 
-            Button(tr("Révoquer le coupon", "Revoke coupon"), role: .destructive) {
-                store.deleteCoupon(coupon.id)
+            Button(tr("revoke_coupon"), role: .destructive) {
+                    Task { await store.deleteCoupon(coupon.id) }
             }
             .font(.footnote.weight(.semibold))
             .padding(.top, 2)

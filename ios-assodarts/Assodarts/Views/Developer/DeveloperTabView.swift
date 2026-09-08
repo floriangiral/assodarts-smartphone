@@ -7,22 +7,22 @@ struct DeveloperTabView: View {
             NavigationStack {
                 DevOverviewView()
             }
-            .tabItem { Label(tr("Vue d'ensemble", "Overview"), systemImage: "chart.bar.fill") }
+            .tabItem { Label(tr("overview"), systemImage: "chart.bar.fill") }
 
             NavigationStack {
                 DevFinancesView()
             }
-            .tabItem { Label(tr("Finances", "Finances"), systemImage: "eurosign.circle.fill") }
+            .tabItem { Label(tr("finances"), systemImage: "eurosign.circle.fill") }
 
             NavigationStack {
                 DevCouponsView()
             }
-            .tabItem { Label(tr("Coupons", "Coupons"), systemImage: "ticket.fill") }
+            .tabItem { Label(tr("coupons"), systemImage: "ticket.fill") }
 
             NavigationStack {
                 DevBroadcastView()
             }
-            .tabItem { Label(tr("Annonces", "Broadcasts"), systemImage: "megaphone.fill") }
+            .tabItem { Label(tr("broadcasts"), systemImage: "megaphone.fill") }
         }
         .tint(Theme.navy)
     }
@@ -40,7 +40,7 @@ struct DevHeaderBand: View {
     var body: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(tr("Console développeur", "Developer console"))
+                Text(tr("developer_console"))
                     .font(.caption.weight(.bold))
                     .tracking(0.8)
                     .foregroundStyle(Theme.orange)
@@ -51,9 +51,9 @@ struct DevHeaderBand: View {
 
             Spacer()
 
-            if showsAvatar, let user = store.currentUser {
+            if showsAvatar {
                 Menu {
-                    Picker(tr("Langue", "Language"), selection: Binding(
+                    Picker(tr("language"), selection: Binding(
                         get: { localization.preference },
                         set: { localization.preference = $0 }
                     )) {
@@ -62,20 +62,24 @@ struct DevHeaderBand: View {
                         }
                     }
                     Button(
-                        tr("Réinitialiser les données de démo", "Reset demo data"),
+                        tr("reset_demo_data"),
                         systemImage: "arrow.counterclockwise"
                     ) {
                         store.resetDemoData()
                     }
                     Button(
-                        tr("Se déconnecter", "Sign out"),
+                        tr("sign_out"),
                         systemImage: "rectangle.portrait.and.arrow.right",
                         role: .destructive
                     ) {
                         showsSignOut = true
                     }
                 } label: {
-                    AvatarView(initials: user.initials, photoData: user.photoData, size: 42)
+                    AvatarView(
+                        initials: store.currentUser?.initials ?? "PA",
+                        photoData: store.currentUser?.photoData,
+                        size: 42
+                    )
                 }
             }
         }
@@ -89,10 +93,10 @@ struct DevHeaderBand: View {
                 endPoint: .bottomTrailing
             )
         )
-        .clipShape(.rect(cornerRadius: 20))
-        .alert(tr("Se déconnecter ?", "Sign out?"), isPresented: $showsSignOut) {
-            Button(tr("Annuler", "Cancel"), role: .cancel) {}
-            Button(tr("Se déconnecter", "Sign out"), role: .destructive) { store.signOut() }
+        .clipShape(.rect(cornerRadius: Theme.largeRadius))
+        .alert(tr("sign_out_developertabview"), isPresented: $showsSignOut) {
+            Button(tr("cancel"), role: .cancel) {}
+            Button(tr("sign_out"), role: .destructive) { store.signOut() }
         }
     }
 }

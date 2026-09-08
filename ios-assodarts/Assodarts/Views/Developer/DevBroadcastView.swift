@@ -23,15 +23,17 @@ struct DevBroadcastView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 18) {
-                DevHeaderBand(title: tr("Annonces", "Broadcasts"))
-
+                DevHeaderBand(title: tr("broadcasts"))
                 composer
 
-                VStack(alignment: .leading, spacing: 12) {
-                    SectionLabel(text: tr("Annonces publiées", "Published broadcasts"))
-                    ForEach(store.platformAnnouncements) { announcement in
-                        publishedRow(announcement)
-                    }
+                if didPublish {
+                    Label(tr("broadcast_published"), systemImage: "checkmark.circle.fill")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(Theme.green)
+                }
+
+                ForEach(store.platformAnnouncements) { announcement in
+                    publishedRow(announcement)
                 }
             }
             .padding(.horizontal, 20)
@@ -45,49 +47,48 @@ struct DevBroadcastView: View {
 
     private var composer: some View {
         VStack(alignment: .leading, spacing: 12) {
-            TextField(tr("Titre de l'annonce", "Broadcast title"), text: $title)
+            TextField(tr("broadcast_title"), text: $title)
                 .font(.headline)
                 .keyboardField(.freeText, submit: .next)
                 .focused($isEditing)
+                .foregroundStyle(Theme.ink)
                 .padding(12)
-                .background(Theme.canvas, in: .rect(cornerRadius: 10))
+                .background(Theme.canvas, in: .rect(cornerRadius: Theme.compactRadius))
 
-            TextField(tr("Votre message…", "Your message…"), text: $message, axis: .vertical)
+            TextField(tr("your_message"), text: $message, axis: .vertical)
                 .lineLimit(4...8)
                 .keyboardField(.freeText, submit: .return)
                 .focused($isEditing)
+                .foregroundStyle(Theme.ink)
                 .padding(12)
-                .background(Theme.canvas, in: .rect(cornerRadius: 10))
+                .background(Theme.canvas, in: .rect(cornerRadius: Theme.compactRadius))
 
-            Picker(tr("Audience", "Audience"), selection: $audience) {
+            Picker(tr("audience"), selection: $audience) {
                 ForEach(BroadcastAudience.allCases) { option in
                     Text(option.label).tag(option)
                 }
             }
             .pickerStyle(.segmented)
 
-            Text(tr(
-                "\(store.totalClubs) clubs · \(Fmt.number(recipients)) destinataires",
-                "\(store.totalClubs) clubs · \(Fmt.number(recipients)) recipients"
-            ))
+            Text(tr("clubs_recipients \(store.totalClubs) \(Fmt.number(recipients))"))
                 .font(.caption)
                 .foregroundStyle(Theme.inkSecondary)
 
-            PrimaryButton(
-                title: didPublish
-                    ? tr("Annonce publiée", "Broadcast published")
-                    : tr("Publier l'annonce", "Publish broadcast"),
-                symbol: didPublish ? "checkmark" : "paperplane.fill",
-                isEnabled: canPublish
-            ) {
-                store.broadcast(title: title, body: message, audience: audience)
-                NotificationService.notify(title: "Assodarts", body: title)
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                    didPublish = true
-                    title = ""
-                    message = ""
-                }
+            PrimaryButton(title: tr("publish_broadcast"), symbol: "paperplane", isEnabled: canPublish) {
+                let broadcastTitle = title
+                let broadcastMessage = message
                 Task {
+                    await store.broadcast(
+                        title: broadcastTitle,
+                        body: broadcastMessage,
+                        audience: audience
+                    )
+                    NotificationService.notify(title: "Assodarts", body: broadcastTitle)
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                        didPublish = true
+                        title = ""
+                        message = ""
+                    }
                     try? await Task.sleep(for: .seconds(2))
                     didPublish = false
                 }

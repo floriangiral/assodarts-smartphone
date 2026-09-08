@@ -12,10 +12,10 @@ enum PaymentCategory: String, Codable, CaseIterable, Identifiable, Sendable {
 
     var label: String {
         switch self {
-        case .cotisation: tr("Cotisation", "Membership fee")
-        case .tenue: tr("Tenue", "Kit")
-        case .deplacement: tr("Déplacement", "Travel")
-        case .autre: tr("Autre", "Other")
+        case .cotisation: tr("membership_fee")
+        case .tenue: tr("kit")
+        case .deplacement: tr("travel")
+        case .autre: tr("other")
         }
     }
 
@@ -45,19 +45,19 @@ enum PaymentMethodKind: String, Codable, CaseIterable, Identifiable, Sendable {
         switch self {
         case .applePay: "Apple Pay"
         case .googlePay: "Google Pay"
-        case .card: tr("Carte bancaire", "Bank card")
-        case .transfer: tr("Virement bancaire", "Bank transfer")
-        case .cash: tr("Espèces", "Cash")
+        case .card: tr("bank_card")
+        case .transfer: tr("bank_transfer")
+        case .cash: tr("cash")
         }
     }
 
     var detail: String {
         switch self {
-        case .applePay: tr("Paiement immédiat, Face ID", "Instant payment, Face ID")
-        case .googlePay: tr("Paiement immédiat sur Android", "Instant payment on Android")
-        case .card: tr("Visa, Mastercard, CB", "Visa, Mastercard, CB")
-        case .transfer: tr("RIB du club · à valider par le bureau", "Club bank details · confirmed by the committee")
-        case .cash: tr("Sur place · à valider par le bureau", "In person · confirmed by the committee")
+        case .applePay: tr("instant_payment_face_id")
+        case .googlePay: tr("instant_payment_on_android")
+        case .card: tr("visa_mastercard_cb")
+        case .transfer: tr("club_bank_details_confirmed_by_the_committee")
+        case .cash: tr("in_person_confirmed_by_the_committee")
         }
     }
 
@@ -90,10 +90,10 @@ enum PaymentState: String, Sendable {
 
     var label: String {
         switch self {
-        case .paid: tr("Payé", "Paid")
-        case .awaitingValidation: tr("À valider", "To confirm")
-        case .pending: tr("En attente", "Pending")
-        case .late: tr("En retard", "Overdue")
+        case .paid: tr("paid")
+        case .awaitingValidation: tr("to_confirm")
+        case .pending: tr("pending")
+        case .late: tr("overdue")
         }
     }
 

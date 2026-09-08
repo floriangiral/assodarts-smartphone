@@ -46,6 +46,11 @@ jobs:
         run: |
           test -n "$FIREBASE_PROJECT_ID" || { echo "FIREBASE_PROJECT_ID is not configured"; exit 1; }
           test -n "$FIREBASE_SERVICE_ACCOUNT" || { echo "FIREBASE_SERVICE_ACCOUNT is not configured"; exit 1; }
+          PROJECT_ID=$(printf '%s' "$FIREBASE_PROJECT_ID" | tr -d '[:space:]')
+          case "$PROJECT_ID" in
+            *[!a-z0-9-]*|'') echo "FIREBASE_PROJECT_ID is invalid"; exit 1 ;;
+          esac
+          echo "FIREBASE_PROJECT_ID=$PROJECT_ID" >> "$GITHUB_ENV"
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
 
@@ -66,6 +71,7 @@ jobs:
 
   deploy:
     name: Deploy Firestore rules and Cloud Functions
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     timeout-minutes: 15
@@ -80,6 +86,11 @@ jobs:
         run: |
           test -n "$FIREBASE_PROJECT_ID" || { echo "FIREBASE_PROJECT_ID is not configured"; exit 1; }
           test -n "$FIREBASE_SERVICE_ACCOUNT" || { echo "FIREBASE_SERVICE_ACCOUNT is not configured"; exit 1; }
+          PROJECT_ID=$(printf '%s' "$FIREBASE_PROJECT_ID" | tr -d '[:space:]')
+          case "$PROJECT_ID" in
+            *[!a-z0-9-]*|'') echo "FIREBASE_PROJECT_ID is invalid"; exit 1 ;;
+          esac
+          echo "FIREBASE_PROJECT_ID=$PROJECT_ID" >> "$GITHUB_ENV"
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
 

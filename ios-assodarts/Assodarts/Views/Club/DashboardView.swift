@@ -111,7 +111,7 @@ struct EventSummaryCard: View {
             }
             .foregroundStyle(Theme.navy)
             .frame(width: 52, height: 56)
-            .background(Theme.navyTint, in: .rect(cornerRadius: 12))
+            .background(Theme.navyTint, in: .rect(cornerRadius: Theme.controlRadius))
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(event.title)
@@ -121,7 +121,7 @@ struct EventSummaryCard: View {
                     .font(.caption)
                     .foregroundStyle(Theme.inkSecondary)
                     .lineLimit(1)
-                Text(Fmt.count(attendingCount, "présent", "présents", "attending", "attending"))
+                Text(Fmt.count(attendingCount, key: .attendees))
                     .font(.caption2.weight(.medium))
                     .foregroundStyle(Theme.green)
             }

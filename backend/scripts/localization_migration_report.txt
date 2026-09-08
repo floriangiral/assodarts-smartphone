@@ -1,0 +1,6 @@
+Localization type audit
+========================
+Findings: 0
+New findings beyond the seven known cases: 0
+
+No placeholder/type disagreements found.

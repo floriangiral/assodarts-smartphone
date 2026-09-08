@@ -1,0 +1,9 @@
+included:
+  - ios-assodarts/Assodarts
+excluded:
+  - ios-assodarts/Assodarts/Assets.xcassets
+  - ios-assodarts/AssodartsTests
+  - ios-assodarts/AssodartsUITests
+line_length:
+  warning: 150
+  error: 200

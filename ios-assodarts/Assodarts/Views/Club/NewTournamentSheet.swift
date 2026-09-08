@@ -24,14 +24,16 @@ struct NewTournamentSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section(tr("Tournoi", "Tournament")) {
-                    TextField(tr("Nom du tournoi", "Tournament name"), text: $name)
+                Section(tr("tournament")) {
+                    TextField(tr("tournament_name"), text: $name)
                         .keyboardField(.freeText, submit: .next)
                         .focused($isEditing)
-                    DatePicker(tr("Date", "Date"), selection: $date, displayedComponents: .date)
-                    TextField(tr("Lieu", "Location"), text: $location)
+                        .foregroundStyle(Theme.ink)
+                    DatePicker(tr("date"), selection: $date, displayedComponents: .date)
+                    TextField(tr("location"), text: $location)
                         .keyboardField(.freeText, submit: .done)
                         .focused($isEditing)
+                        .foregroundStyle(Theme.ink)
                 }
 
                 Section {
@@ -49,37 +51,29 @@ struct NewTournamentSheet: View {
                                     .font(.subheadline)
                                     .foregroundStyle(Theme.ink)
                                 Spacer()
-                                Image(systemName: markerIds.contains(member.id) ? "checkmark.circle.fill" : "circle")
-                                    .foregroundStyle(
-                                        markerIds.contains(member.id)
-                                            ? Theme.navy
-                                            : Theme.inkSecondary.opacity(0.4)
-                                    )
+                                SelectionIndicator(isSelected: markerIds.contains(member.id))
                             }
                         }
                         .buttonStyle(.plain)
                     }
                 } header: {
-                    Text(tr("Marqueurs", "Scorers"))
+                    Text(tr("scorers"))
                 } footer: {
-                    Text(tr(
-                        "Les marqueurs désignés pourront saisir les résultats du tournoi.",
-                        "Appointed scorers will be able to record the tournament results."
-                    ))
+                    Text(tr("appointed_scorers_will_be_able_to_record_the_tournament_"))
                 }
             }
             .scrollContentBackground(.hidden)
             .background(Theme.canvas)
             .keyboardDismissable()
             .keyboardDoneBar(isVisible: isEditing) { isEditing = false }
-            .navigationTitle(tr("Nouveau tournoi", "New tournament"))
+            .navigationTitle(tr("new_tournament"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(tr("Annuler", "Cancel")) { dismiss() }
+                    Button(tr("cancel")) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(tr("Créer", "Create"), action: save)
+                    Button(tr("create"), action: save)
                         .fontWeight(.semibold)
                         .disabled(!canSave)
                 }

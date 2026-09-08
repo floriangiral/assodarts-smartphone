@@ -17,17 +17,10 @@ struct SubscriptionView: View {
                     pricingGrid(club)
 
                     VStack(alignment: .leading, spacing: 8) {
-                        Label(tr("Facturation annuelle", "Annual billing"), systemImage: "info.circle")
+                        Label(tr("annual_billing"), systemImage: "info.circle")
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(Theme.ink)
-                        Text(tr(
-                            "Un seul paiement par an, tarif dégressif selon le nombre de membres. "
-                                + "14 jours d'essai sans carte bancaire, puis 7 jours de lecture seule après expiration. "
-                                + "Le paiement de l'abonnement sera activé prochainement.",
-                            "One payment a year, with a lower rate per member as the club grows. "
-                                + "14-day trial with no card, then 7 read-only days after expiry. "
-                                + "Subscription payment will be enabled soon."
-                        ))
+                        Text(tr("one_payment_a_year_with_a_lower_rate_per_member_as_the_c"))
                             .font(.footnote)
                             .foregroundStyle(Theme.inkSecondary)
                     }
@@ -38,7 +31,7 @@ struct SubscriptionView: View {
             }
         }
         .assoCanvas()
-        .navigationTitle(tr("Abonnement", "Subscription"))
+        .navigationTitle(tr("subscription"))
         .navigationBarTitleDisplayMode(.inline)
     }
 
@@ -48,7 +41,7 @@ struct SubscriptionView: View {
 
         return VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text(tr("Formule \(tier.name)", "\(tier.name) plan"))
+                Text(tr("plan \(tier.name)"))
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Theme.inkSecondary)
                 Spacer()
@@ -60,11 +53,12 @@ struct SubscriptionView: View {
             }
 
             HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Text(priceCents == 0 && tier.priceEuros > 0 ? tr("Offert", "Free") : Fmt.money(priceCents))
-                    .font(.system(size: 38, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(Theme.ink)
-                Text(tr("/ an", "/ year"))
+                MetricNumber(
+                    value: priceCents == 0 && tier.priceEuros > 0
+                        ? tr("free")
+                        : Fmt.money(priceCents)
+                )
+                Text(tr("year"))
                     .font(.subheadline)
                     .foregroundStyle(Theme.inkSecondary)
             }
@@ -80,15 +74,12 @@ struct SubscriptionView: View {
 
             HStack {
                 Label(
-                    Fmt.count(store.memberCount(of: club), "membre", "membres", "member", "members"),
+                    Fmt.count(store.memberCount(of: club), key: .members),
                     systemImage: "person.3.fill"
                 )
                 Spacer()
                 Label(
-                    tr(
-                        "Renouvellement le \(Fmt.shortDate(club.renewalDate))",
-                        "Renews on \(Fmt.shortDate(club.renewalDate))"
-                    ),
+                    tr("renews_on \(Fmt.shortDate(club.renewalDate))"),
                     systemImage: "arrow.clockwise"
                 )
             }
@@ -113,7 +104,7 @@ struct SubscriptionView: View {
                     .font(.subheadline.weight(.bold))
                     .foregroundStyle(Theme.ink)
                 if coupon.isOffered {
-                    Text(tr("Offert par l'équipe Assodarts", "Offered by the Assodarts team"))
+                    Text(tr("offered_by_the_assodarts_team"))
                         .font(.caption)
                         .foregroundStyle(Theme.inkSecondary)
                 } else {
@@ -132,7 +123,7 @@ struct SubscriptionView: View {
         let currentTier = store.tier(for: club)
 
         return VStack(alignment: .leading, spacing: 12) {
-            SectionLabel(text: tr("Toutes les formules", "All plans"))
+            SectionLabel(text: tr("all_plans"))
 
             VStack(spacing: 0) {
                 ForEach(PricingTier.all) { tier in
@@ -147,8 +138,8 @@ struct SubscriptionView: View {
                         }
                         Spacer()
                         Text(tier.priceEuros > 0
-                            ? tr("\(Fmt.euros(tier.priceEuros)) / an", "\(Fmt.euros(tier.priceEuros)) / year")
-                            : tr("Sur devis", "Custom quote"))
+                            ? tr("year_subscriptionview \(Fmt.euros(tier.priceEuros))")
+                            : tr("custom_quote"))
                             .font(.subheadline.weight(.semibold))
                             .monospacedDigit()
                             .foregroundStyle(tier.id == currentTier.id ? Theme.navy : Theme.inkSecondary)
