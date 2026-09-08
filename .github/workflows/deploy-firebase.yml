@@ -1,6 +1,12 @@
+# Real deployments remain manual: Actions > Deploy Firebase Backend > Run workflow.
+# PRs only validate Firestore rules and indexes with Firebase's dry-run mode.
 name: Deploy Firebase Backend
 
 on:
+  pull_request:
+    paths:
+      - backend/firestore.rules
+      - backend/firestore.indexes.json
   workflow_dispatch:
     inputs:
       environment:
@@ -23,6 +29,41 @@ env:
   FIREBASE_TOOLS_VERSION: "15.29.0"
 
 jobs:
+  validate-firestore:
+    name: Validate Firestore rules and indexes
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    environment: staging
+    timeout-minutes: 10
+    env:
+      FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+      GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/firebase-service-account.json
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Validate deployment configuration
+        run: |
+          test -n "$FIREBASE_PROJECT_ID" || { echo "FIREBASE_PROJECT_ID is not configured"; exit 1; }
+          test -n "$FIREBASE_SERVICE_ACCOUNT" || { echo "FIREBASE_SERVICE_ACCOUNT is not configured"; exit 1; }
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      - name: Write service account credentials
+        run: |
+          echo "$FIREBASE_SERVICE_ACCOUNT" > "$GOOGLE_APPLICATION_CREDENTIALS"
+          chmod 600 "$GOOGLE_APPLICATION_CREDENTIALS"
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      - name: Validate Firestore rules and indexes
+        working-directory: backend
+        run: npx --yes firebase-tools@$FIREBASE_TOOLS_VERSION deploy --only firestore:rules,firestore:indexes --project "$FIREBASE_PROJECT_ID" --non-interactive --dry-run
+
+      - name: Remove service account credentials
+        if: always()
+        run: rm -f "$GOOGLE_APPLICATION_CREDENTIALS"
+
   deploy:
     name: Deploy Firestore rules and Cloud Functions
     runs-on: ubuntu-latest
