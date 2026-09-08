@@ -11,3 +11,4 @@ ios-assodarts/Config/Firebase/*/FirebaseConfig.plist
 ios-assodarts/Config/Firebase/*.plist
 __pycache__/
 *.pyc
+.spm-checkouts/
