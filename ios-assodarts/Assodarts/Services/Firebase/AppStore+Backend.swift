@@ -18,9 +18,28 @@ extension AppStore {
             return
         }
 
-        if let user = Backend.auth.currentUser, let userId = UUID(uuidString: user.uid) {
+        guard let user = Backend.auth.currentUser else {
+            mode = .demo
+            isRestoringSession = false
+            return
+        }
+
+        do {
+            isPlatformAdmin = await RemoteRepository.isPlatformAdmin(authUid: user.uid)
+            guard let userId = try await RemoteRepository.memberId(forAuthUid: user.uid) else {
+                if isPlatformAdmin {
+                    mode = .live
+                    await loadPlatformData()
+                } else {
+                    mode = .demo
+                }
+                isRestoringSession = false
+                return
+            }
             _ = await loadRemote(userId: userId)
-        } else {
+            await loadPlatformData()
+        } catch {
+            print("Session restore failed: \(error)")
             mode = .demo
         }
         isRestoringSession = false
@@ -34,13 +53,18 @@ extension AppStore {
 
         do {
             let result = try await Backend.auth.signIn(withEmail: normalized, password: password)
-            guard let userId = UUID(uuidString: result.user.uid) else {
-                return friendlyMessage(for: BackendError.message(tr(
-                    "Compte invalide. Contactez le support.",
-                    "Invalid account. Contact support."
-                )))
+            isPlatformAdmin = await RemoteRepository.isPlatformAdmin(authUid: result.user.uid)
+            guard let userId = try await RemoteRepository.memberId(forAuthUid: result.user.uid) else {
+                if isPlatformAdmin {
+                    mode = .live
+                    await loadPlatformData()
+                    return nil
+                }
+                return friendlyMessage(for: BackendError.message(tr("profile_not_found_contact_support")))
             }
-            return await loadRemote(userId: userId)
+            let message = await loadRemote(userId: userId)
+            await loadPlatformData()
+            return message
         } catch {
             print("Sign-in failed: \(error)")
             return friendlyMessage(for: error)
@@ -62,26 +86,19 @@ extension AppStore {
         let last = lastName.trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard !first.isEmpty, !last.isEmpty else {
-            return tr("Indiquez votre prénom et votre nom.", "Enter your first and last name.")
+            return tr("enter_your_first_and_last_name")
         }
         guard password.count >= 6 else {
-            return tr(
-                "Le mot de passe doit contenir au moins 6 caractères.",
-                "The password must be at least 6 characters long."
-            )
+            return tr("the_password_must_be_at_least_6_characters_long")
         }
 
         do {
             let result = try await Backend.auth.createUser(withEmail: normalized, password: password)
-            guard let userId = UUID(uuidString: result.user.uid) else {
-                return friendlyMessage(for: BackendError.message(tr(
-                    "Compte invalide. Contactez le support.",
-                    "Invalid account. Contact support."
-                )))
-            }
+            let userId = UUID()
 
             try await RemoteRepository.createSelfMember(
                 userId: userId,
+                authUid: result.user.uid,
                 firstName: first,
                 lastName: last,
                 email: normalized,
@@ -94,22 +111,86 @@ extension AppStore {
         }
     }
 
+    /// Creates an account, its member profile, then a brand-new club with the
+    /// signer as its admin. Unlike `signUpRemote` (the invited-member path),
+    /// this doesn't require any pending invitation.
+    func signUpAndCreateClub(
+        firstName: String,
+        lastName: String,
+        email: String,
+        password: String,
+        phone: String,
+        clubName: String
+    ) async -> String? {
+        guard Backend.isConfigured else { return BackendError.notConfigured.errorDescription }
+
+        let normalized = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let first = firstName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let last = lastName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let name = clubName.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !first.isEmpty, !last.isEmpty else {
+            return tr("enter_your_first_and_last_name")
+        }
+        guard password.count >= 6 else {
+            return tr("the_password_must_be_at_least_6_characters_long")
+        }
+        guard !name.isEmpty else {
+            return tr("enter_your_club_s_name")
+        }
+
+        do {
+            let result = try await Backend.auth.createUser(withEmail: normalized, password: password)
+            let userId = UUID()
+
+            try await RemoteRepository.createSelfMember(
+                userId: userId,
+                authUid: result.user.uid,
+                firstName: first,
+                lastName: last,
+                email: normalized,
+                phone: phone.isEmpty ? nil : phone
+            )
+
+            _ = try await RemoteRepository.createClub(name: name)
+
+            let message = await loadRemote(userId: userId)
+            if message == nil {
+                showsPostCreationInviteOffer = true
+            }
+            return message
+        } catch {
+            print("Club creation failed: \(error)")
+            return friendlyMessage(for: error)
+        }
+    }
+
+    /// Creates a club for an authenticated member who has not joined one yet.
+    /// The snapshot reload also switches the app into the new live club.
+    func createClubFromOnboarding(name: String, userId: UUID) async -> String? {
+        do {
+            _ = try await RemoteRepository.createClub(name: name)
+            let message = await loadRemote(userId: userId)
+            if message == nil {
+                showsPostCreationInviteOffer = true
+            }
+            return message
+        } catch {
+            print("Onboarding club creation failed: \(error)")
+            return friendlyMessage(for: error)
+        }
+    }
+
     /// Sends a password reset email.
     func sendPasswordReset(email: String) async -> String {
         let normalized = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard Backend.isConfigured, !normalized.isEmpty else {
-            return tr(
-                "Renseignez votre adresse email pour recevoir un lien.",
-                "Enter your email address to receive a link."
-            )
+            return tr("enter_your_email_address_to_receive_a_link")
         }
 
         do {
             try await Backend.auth.sendPasswordReset(withEmail: normalized)
-            return tr(
-                "Un lien de réinitialisation vient de vous être envoyé.",
-                "A reset link has just been sent to you."
-            )
+            return tr("a_reset_link_has_just_been_sent_to_you")
         } catch {
             print("Password reset failed: \(error)")
             return friendlyMessage(for: error)
@@ -125,9 +206,10 @@ extension AppStore {
 
         do {
             let snapshot = try await loadSnapshotAcceptingInvitations(for: userId)
-            db = snapshot.database
-            currentUserId = snapshot.currentMemberId
+            applySnapshot(snapshot)
+            platformAnnouncementsRemote = (try? await RemoteRepository.loadPlatformAnnouncements()) ?? []
             mode = .live
+            needsOnboardingChoice = false
             syncError = nil
             save()
             await loadNotifications()
@@ -135,34 +217,49 @@ extension AppStore {
             return nil
         } catch {
             print("Club sync failed: \(error)")
+            if case BackendError.noMembership = error {
+                needsOnboardingChoice = true
+                mode = .live
+            }
             return friendlyMessage(for: error)
         }
     }
 
     /// Loads the club snapshot, first accepting any pending invitation for
-    /// this member's email so a first-time sign-in lands straight in their
-    /// club instead of surfacing "no membership".
+    /// this member's email — this both lands a first-time sign-in straight
+    /// into their club, and lets an already-onboarded member pick up a later
+    /// invitation to a second club. If that second club differs from the one
+    /// currently active, `pendingClubSwitchOffer` is set so the UI can offer
+    /// an immediate switch instead of silently reloading the old club.
     private func loadSnapshotAcceptingInvitations(for userId: UUID) async throws -> RemoteRepository.Snapshot {
+        let joinedClubId = try? await RemoteRepository.acceptPendingInvitation()
+
+        let snapshot: RemoteRepository.Snapshot
         do {
-            return try await RemoteRepository.loadSnapshot(for: userId)
+            snapshot = try await RemoteRepository.loadSnapshot(for: userId, preferredClubId: activeClubRemoteId)
         } catch BackendError.noMembership {
-            guard try await RemoteRepository.acceptPendingInvitation() != nil else {
-                throw BackendError.noMembership
-            }
-            return try await RemoteRepository.loadSnapshot(for: userId)
+            throw BackendError.noMembership
         }
+
+        if let joinedClubId, joinedClubId != snapshot.activeClubRemoteId,
+           let offer = snapshot.availableClubs.first(where: { $0.id == joinedClubId }) {
+            pendingClubSwitchOffer = offer
+        }
+
+        return snapshot
     }
 
     /// Re-reads everything from the server: pull-to-refresh, and recovery after
-    /// a rejected write.
+    /// a rejected write. Stays on the currently active club.
     func refresh() async {
         guard mode == .live, let userId = currentUserId, !isSyncing else { return }
         isSyncing = true
         defer { isSyncing = false }
 
         do {
-            let snapshot = try await RemoteRepository.loadSnapshot(for: userId)
-            db = snapshot.database
+            let snapshot = try await loadSnapshotAcceptingInvitations(for: userId)
+            applySnapshot(snapshot)
+            platformAnnouncementsRemote = (try? await RemoteRepository.loadPlatformAnnouncements()) ?? []
             syncError = nil
             save()
             await loadNotifications()
@@ -171,6 +268,48 @@ extension AppStore {
             print("Refresh failed: \(error)")
             syncError = friendlyMessage(for: error)
         }
+    }
+
+    /// Switches the member's active club to one of their other memberships
+    /// and reloads its data. No-op if the member only belongs to one club.
+    func switchActiveClub(to clubId: String) async -> String? {
+        guard mode == .live, let userId = currentUserId, clubId != activeClubRemoteId, !isSyncing else { return nil }
+        isSyncing = true
+        defer { isSyncing = false }
+
+        do {
+            try await RemoteRepository.setDefaultClub(memberId: userId, clubId: clubId)
+            let snapshot = try await RemoteRepository.loadSnapshot(for: userId, preferredClubId: clubId)
+            applySnapshot(snapshot)
+            syncError = nil
+            save()
+            await loadNotifications()
+            scheduleDueReminders()
+            return nil
+        } catch {
+            print("Club switch failed: \(error)")
+            return friendlyMessage(for: error)
+        }
+    }
+
+    /// Accepts the offer surfaced by `pendingClubSwitchOffer` and switches to it.
+    func confirmPendingClubSwitch() async {
+        guard let offer = pendingClubSwitchOffer else { return }
+        pendingClubSwitchOffer = nil
+        _ = await switchActiveClub(to: offer.id)
+    }
+
+    /// Dismisses the offer without switching; the member stays on their
+    /// current club and can switch later from the dashboard header.
+    func dismissPendingClubSwitch() {
+        pendingClubSwitchOffer = nil
+    }
+
+    private func applySnapshot(_ snapshot: RemoteRepository.Snapshot) {
+        db = snapshot.database
+        currentUserId = snapshot.currentMemberId
+        availableClubs = snapshot.availableClubs
+        activeClubRemoteId = snapshot.activeClubRemoteId
     }
 
     // MARK: - Notifications

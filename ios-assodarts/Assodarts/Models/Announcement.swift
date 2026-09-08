@@ -21,8 +21,8 @@ enum BroadcastAudience: String, Codable, CaseIterable, Identifiable, Sendable {
 
     var label: String {
         switch self {
-        case .all: tr("Tous les utilisateurs", "All users")
-        case .admins: tr("Admins & bureaux", "Admins & committees")
+        case .all: tr("all_users")
+        case .admins: tr("admins_committees")
         }
     }
 }

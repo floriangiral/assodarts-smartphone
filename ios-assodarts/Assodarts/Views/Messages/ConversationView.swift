@@ -75,8 +75,8 @@ struct ConversationView: View {
                     }
                 }
             } else {
-                ContentUnavailableView(
-                    tr("Conversation introuvable", "Conversation not found"),
+                EmptyStateView(
+                    tr("conversation_not_found"),
                     systemImage: "bubble.left"
                 )
             }
@@ -98,8 +98,8 @@ struct ConversationView: View {
                         .resizable()
                         .aspectRatio(contentMode: .fill)
                         .frame(width: 54, height: 54)
-                        .clipShape(.rect(cornerRadius: 10))
-                    Text(tr("Photo jointe", "Photo attached"))
+                        .clipShape(.rect(cornerRadius: Theme.compactRadius))
+                    Text(tr("photo_attached"))
                         .font(.caption)
                         .foregroundStyle(Theme.inkSecondary)
                     Spacer()
@@ -123,11 +123,12 @@ struct ConversationView: View {
                         .background(Theme.canvas, in: .circle)
                 }
 
-                TextField(tr("Votre message…", "Your message…"), text: $draft, axis: .vertical)
+                TextField(tr("your_message"), text: $draft, axis: .vertical)
                     .lineLimit(1...4)
                     .keyboardField(.freeText, submit: .send)
                     .focused($isInputFocused)
                     .onSubmit { send(from: user) }
+                    .foregroundStyle(Theme.ink)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
                     .background(Theme.canvas, in: .capsule)
@@ -233,7 +234,7 @@ struct MessageBubble: View {
                             .resizable()
                             .aspectRatio(contentMode: .fill)
                             .frame(maxWidth: 220, maxHeight: 220)
-                            .clipShape(.rect(cornerRadius: 12))
+                            .clipShape(.rect(cornerRadius: Theme.controlRadius))
                     }
                     if !message.text.isEmpty {
                         Text(message.text)
@@ -249,10 +250,10 @@ struct MessageBubble: View {
                 .padding(.horizontal, 14)
                 .padding(.vertical, 10)
                 .background(isMine ? Theme.navy : Theme.surface)
-                .clipShape(.rect(cornerRadius: 16))
+                .clipShape(.rect(cornerRadius: Theme.cardRadius))
                 .overlay {
                     if !isMine {
-                        RoundedRectangle(cornerRadius: 16).stroke(Theme.border, lineWidth: 1)
+                        RoundedRectangle(cornerRadius: Theme.cardRadius).stroke(Theme.border, lineWidth: 1)
                     }
                 }
                 .frame(maxWidth: 280, alignment: .leading)
@@ -264,7 +265,7 @@ struct MessageBubble: View {
             .frame(maxWidth: .infinity, alignment: isMine ? .trailing : .leading)
 
             if showsReadReceipt {
-                Text(tr("Lu \(Fmt.time(message.sentAt))", "Read \(Fmt.time(message.sentAt))"))
+                Text(tr("read \(Fmt.time(message.sentAt))"))
                     .font(.caption2)
                     .foregroundStyle(Theme.inkSecondary)
             }

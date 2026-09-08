@@ -44,21 +44,21 @@ struct PaySheet: View {
                     if let call {
                         content(call)
                     } else {
-                        ContentUnavailableView(
-                            tr("Paiement introuvable", "Payment not found"),
+                        EmptyStateView(
+                            tr("payment_not_found"),
                             systemImage: "eurosign.circle"
                         )
                     }
                 }
             }
-            .navigationTitle(phase == .paid || phase == .declared ? "" : tr("Paiement", "Payment"))
+            .navigationTitle(phase == .paid || phase == .declared ? "" : tr("payment"))
             .navigationBarTitleDisplayMode(.inline)
             .keyboardDismissable()
             .keyboardDoneBar(isVisible: isEditingReference) { isEditingReference = false }
             .toolbar {
                 if phase == .ready || phase == .processing {
                     ToolbarItem(placement: .cancellationAction) {
-                        Button(tr("Annuler", "Cancel")) { dismiss() }
+                        Button(tr("cancel")) { dismiss() }
                     }
                 }
             }
@@ -70,10 +70,10 @@ struct PaySheet: View {
                     .ignoresSafeArea()
             }
             .alert(
-                tr("Paiement impossible", "Payment failed"),
+                tr("payment_failed"),
                 isPresented: Binding(get: { checkoutError != nil }, set: { if !$0 { checkoutError = nil } })
             ) {
-                Button(tr("Fermer", "Close"), role: .cancel) { checkoutError = nil }
+                Button(tr("close"), role: .cancel) { checkoutError = nil }
             } message: {
                 Text(checkoutError ?? "")
             }
@@ -93,22 +93,16 @@ struct PaySheet: View {
                 } else {
                     if !onlineMethods.isEmpty {
                         methodGroup(
-                            title: tr("Paiement immédiat", "Instant payment"),
-                            footnote: tr(
-                                "Encaissé directement sur le compte du club.",
-                                "Paid straight into the club account."
-                            ),
+                            title: tr("instant_payment"),
+                            footnote: tr("paid_straight_into_the_club_account"),
                             options: onlineMethods
                         )
                     }
 
                     if !manualMethods.isEmpty {
                         methodGroup(
-                            title: tr("À valider par le bureau", "Confirmed by the committee"),
-                            footnote: tr(
-                                "Votre paiement passe en attente jusqu'à la validation du bureau.",
-                                "Your payment stays pending until the committee confirms it."
-                            ),
+                            title: tr("confirmed_by_the_committee"),
+                            footnote: tr("your_payment_stays_pending_until_the_committee_confirms_"),
                             options: manualMethods
                         )
                     }
@@ -144,14 +138,12 @@ struct PaySheet: View {
             .padding(.top, 8)
 
             VStack(spacing: 6) {
-                Text(Fmt.money(call.amountCents))
-                    .font(.system(size: 46, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(Theme.navy)
-                Text(tr(
-                    "À régler avant le \(Fmt.mediumDate(call.dueDate))",
-                    "Due by \(Fmt.mediumDate(call.dueDate))"
-                ))
+                MetricNumber(
+                    value: Fmt.money(call.amountCents),
+                    size: .prominent,
+                    color: Theme.navy
+                )
+                Text(tr("due_by_paysheet \(Fmt.mediumDate(call.dueDate))"))
                     .font(.footnote)
                     .foregroundStyle(Theme.inkSecondary)
             }
@@ -160,11 +152,11 @@ struct PaySheet: View {
 
     private func detailsCard(_ call: PaymentCall) -> some View {
         VStack(spacing: 10) {
-            detailRow(tr("Bénéficiaire", "Payee"), store.currentClub?.shortName ?? "Club")
+            detailRow(tr("payee"), store.currentClub?.shortName ?? "Club")
             Divider().overlay(Theme.border)
-            detailRow(tr("Catégorie", "Category"), call.category.label)
+            detailRow(tr("category"), call.category.label)
             Divider().overlay(Theme.border)
-            detailRow(tr("Référence", "Reference"), call.reference)
+            detailRow(tr("reference"), call.reference)
         }
         .assoCard()
     }
@@ -172,17 +164,12 @@ struct PaySheet: View {
     private var noMethodCard: some View {
         VStack(alignment: .leading, spacing: 10) {
             Label(
-                tr("Aucun moyen de paiement disponible", "No payment method available"),
+                tr("no_payment_method_available"),
                 systemImage: "exclamationmark.triangle.fill"
             )
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Theme.amber)
-            Text(tr(
-                "Le bureau du club n'a pas encore renseigné ses coordonnées bancaires. "
-                    + "Contactez-le depuis la messagerie pour régler autrement.",
-                "The club committee has not entered its bank details yet. "
-                    + "Message them from the app to arrange your payment."
-            ))
+            Text(tr("the_club_committee_has_not_entered_its_bank_details_yet_"))
                 .font(.footnote)
                 .foregroundStyle(Theme.inkSecondary)
         }
@@ -216,16 +203,17 @@ struct PaySheet: View {
                                     .foregroundStyle(isUsable ? Theme.ink : Theme.inkSecondary)
                                 Text(isUsable
                                      ? option.detail
-                                     : tr("Disponible sur Android", "Available on Android"))
+                                     : tr("available_on_android"))
                                     .font(.caption)
                                     .foregroundStyle(Theme.inkSecondary)
                             }
 
                             Spacer(minLength: 4)
 
-                            Image(systemName: method == option ? "checkmark.circle.fill" : "circle")
-                                .foregroundStyle(method == option ? Theme.navy : Theme.inkSecondary.opacity(0.35))
-                                .opacity(isUsable ? 1 : 0.3)
+                            SelectionIndicator(
+                                isSelected: method == option,
+                                isEnabled: isUsable
+                            )
                         }
                         .padding(.vertical, 10)
                     }
@@ -249,7 +237,7 @@ struct PaySheet: View {
 
     private func transferCard(club: Club, account: ClubBankAccount, call: PaymentCall) -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            SectionLabel(text: tr("Coordonnées du club", "Club bank details"))
+            SectionLabel(text: tr("club_bank_details"))
 
             VStack(spacing: 10) {
                 ForEach(RIBDocument.rows(club: club, account: account), id: \.label) { row in
@@ -266,7 +254,7 @@ struct PaySheet: View {
                 }
                 Divider().overlay(Theme.border)
                 HStack(alignment: .top) {
-                    Text(tr("Référence à indiquer", "Reference to quote"))
+                    Text(tr("reference_to_quote_paysheet"))
                         .font(.caption)
                         .foregroundStyle(Theme.inkSecondary)
                     Spacer(minLength: 12)
@@ -277,54 +265,45 @@ struct PaySheet: View {
             }
             .padding(14)
             .frame(maxWidth: .infinity)
-            .background(Theme.canvas, in: .rect(cornerRadius: 12))
+            .background(Theme.canvas, in: .rect(cornerRadius: Theme.controlRadius))
 
             HStack(spacing: 10) {
-                Button {
+                TintedActionButton(
+                    title: didCopyIban ? tr("iban_copied") : tr("copy_iban"),
+                    symbol: didCopyIban ? "checkmark" : "doc.on.doc",
+                    foreground: Theme.navy,
+                    background: Theme.navyTint
+                ) {
                     UIPasteboard.general.string = account.formattedIban
                     withAnimation { didCopyIban = true }
                     Task {
                         try? await Task.sleep(for: .seconds(2))
                         withAnimation { didCopyIban = false }
                     }
-                } label: {
-                    Label(
-                        didCopyIban ? tr("IBAN copié", "IBAN copied") : tr("Copier l'IBAN", "Copy IBAN"),
-                        systemImage: didCopyIban ? "checkmark" : "doc.on.doc"
-                    )
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(Theme.navy)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 44)
-                        .background(Theme.navyTint, in: .rect(cornerRadius: 12))
                 }
-                .buttonStyle(PressableButtonStyle())
 
                 if let ribURL {
                     ShareLink(item: ribURL) {
-                        Label(tr("Télécharger le RIB", "Download details"), systemImage: "arrow.down.doc")
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 44)
-                            .background(Theme.navy, in: .rect(cornerRadius: 12))
+                        ActionButtonLabel(
+                            title: tr("download_details"),
+                            symbol: "arrow.down.doc",
+                            foreground: .white,
+                            background: Theme.navy
+                        )
                     }
                 } else {
-                    Button {
+                    TintedActionButton(
+                        title: tr("prepare_details"),
+                        symbol: "doc.text",
+                        foreground: .white,
+                        background: Theme.navy
+                    ) {
                         ribURL = RIBDocument.makePDF(
                             club: club,
                             account: account,
                             reference: call.reference
                         )
-                    } label: {
-                        Label(tr("Préparer le RIB", "Prepare details"), systemImage: "doc.text")
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 44)
-                            .background(Theme.navy, in: .rect(cornerRadius: 12))
                     }
-                    .buttonStyle(PressableButtonStyle())
                 }
             }
 
@@ -335,10 +314,7 @@ struct PaySheet: View {
             }
 
             referenceField(
-                placeholder: tr(
-                    "Libellé de votre virement (optionnel)",
-                    "Label of your transfer (optional)"
-                )
+                placeholder: tr("label_of_your_transfer_optional")
             )
         }
         .assoCard()
@@ -346,24 +322,16 @@ struct PaySheet: View {
 
     private func cashCard(_ account: ClubBankAccount) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionLabel(text: tr("Paiement en espèces", "Cash payment"))
+            SectionLabel(text: tr("cash_payment"))
 
             Text(account.cashNote.trimmingCharacters(in: .whitespaces).isEmpty
-                 ? tr(
-                    "Remettez le montant en espèces à un membre du bureau, puis déclarez-le ici. "
-                        + "Le bureau validera après encaissement.",
-                    "Hand the cash to a committee member, then declare it here. "
-                        + "The committee will confirm once received."
-                 )
+                 ? tr("hand_the_cash_to_a_committee_member_then_declare_it_here")
                  : account.cashNote)
                 .font(.footnote)
                 .foregroundStyle(Theme.inkSecondary)
 
             referenceField(
-                placeholder: tr(
-                    "À qui avez-vous remis les espèces ? (optionnel)",
-                    "Who did you hand the cash to? (optional)"
-                )
+                placeholder: tr("who_did_you_hand_the_cash_to_optional")
             )
         }
         .assoCard()
@@ -375,8 +343,9 @@ struct PaySheet: View {
             .lineLimit(1...3)
             .keyboardField(.freeText, submit: .done)
             .focused($isEditingReference)
+            .foregroundStyle(Theme.ink)
             .padding(12)
-            .background(Theme.canvas, in: .rect(cornerRadius: 10))
+            .background(Theme.canvas, in: .rect(cornerRadius: Theme.compactRadius))
     }
 
     // MARK: - Call to action
@@ -397,21 +366,15 @@ struct PaySheet: View {
                 .frame(height: 54)
                 .foregroundStyle(.white)
                 .background(ctaBackground)
-                .clipShape(.rect(cornerRadius: 14))
+                .clipShape(.rect(cornerRadius: Theme.buttonRadius))
             }
             .buttonStyle(PressableButtonStyle())
             .disabled(phase == .processing || method == nil)
 
             Label(
                 method?.requiresValidation == true
-                    ? tr(
-                        "Le bureau reçoit votre déclaration immédiatement.",
-                        "The committee receives your declaration immediately."
-                    )
-                    : tr(
-                        "Paiement sécurisé · reçu envoyé par email",
-                        "Secure payment · receipt sent by email"
-                    ),
+                    ? tr("the_committee_receives_your_declaration_immediately")
+                    : tr("secure_payment_receipt_sent_by_email"),
                 systemImage: method?.requiresValidation == true ? "clock.badge.checkmark" : "lock.shield"
             )
                 .font(.caption)
@@ -423,17 +386,17 @@ struct PaySheet: View {
     private func ctaTitle(_ call: PaymentCall) -> String {
         switch method {
         case .applePay:
-            return tr("Payer avec Apple Pay", "Pay with Apple Pay")
+            return tr("pay_with_apple_pay")
         case .googlePay:
-            return tr("Payer avec Google Pay", "Pay with Google Pay")
+            return tr("pay_with_google_pay")
         case .card:
-            return tr("Payer \(Fmt.money(call.amountCents))", "Pay \(Fmt.money(call.amountCents))")
+            return tr("pay \(Fmt.money(call.amountCents))")
         case .transfer:
-            return tr("J'ai effectué le virement", "I have made the transfer")
+            return tr("i_have_made_the_transfer")
         case .cash:
-            return tr("J'ai remis les espèces", "I have handed over the cash")
+            return tr("i_have_handed_over_the_cash")
         case nil:
-            return tr("Choisir un moyen de paiement", "Choose a payment method")
+            return tr("choose_a_payment_method")
         }
     }
 
@@ -456,11 +419,8 @@ struct PaySheet: View {
                 reference: reference.isEmpty ? call.reference : reference
             )
             NotificationService.notify(
-                title: tr("Paiement déclaré", "Payment declared"),
-                body: tr(
-                    "\(call.label) · en attente de validation du bureau.",
-                    "\(call.label) · awaiting the committee's confirmation."
-                )
+                title: tr("payment_declared"),
+                body: tr("awaiting_the_committee_s_confirmation \(call.label)")
             )
             withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) { phase = .declared }
             return
@@ -475,7 +435,7 @@ struct PaySheet: View {
                 try? await Task.sleep(for: .seconds(1.2))
                 store.markPaid(callId: call.id, memberId: user.id, method: method)
                 NotificationService.notify(
-                    title: tr("Paiement confirmé", "Payment confirmed"),
+                    title: tr("payment_confirmed"),
                     body: "\(call.label) · \(Fmt.money(call.amountCents))"
                 )
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) { phase = .paid }
@@ -514,7 +474,7 @@ struct PaySheet: View {
 
             if isPaid {
                 NotificationService.notify(
-                    title: tr("Paiement confirmé", "Payment confirmed"),
+                    title: tr("payment_confirmed"),
                     body: "\(call.label) · \(Fmt.money(call.amountCents))"
                 )
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) { phase = .paid }
@@ -536,8 +496,8 @@ struct PaySheet: View {
                 .transition(.scale.combined(with: .opacity))
 
             Text(isPaid
-                 ? tr("Paiement confirmé", "Payment confirmed")
-                 : tr("Paiement en attente de validation", "Payment awaiting confirmation"))
+                 ? tr("payment_confirmed")
+                 : tr("payment_awaiting_confirmation"))
                 .font(.title2.bold())
                 .multilineTextAlignment(.center)
                 .foregroundStyle(Theme.ink)
@@ -550,14 +510,8 @@ struct PaySheet: View {
             }
 
             Text(isPaid
-                 ? tr(
-                    "Un reçu vient de vous être envoyé par email.",
-                    "A receipt has just been emailed to you."
-                 )
-                 : tr(
-                    "Le bureau a été prévenu. Votre paiement sera marqué comme payé dès qu'il aura constaté la réception.",
-                    "The committee has been notified. Your payment will be marked as paid as soon as they confirm receipt."
-                 ))
+                 ? tr("a_receipt_has_just_been_emailed_to_you")
+                 : tr("the_committee_has_been_notified_your_payment_will_be_mar"))
                 .font(.footnote)
                 .multilineTextAlignment(.center)
                 .foregroundStyle(Theme.inkSecondary)
@@ -565,7 +519,7 @@ struct PaySheet: View {
 
             Spacer()
 
-            PrimaryButton(title: tr("Terminé", "Done")) { dismiss() }
+            PrimaryButton(title: tr("done")) { dismiss() }
                 .padding(.horizontal, 20)
                 .padding(.bottom, 24)
         }

@@ -12,6 +12,7 @@ type NotificationKind =
   | "payment_due"
   | "payment_to_confirm"
   | "payment_confirmed"
+  | "platform_announcement"
   | "event";
 
 interface NotificationPayload {
@@ -58,6 +59,15 @@ async function activeMemberships(clubId: string, roles?: string[]) {
     .where("clubId", "==", clubId)
     .where("status", "==", "active");
   if (roles) query = query.where("role", "in", roles);
+  return query.get();
+}
+
+async function activePlatformMemberships(audience: string) {
+  let query = getFirestore()
+    .collection("memberships")
+    .where("status", "==", "active");
+  if (audience === "admins")
+    query = query.where("role", "in", ["admin", "board"]);
   return query.get();
 }
 
@@ -137,6 +147,38 @@ export const onAnnouncementCreated = onDocumentCreated(
           },
         ),
       ),
+    );
+  },
+);
+
+/** Notifies active memberships after a platform-wide announcement is published. */
+export const onPlatformAnnouncementCreated = onDocumentCreated(
+  {
+    document: "platform_announcements/{announcementId}",
+    region: "europe-west9",
+  },
+  async (event) => {
+    const announcement = event.data?.data();
+    if (!announcement?.publishedAt) return;
+
+    const memberships = await activePlatformMemberships(announcement.audience);
+    // This simple fan-out is sufficient at the current scale; revisit it once
+    // a broadcast can reach more than a few hundred recipients.
+    await Promise.all(
+      memberships.docs.map((doc) => {
+        const membership = doc.data();
+        return notifyMember(
+          membership.memberId,
+          membership.clubId,
+          "platform_announcement",
+          announcement.title,
+          announcement.body,
+          {
+            announcementId: event.params.announcementId,
+            label: announcement.title,
+          },
+        );
+      }),
     );
   },
 );

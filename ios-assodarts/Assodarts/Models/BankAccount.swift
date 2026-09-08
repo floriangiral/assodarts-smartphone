@@ -10,9 +10,9 @@ enum StripeAccountStatus: String, Codable, Sendable {
 
     var label: String {
         switch self {
-        case .notConnected: tr("Non activé", "Not activated")
-        case .pending: tr("Vérification en cours", "Verification in progress")
-        case .verified: tr("Compte vérifié", "Account verified")
+        case .notConnected: tr("not_activated")
+        case .pending: tr("verification_in_progress")
+        case .verified: tr("account_verified")
         }
     }
 

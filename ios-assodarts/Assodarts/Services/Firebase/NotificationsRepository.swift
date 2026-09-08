@@ -5,7 +5,7 @@ import Foundation
 /// keep their own snake_case `CodingKeys` for local JSON persistence, so this
 /// intermediate struct is mapped by hand below rather than decoded directly
 /// into the app model.
-nonisolated struct RemoteNotification: Codable, Sendable {
+struct RemoteNotification: Codable {
     @DocumentID var id: String?
     let memberId: String
     let clubId: String

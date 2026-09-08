@@ -6,5 +6,6 @@ backend/functions/coverage/
 firebase-service-account*.json
 .firebase/
 ios-assodarts/Config/Firebase/*/GoogleService-Info.plist
+ios-assodarts/Config/Firebase/*/FirebaseConfig.plist
 ios-assodarts/Config/Firebase/*.plist
 __pycache__/

@@ -26,7 +26,16 @@ export const stripeCreateCheckout = onCall(
     const item = (await itemRef.get()).data();
 
     if (!item) throw new HttpsError("not-found", "Payment line not found");
-    if (item.memberId !== request.auth.uid) {
+    const membershipSnap = await db
+      .collection("memberships")
+      .doc(`${item.clubId}_${request.auth.uid}`)
+      .get();
+    const membership = membershipSnap.data();
+    if (
+      !membership ||
+      membership.status !== "active" ||
+      membership.memberId !== item.memberId
+    ) {
       throw new HttpsError("permission-denied", "This payment is not yours");
     }
     if (item.isPaid)

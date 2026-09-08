@@ -23,24 +23,18 @@ struct TournamentDetailView: View {
                     headerCard(tournament)
 
                     if isMarker {
-                        PrimaryButton(title: tr("Saisir un résultat", "Record a result"), symbol: "square.and.pencil") {
+                        PrimaryButton(title: tr("record_a_result"), symbol: "square.and.pencil") {
                             showsEntrySheet = true
                         }
                     }
 
                     if tournament.entries.isEmpty {
-                        ContentUnavailableView(
-                            tr("Aucun résultat", "No results"),
+                        EmptyStateView(
+                            tr("no_results"),
                             systemImage: "list.bullet.rectangle",
                             description: Text(isMarker
-                                ? tr(
-                                    "Saisissez le premier résultat du tournoi.",
-                                    "Record the first result of the tournament."
-                                )
-                                : tr(
-                                    "Les marqueurs n'ont pas encore saisi de résultat.",
-                                    "The scorers haven't recorded any result yet."
-                                ))
+                                ? tr("record_the_first_result_of_the_tournament")
+                                : tr("the_scorers_haven_t_recorded_any_result_yet"))
                         )
                         .padding(.top, 30)
                     } else {
@@ -54,7 +48,7 @@ struct TournamentDetailView: View {
             }
         }
         .assoCanvas()
-        .navigationTitle(tr("Suivi du tournoi", "Tournament tracking"))
+        .navigationTitle(tr("tournament_tracking"))
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showsEntrySheet) {
             NewEntrySheet(tournamentId: tournamentId)
@@ -86,7 +80,7 @@ struct TournamentDetailView: View {
             if !tournament.markerIds.isEmpty {
                 Divider().overlay(Theme.border)
                 VStack(alignment: .leading, spacing: 8) {
-                    SectionLabel(text: tr("Marqueurs désignés", "Appointed scorers"))
+                    SectionLabel(text: tr("appointed_scorers"))
                     ForEach(tournament.markerIds, id: \.self) { id in
                         HStack(spacing: 10) {
                             AvatarView(
@@ -150,10 +144,7 @@ struct TournamentDetailView: View {
                     .foregroundStyle(Theme.inkSecondary)
             }
 
-            Text(tr(
-                "Saisi par \(store.memberName(entry.recordedById)) · \(Fmt.shortDate(entry.recordedAt))",
-                "Recorded by \(store.memberName(entry.recordedById)) · \(Fmt.shortDate(entry.recordedAt))"
-            ))
+            Text(tr("recorded_by \(store.memberName(entry.recordedById)) \(Fmt.shortDate(entry.recordedAt))"))
                 .font(.caption2)
                 .foregroundStyle(Theme.inkSecondary)
         }
@@ -161,7 +152,7 @@ struct TournamentDetailView: View {
         .padding(.vertical, 10)
         .contextMenu {
             if isMarker {
-                Button(tr("Supprimer ce résultat", "Delete this result"), systemImage: "trash", role: .destructive) {
+                Button(tr("delete_this_result"), systemImage: "trash", role: .destructive) {
                     store.deleteEntry(entry.id, from: tournament.id)
                 }
             }

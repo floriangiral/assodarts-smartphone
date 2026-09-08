@@ -15,9 +15,52 @@ name: Quality
 permissions:
   contents: read
 
+# NOUVEAU : annule automatiquement tout run en cours sur la même branche/PR
+# dès qu'un nouveau push arrive. Évite de payer pour des runs devenus obsolètes
+# avant même d'avoir fini (gain quasi gratuit, surtout précieux sur le job
+# macOS facturé 10x).
+concurrency:
+  group: quality-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  # NOUVEAU : détecte quels dossiers ont changé pour éviter de lancer le job
+  # iOS (macOS, 10x) quand seul le backend a bougé, et inversement.
+  changes:
+    name: Detect changed paths
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      ios: ${{ steps.filter.outputs.ios }}
+      backend: ${{ steps.filter.outputs.backend }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      # NOTE : action non pinnée par SHA ici (contrairement au reste du workflow).
+      # Si tu veux garder la même discipline de pinning que le reste du fichier,
+      # récupère le SHA exact de la release dorny/paths-filter que tu choisis
+      # et remplace le tag @v3 par ce SHA, comme pour les autres actions ci-dessous.
+      - name: Detect changed paths
+        id: filter
+        uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3.0.4
+        with:
+          filters: |
+            ios:
+              - 'ios-assodarts/**'
+              - '.github/workflows/quality.yml'
+            backend:
+              - 'backend/**'
+
   ios:
     name: iOS build, test, lint, and SAST
+    needs: changes
+    # NOUVEAU : ne tourne plus que si un fichier iOS (ou ce workflow lui-même) a changé.
+    # workflow_dispatch garde toujours la possibilité de forcer le run manuellement.
+    if: needs.changes.outputs.ios == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: macos-15
     timeout-minutes: 30
     permissions:
@@ -42,7 +85,16 @@ jobs:
             ${{ runner.os }}-xcode-
 
       - name: Install SwiftLint
-        run: arch -arm64 brew install swiftlint
+        run: |
+          curl --fail --location --retry 3 \
+            --output "$RUNNER_TEMP/portable_swiftlint.zip" \
+            https://github.com/realm/SwiftLint/releases/download/0.65.1/portable_swiftlint.zip
+          echo "c1e429b0599cf1b516f369a2d9ec04eaf0e436f3c12b637df8851fa52ff694d0  $RUNNER_TEMP/portable_swiftlint.zip" | shasum --algorithm 256 --check
+          unzip -q "$RUNNER_TEMP/portable_swiftlint.zip" -d "$RUNNER_TEMP/swiftlint"
+          echo "$RUNNER_TEMP/swiftlint" >> "$GITHUB_PATH"
+
+      - name: Show SwiftLint version
+        run: swiftlint version
 
       - name: Lint Swift source
         run: swiftlint lint --lenient --config .swiftlint.yml
@@ -126,7 +178,7 @@ jobs:
 
       - name: Install Cloud Functions dependencies
         working-directory: backend/functions
-        run: npm ci
+        run: npm ci --loglevel=error
 
       - name: Audit dependencies
         working-directory: backend/functions
@@ -205,9 +257,12 @@ jobs:
 
   sonarqube:
     name: Analyze and enforce Quality Gate
-    needs: [ios, backend]
+    needs: [changes, ios, backend]
+    # MODIFIÉ : accepte "skipped" pour ios (cas où seul le backend a changé),
+    # en plus de "success". Un ios qui a réellement échoué reste bloquant.
     if: >-
-      needs.ios.result == 'success' &&
+      always() &&
+      (needs.ios.result == 'success' || needs.ios.result == 'skipped') &&
       needs.backend.result == 'success' &&
       vars.SONAR_HOST_URL != '' &&
       (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
@@ -238,131 +293,71 @@ jobs:
 
   staging-distribute:
     name: Archive and distribute iOS staging build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/staging'
-    needs: [ios, backend, sonarqube]
-    runs-on: macos-15
+    # MODIFIÉ : accepte "skipped" pour ios ici aussi, par cohérence — même si en
+    # pratique un push staging touche presque toujours ios-assodarts/.
+    if: >-
+      github.event_name == 'push' && github.ref == 'refs/heads/staging' &&
+      (needs.ios.result == 'success' || needs.ios.result == 'skipped')
+    needs: [changes, ios, backend, sonarqube]
+    runs-on: ubuntu-latest
     environment: staging
     timeout-minutes: 30
     permissions:
       contents: read
-    env:
-      FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
-      FIREBASE_IOS_APP_ID: ${{ vars.FIREBASE_IOS_APP_ID }}
-      FIREBASE_TESTER_GROUP: ${{ secrets.FIREBASE_TESTER_GROUP }}
-      GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/firebase-service-account.json
     steps:
-      - name: Check out source
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-
-      - name: Validate staging configuration
+      - name: Trigger Codemagic build
         run: |
-          test -n "$FIREBASE_PROJECT_ID" || { echo "FIREBASE_PROJECT_ID is not configured"; exit 1; }
-          test -n "$FIREBASE_IOS_APP_ID" || { echo "FIREBASE_IOS_APP_ID is not configured"; exit 1; }
-          test -n "$FIREBASE_TESTER_GROUP" || { echo "FIREBASE_TESTER_GROUP is not configured"; exit 1; }
-          test -n "$APPLE_TEAM_ID" || { echo "APPLE_TEAM_ID is not configured"; exit 1; }
-          test -n "$APPLE_CERTIFICATE_P12_BASE64" || { echo "APPLE_CERTIFICATE_P12_BASE64 is not configured"; exit 1; }
-          test -n "$APPLE_CERTIFICATE_PASSWORD" || { echo "APPLE_CERTIFICATE_PASSWORD is not configured"; exit 1; }
-          test -n "$APPLE_PROVISIONING_PROFILE_BASE64" || { echo "APPLE_PROVISIONING_PROFILE_BASE64 is not configured"; exit 1; }
-          test -n "$GOOGLE_SERVICE_INFO_PLIST_STAGING_BASE64" || { echo "GOOGLE_SERVICE_INFO_PLIST_STAGING_BASE64 is not configured"; exit 1; }
-          test -n "$FIREBASE_SERVICE_ACCOUNT" || { echo "FIREBASE_SERVICE_ACCOUNT is not configured"; exit 1; }
+          response=$(curl --fail-with-body --silent --show-error \
+            --request POST https://api.codemagic.io/builds \
+            --header "Content-Type: application/json" \
+            --header "x-auth-token: $CODEMAGIC_API_TOKEN" \
+            --data "$(jq -nc --arg appId "$CODEMAGIC_APP_ID" '{appId: $appId, workflowId: "ios-staging-distribute", branch: "staging"}')")
+          build_id=$(jq -r '.buildId // empty' <<< "$response")
+          test -n "$build_id" || { echo "Codemagic did not return buildId: $response"; exit 1; }
+          echo "CODEMAGIC_BUILD_ID=$build_id" >> "$GITHUB_ENV"
+          echo "CODEMAGIC_BUILD_URL=https://codemagic.io/app/$CODEMAGIC_APP_ID/build/$build_id" >> "$GITHUB_ENV"
         env:
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          APPLE_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_PROVISIONING_PROFILE_BASE64: ${{ secrets.APPLE_PROVISIONING_PROFILE_BASE64 }}
-          GOOGLE_SERVICE_INFO_PLIST_STAGING_BASE64: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST_STAGING_BASE64 }}
-          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          CODEMAGIC_API_TOKEN: ${{ secrets.CODEMAGIC_API_TOKEN }}
+          CODEMAGIC_APP_ID: ${{ vars.CODEMAGIC_APP_ID }}
 
-      - name: Install Apple signing certificate
-        uses: apple-actions/import-codesign-certs@v3
-        with:
-          p12-file-base64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
-          p12-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-
-      - name: Install staging provisioning profile
+      - name: Wait for Codemagic build completion
         run: |
-          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
-          echo "$APPLE_PROVISIONING_PROFILE_BASE64" | base64 --decode > "$RUNNER_TEMP/staging.mobileprovision"
-          profile_uuid=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin < <(security cms -D -i "$RUNNER_TEMP/staging.mobileprovision"))
-          cp "$RUNNER_TEMP/staging.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/$profile_uuid.mobileprovision"
+          deadline=$((SECONDS + 1740))
+          while (( SECONDS < deadline )); do
+            response=$(curl --fail-with-body --silent --show-error \
+              --header "x-auth-token: $CODEMAGIC_API_TOKEN" \
+              "https://api.codemagic.io/builds/$CODEMAGIC_BUILD_ID")
+            status=$(jq -r '.status // empty' <<< "$response")
+            echo "Codemagic build $CODEMAGIC_BUILD_ID status: ${status:-unknown}"
+            case "$status" in
+              finished)
+                echo "CODEMAGIC_BUILD_STATUS=$status" >> "$GITHUB_ENV"
+                exit 0
+                ;;
+              failed|canceled|timeout|skipped)
+                echo "CODEMAGIC_BUILD_STATUS=$status" >> "$GITHUB_ENV"
+                echo "Codemagic build ended with status $status: $CODEMAGIC_BUILD_URL"
+                exit 1
+                ;;
+            esac
+            sleep 20
+          done
+          echo "CODEMAGIC_BUILD_STATUS=timeout" >> "$GITHUB_ENV"
+          echo "Timed out waiting for Codemagic build: $CODEMAGIC_BUILD_URL"
+          exit 1
         env:
-          APPLE_PROVISIONING_PROFILE_BASE64: ${{ secrets.APPLE_PROVISIONING_PROFILE_BASE64 }}
-
-      - name: Write staging Firebase configuration
-        run: |
-          mkdir -p ios-assodarts/Config/Firebase/Staging
-          echo "$GOOGLE_SERVICE_INFO_PLIST_STAGING_BASE64" | base64 --decode > ios-assodarts/Config/Firebase/Staging/GoogleService-Info.plist
-        env:
-          GOOGLE_SERVICE_INFO_PLIST_STAGING_BASE64: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST_STAGING_BASE64 }}
-
-      - name: Write Firebase service account
-        run: |
-          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$GOOGLE_APPLICATION_CREDENTIALS"
-          chmod 600 "$GOOGLE_APPLICATION_CREDENTIALS"
-        env:
-          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-
-      - name: Archive staging app
-        run: >-
-          xcodebuild archive
-          -project ios-assodarts/Assodarts.xcodeproj
-          -scheme Staging
-          -configuration Staging
-          -archivePath "$RUNNER_TEMP/Assodarts-Staging.xcarchive"
-          -allowProvisioningUpdates
-          DEVELOPMENT_TEAM="$APPLE_TEAM_ID"
-          CODE_SIGN_STYLE=Automatic
-        env:
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-
-      - name: Create export options
-        run: |
-          cat > "$RUNNER_TEMP/ExportOptions.plist" <<'PLIST'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0"><dict>
-          <key>method</key><string>app-store</string>
-          <key>signingStyle</key><string>automatic</string>
-          <key>teamID</key><string>__APPLE_TEAM_ID__</string>
-          <key>destination</key><string>export</string>
-          </dict></plist>
-          PLIST
-          sed -i '' "s/__APPLE_TEAM_ID__/$APPLE_TEAM_ID/" "$RUNNER_TEMP/ExportOptions.plist"
-        env:
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-
-      - name: Export IPA
-        run: >-
-          xcodebuild -exportArchive
-          -archivePath "$RUNNER_TEMP/Assodarts-Staging.xcarchive"
-          -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist"
-          -exportPath "$RUNNER_TEMP/Assodarts-Staging-export"
-          -allowProvisioningUpdates
-
-      - name: Upload to Firebase App Distribution
-        run: |
-          npx --yes firebase-tools@15.29.0 appdistribution:distribute \
-            "$RUNNER_TEMP/Assodarts-Staging-export/Assodarts.ipa" \
-            --app "$FIREBASE_IOS_APP_ID" \
-            --groups "$FIREBASE_TESTER_GROUP" \
-            --project "$FIREBASE_PROJECT_ID" \
-            --non-interactive 2>&1 | tee "$RUNNER_TEMP/firebase-distribution.log"
+          CODEMAGIC_API_TOKEN: ${{ secrets.CODEMAGIC_API_TOKEN }}
 
       - name: Publish staging build summary
         if: always()
         run: |
-          version=$(xcodebuild -showBuildSettings -project ios-assodarts/Assodarts.xcodeproj -scheme Staging -configuration Staging 2>/dev/null | awk -F ' = ' '/MARKETING_VERSION/ { print $2; exit }')
-          build=$(xcodebuild -showBuildSettings -project ios-assodarts/Assodarts.xcodeproj -scheme Staging -configuration Staging 2>/dev/null | awk -F ' = ' '/CURRENT_PROJECT_VERSION/ { print $2; exit }')
           {
             echo "## Assodarts Staging"
-            echo "- Version: ${version:-unknown} (${build:-unknown})"
-            if [ -f "$RUNNER_TEMP/firebase-distribution.log" ]; then
-              grep -Eo 'https?://[^ ]+' "$RUNNER_TEMP/firebase-distribution.log" | tail -1 | sed 's/^/- Tester link: /' || true
+            echo "- Status: ${CODEMAGIC_BUILD_STATUS:-not started}"
+            if [ -n "${CODEMAGIC_BUILD_URL:-}" ]; then
+              echo "- Codemagic build: $CODEMAGIC_BUILD_URL"
+            fi
+            if [ "${CODEMAGIC_BUILD_STATUS:-}" = "finished" ]; then
+              echo "- Distributed via TestFlight, group beta-clubs"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Remove credentials and staging plist
-        if: always()
-        run: |
-          rm -f "$GOOGLE_APPLICATION_CREDENTIALS"
-          rm -f ios-assodarts/Config/Firebase/Staging/GoogleService-Info.plist

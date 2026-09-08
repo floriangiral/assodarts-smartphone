@@ -7,10 +7,11 @@ struct DashboardHeader: View {
     let subtitle: String
 
     @Environment(AppStore.self) private var store
+    @State private var clubSwitchError: String?
 
     private var greeting: String {
         let hour = Calendar.current.component(.hour, from: .now)
-        return hour < 18 ? tr("Bonjour", "Hello") : tr("Bonsoir", "Good evening")
+        return hour < 18 ? tr("hello") : tr("good_evening")
     }
 
     var body: some View {
@@ -19,16 +20,20 @@ struct DashboardHeader: View {
                 AvatarView(initials: user.initials, photoData: user.photoData, size: 48)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(tr("Mon profil", "My profile"))
+            .accessibilityLabel(tr("my_profile"))
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("\(greeting), \(user.firstName)")
                     .font(.title3.bold())
                     .foregroundStyle(Theme.ink)
-                Text(subtitle)
-                    .font(.footnote)
-                    .foregroundStyle(Theme.inkSecondary)
-                    .lineLimit(1)
+                if store.availableClubs.count > 1 {
+                    clubSwitcher
+                } else {
+                    Text(subtitle)
+                        .font(.footnote)
+                        .foregroundStyle(Theme.inkSecondary)
+                        .lineLimit(1)
+                }
             }
 
             Spacer(minLength: 8)
@@ -40,7 +45,7 @@ struct DashboardHeader: View {
                 )
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(tr("Notifications", "Notifications"))
+            .accessibilityLabel(tr("notifications"))
 
             NavigationLink(value: ClubRoute.messages) {
                 iconButton(
@@ -49,8 +54,50 @@ struct DashboardHeader: View {
                 )
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(tr("Messages", "Messages"))
+            .accessibilityLabel(tr("messages_dashboardheader"))
         }
+        .alert(
+            tr("couldn_t_switch_club"),
+            isPresented: Binding(get: { clubSwitchError != nil }, set: { if !$0 { clubSwitchError = nil } })
+        ) {
+            Button(tr("ok"), role: .cancel) {}
+        } message: {
+            Text(clubSwitchError ?? "")
+        }
+    }
+
+    /// Lets a member who belongs to several clubs switch the active one, right from the header.
+    private var clubSwitcher: some View {
+        Menu {
+            ForEach(store.availableClubs) { club in
+                Button {
+                    guard club.id != store.activeClubRemoteId else { return }
+                    Task {
+                        if let message = await store.switchActiveClub(to: club.id) {
+                            clubSwitchError = message
+                        }
+                    }
+                } label: {
+                    if club.id == store.activeClubRemoteId {
+                        Label(club.name, systemImage: "checkmark")
+                    } else {
+                        Text(club.name)
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Text(subtitle)
+                    .font(.footnote)
+                    .foregroundStyle(Theme.inkSecondary)
+                    .lineLimit(1)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(Theme.inkSecondary)
+            }
+        }
+        .disabled(store.isSyncing)
+        .accessibilityLabel(tr("switch_active_club"))
     }
 
     /// Round toolbar button with an optional unread count.

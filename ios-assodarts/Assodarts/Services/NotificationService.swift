@@ -24,7 +24,7 @@ enum NotificationService {
             let granted = try await UNUserNotificationCenter.current()
                 .requestAuthorization(options: [.alert, .badge, .sound])
             if granted {
-                await UIApplication.shared.registerForRemoteNotifications()
+                UIApplication.shared.registerForRemoteNotifications()
             }
         } catch {
             print("Notifications: authorization denied or unavailable")
@@ -86,29 +86,20 @@ enum NotificationService {
             (
                 "7d",
                 -7,
-                tr("Paiement à venir", "Payment coming up"),
-                tr(
-                    "\(reminder.label) · \(amount) à régler sous 7 jours.",
-                    "\(reminder.label) · \(amount) due within 7 days."
-                )
+                tr("payment_coming_up"),
+                tr("due_within_7_days \(reminder.label) \(amount)")
             ),
             (
                 "1d",
                 -1,
-                tr("Paiement demain", "Payment due tomorrow"),
-                tr(
-                    "\(reminder.label) · \(amount) à régler avant demain soir.",
-                    "\(reminder.label) · \(amount) due by tomorrow evening."
-                )
+                tr("payment_due_tomorrow"),
+                tr("due_by_tomorrow_evening \(reminder.label) \(amount)")
             ),
             (
                 "late",
                 1,
-                tr("Paiement en retard", "Payment overdue"),
-                tr(
-                    "\(reminder.label) · \(amount) n'a pas encore été réglé.",
-                    "\(reminder.label) · \(amount) has still not been settled."
-                )
+                tr("payment_overdue"),
+                tr("has_still_not_been_settled \(reminder.label) \(amount)")
             )
         ]
 

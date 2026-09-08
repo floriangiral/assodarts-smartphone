@@ -5,6 +5,10 @@ import SwiftUI
 enum Lang: String, Codable, Sendable, Hashable {
     case fr
     case en
+
+    nonisolated var locale: Locale {
+        self == .fr ? Locale(identifier: "fr_FR") : Locale(identifier: "en_GB")
+    }
 }
 
 /// What the user picked in the settings: follow the device, or force a language.
@@ -25,9 +29,9 @@ enum AppLanguage: String, CaseIterable, Identifiable, Codable, Sendable {
 
     nonisolated var label: String {
         switch self {
-        case .system: tr("Automatique (appareil)", "Automatic (device)")
-        case .french: "Français"
-        case .english: "English"
+        case .system: tr("automatic_device")
+        case .french: tr("french")
+        case .english: tr("english")
         }
     }
 }
@@ -46,17 +50,15 @@ nonisolated func detectDeviceLanguage() -> Lang {
     return .en
 }
 
-/// The language currently used to resolve `tr(_:_:)`. Mirrored from
+/// The language currently used to resolve catalog-backed `tr(_:)` calls. Mirrored from
 /// `Localization.shared` so it can be read from any context, including
 /// value types and formatters.
 nonisolated(unsafe) private var activeLanguage: Lang = detectDeviceLanguage()
 
-/// Returns the French or English variant of a piece of copy.
-///
-/// Strings live side by side at their point of use, which keeps every screen
-/// readable and makes a missing translation impossible.
-nonisolated func tr(_ french: String, _ english: String) -> String {
-    activeLanguage == .fr ? french : english
+/// Resolves a String Catalog key using the app-selected locale, independently
+/// from the device's preferred language list.
+nonisolated func tr(_ key: String.LocalizationValue) -> String {
+    String(localized: key, locale: currentLang.locale)
 }
 
 /// The active language, readable from anywhere.
@@ -109,7 +111,7 @@ struct LanguageMenu: View {
 
     var body: some View {
         Menu {
-            Picker(tr("Langue", "Language"), selection: Binding(
+            Picker(tr("language"), selection: Binding(
                 get: { localization.preference },
                 set: { localization.preference = $0 }
             )) {

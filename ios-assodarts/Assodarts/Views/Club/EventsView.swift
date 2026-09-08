@@ -15,9 +15,9 @@ struct EventsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 14) {
-                Picker(tr("Période", "Period"), selection: $showsPast) {
-                    Text(tr("À venir", "Upcoming")).tag(false)
-                    Text(tr("Passés", "Past")).tag(true)
+                Picker(tr("period"), selection: $showsPast) {
+                    Text(tr("upcoming")).tag(false)
+                    Text(tr("past")).tag(true)
                 }
                 .pickerStyle(.segmented)
                 .padding(.bottom, 2)
@@ -30,15 +30,12 @@ struct EventsView: View {
                 }
 
                 if events.isEmpty {
-                    ContentUnavailableView(
+                    EmptyStateView(
                         showsPast
-                            ? tr("Aucun événement passé", "No past events")
-                            : tr("Aucun événement à venir", "No upcoming events"),
+                            ? tr("no_past_events")
+                            : tr("no_upcoming_events"),
                         systemImage: "calendar",
-                        description: Text(tr(
-                            "Le bureau publiera ici les entraînements et compétitions.",
-                            "The committee will post training sessions and competitions here."
-                        ))
+                        description: Text(tr("the_committee_will_post_training_sessions_and_competitio"))
                     )
                     .padding(.top, 60)
                 }
@@ -47,7 +44,7 @@ struct EventsView: View {
             .padding(.vertical, 12)
         }
         .assoCanvas()
-        .navigationTitle(tr("Événements", "Events"))
+        .navigationTitle(tr("events"))
         .toolbar {
             if store.canManageClub {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -56,7 +53,7 @@ struct EventsView: View {
                     } label: {
                         Image(systemName: "plus")
                     }
-                    .accessibilityLabel(tr("Nouvel événement", "New event"))
+                    .accessibilityLabel(tr("new_event"))
                 }
             }
         }
@@ -85,7 +82,7 @@ struct EventCard: View {
                 Spacer()
                 if let user = store.currentUser, let response = event.response(for: user.id) {
                     StatusChip(
-                        text: response ? tr("Présent", "Going") : tr("Absent", "Not going"),
+                        text: response ? tr("going") : tr("not_going"),
                         tint: response ? Theme.green : Theme.inkSecondary,
                         background: response ? Theme.greenTint : Theme.canvas
                     )
@@ -107,7 +104,7 @@ struct EventCard: View {
             HStack(spacing: 6) {
                 Image(systemName: "person.2.fill")
                     .font(.caption2)
-                Text(Fmt.count(event.attendeeIds.count, "présent", "présents", "attending", "attending"))
+                Text(Fmt.count(event.attendeeIds.count, key: .attendees))
                     .font(.caption.weight(.medium))
                 Spacer()
                 Image(systemName: "chevron.right")
@@ -160,10 +157,10 @@ struct EventDetailView: View {
 
                     if event.date >= .now {
                         VStack(alignment: .leading, spacing: 12) {
-                            SectionLabel(text: tr("Votre réponse", "Your answer"))
+                            SectionLabel(text: tr("your_answer"))
                             HStack(spacing: 12) {
                                 answerButton(
-                                    tr("Présent", "Going"),
+                                    tr("going"),
                                     symbol: "checkmark.circle.fill",
                                     tint: Theme.green,
                                     isSelected: event.response(for: user.id) == true
@@ -175,7 +172,7 @@ struct EventDetailView: View {
                                     )
                                 }
                                 answerButton(
-                                    tr("Absent", "Not going"),
+                                    tr("not_going"),
                                     symbol: "xmark.circle.fill",
                                     tint: Theme.red,
                                     isSelected: event.response(for: user.id) == false
@@ -192,12 +189,9 @@ struct EventDetailView: View {
                     }
 
                     VStack(alignment: .leading, spacing: 12) {
-                        SectionLabel(text: tr(
-                            "Participants · \(event.attendeeIds.count)",
-                            "Attendees · \(event.attendeeIds.count)"
-                        ))
+                        SectionLabel(text: tr("attendees \(event.attendeeIds.count)"))
                         if event.attendeeIds.isEmpty {
-                            Text(tr("Aucune réponse pour l'instant.", "No answers yet."))
+                            Text(tr("no_answers_yet"))
                                 .font(.footnote)
                                 .foregroundStyle(Theme.inkSecondary)
                         } else {
@@ -224,7 +218,7 @@ struct EventDetailView: View {
             }
         }
         .assoCanvas()
-        .navigationTitle(tr("Événement", "Event"))
+        .navigationTitle(tr("event"))
         .navigationBarTitleDisplayMode(.inline)
     }
 
@@ -235,18 +229,14 @@ struct EventDetailView: View {
         isSelected: Bool,
         action: @escaping () -> Void
     ) -> some View {
-        Button(action: action) {
-            HStack(spacing: 8) {
-                Image(systemName: symbol)
-                Text(title)
-                    .font(.subheadline.weight(.semibold))
-            }
-            .frame(maxWidth: .infinity)
-            .frame(height: 46)
-            .foregroundStyle(isSelected ? .white : tint)
-            .background(isSelected ? tint : tint.opacity(0.1))
-            .clipShape(.rect(cornerRadius: 12))
-        }
-        .buttonStyle(PressableButtonStyle())
+        TintedActionButton(
+            title: title,
+            symbol: symbol,
+            foreground: isSelected ? .white : tint,
+            background: isSelected ? tint : tint.opacity(0.1),
+            font: .subheadline.weight(.semibold),
+            height: 46,
+            action: action
+        )
     }
 }

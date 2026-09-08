@@ -13,8 +13,6 @@ struct SafariSheet: UIViewControllerRepresentable {
         configuration.barCollapsingEnabled = true
 
         let controller = SFSafariViewController(url: url, configuration: configuration)
-        controller.preferredBarTintColor = UIColor(Theme.navy)
-        controller.preferredControlTintColor = .white
         controller.dismissButtonStyle = .close
         return controller
     }

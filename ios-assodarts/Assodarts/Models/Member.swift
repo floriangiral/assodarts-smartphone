@@ -34,7 +34,7 @@ struct Member: Identifiable, Codable, Sendable, Hashable {
     }
 
     var licenceLabel: String {
-        isLicensed ? tr("Licencié", "Licensed") : tr("Membre simple", "Standard member")
+        isLicensed ? tr("licensed") : tr("standard_member")
     }
 
     init(

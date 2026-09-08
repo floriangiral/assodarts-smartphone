@@ -37,10 +37,7 @@ enum StripeService {
             .call(["clubId": clubId.uuidString])
         let response = try decode(result.data, as: ConnectOnboardResponse.self)
         guard let url = URL(string: response.url) else {
-            throw BackendError.message(tr(
-                "Lien Stripe invalide. Réessayez.",
-                "Invalid Stripe link. Please try again."
-            ))
+            throw BackendError.message(tr("invalid_stripe_link_please_try_again"))
         }
         return Onboarding(url: url, accountId: response.accountId, status: .fromRemote(response.status))
     }
@@ -60,10 +57,7 @@ enum StripeService {
             .call(["itemId": itemId.uuidString])
         let response = try decode(result.data, as: CheckoutResponse.self)
         guard let url = URL(string: response.url) else {
-            throw BackendError.message(tr(
-                "Paiement indisponible pour le moment.",
-                "Payment is unavailable right now."
-            ))
+            throw BackendError.message(tr("payment_is_unavailable_right_now"))
         }
         return url
     }

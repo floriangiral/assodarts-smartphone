@@ -27,13 +27,10 @@ struct PaymentValidationView: View {
         ScrollView {
             VStack(spacing: 16) {
                 if queue.isEmpty {
-                    ContentUnavailableView(
-                        tr("Rien à valider", "Nothing to confirm"),
+                    EmptyStateView(
+                        tr("nothing_to_confirm"),
                         systemImage: "checkmark.seal",
-                        description: Text(tr(
-                            "Les virements et paiements en espèces déclarés par vos membres apparaîtront ici.",
-                            "Transfers and cash payments declared by your members will appear here."
-                        ))
+                        description: Text(tr("transfers_and_cash_payments_declared_by_your_members_wil"))
                     )
                     .padding(.top, 60)
                 } else {
@@ -41,10 +38,7 @@ struct PaymentValidationView: View {
                     ForEach(queue, id: \.item.id) { entry in
                         card(entry)
                     }
-                    Text(tr(
-                        "Validez uniquement après avoir vu les fonds sur le compte du club ou encaissé les espèces.",
-                        "Only confirm once you have seen the money on the club account or received the cash."
-                    ))
+                    Text(tr("only_confirm_once_you_have_seen_the_money_on_the_club_ac"))
                         .font(.caption)
                         .multilineTextAlignment(.center)
                         .foregroundStyle(Theme.inkSecondary)
@@ -55,47 +49,35 @@ struct PaymentValidationView: View {
             .padding(.vertical, 12)
         }
         .assoCanvas()
-        .navigationTitle(tr("Paiements à valider", "Payments to confirm"))
+        .navigationTitle(tr("payments_to_confirm"))
         .navigationBarTitleDisplayMode(.inline)
         .confirmationDialog(
             rejecting.map {
-                tr("Refuser le paiement de \($0.name) ?", "Reject \($0.name)'s payment?")
+                tr("reject_s_payment \($0.name)")
             } ?? "",
             isPresented: Binding(get: { rejecting != nil }, set: { if !$0 { rejecting = nil } }),
             titleVisibility: .visible
         ) {
             if let target = rejecting {
-                Button(tr("Refuser et remettre en attente", "Reject and set back to pending"), role: .destructive) {
+                Button(tr("reject_and_set_back_to_pending"), role: .destructive) {
                     store.cancelDeclaration(callId: target.callId, memberId: target.memberId)
                     rejecting = nil
                 }
             }
-            Button(tr("Annuler", "Cancel"), role: .cancel) { rejecting = nil }
+            Button(tr("cancel"), role: .cancel) { rejecting = nil }
         } message: {
-            Text(tr(
-                "Le membre sera de nouveau invité à régler et pourra être relancé.",
-                "The member will be asked to pay again and can be chased."
-            ))
+            Text(tr("the_member_will_be_asked_to_pay_again_and_can_be_chased"))
         }
     }
 
     private var summaryCard: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(tr("En attente de validation", "Awaiting confirmation"))
+            Text(tr("awaiting_confirmation"))
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Theme.inkSecondary)
-            Text(Fmt.money(totalCents))
-                .font(.system(size: 38, weight: .bold, design: .rounded))
-                .monospacedDigit()
-                .foregroundStyle(Theme.navy)
+            MetricNumber(value: Fmt.money(totalCents), color: Theme.navy)
                 .contentTransition(.numericText())
-            Text(Fmt.count(
-                queue.count,
-                "déclaration de membre",
-                "déclarations de membres",
-                "member declaration",
-                "member declarations"
-            ))
+            Text(Fmt.count(queue.count, key: .memberDeclarations))
                 .font(.footnote)
                 .foregroundStyle(Theme.inkSecondary)
         }
@@ -111,7 +93,7 @@ struct PaymentValidationView: View {
                 AvatarView(initials: member?.initials ?? "??", photoData: member?.photoData, size: 42)
 
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(member?.fullName ?? tr("Membre", "Member"))
+                    Text(member?.fullName ?? tr("member"))
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Theme.ink)
                     Text(entry.call.label)
@@ -136,10 +118,7 @@ struct PaymentValidationView: View {
                     symbol: method.symbol
                 )
                 if let declaredAt = entry.item.declaredAt {
-                    Text(tr(
-                        "déclaré le \(Fmt.shortDate(declaredAt))",
-                        "declared on \(Fmt.shortDate(declaredAt))"
-                    ))
+                    Text(tr("declared_on_paymentvalidationview \(Fmt.shortDate(declaredAt))"))
                         .font(.caption)
                         .foregroundStyle(Theme.inkSecondary)
                 }
@@ -156,42 +135,38 @@ struct PaymentValidationView: View {
                 .foregroundStyle(Theme.inkSecondary)
                 .padding(10)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Theme.canvas, in: .rect(cornerRadius: 10))
+                .background(Theme.canvas, in: .rect(cornerRadius: Theme.compactRadius))
             }
 
             HStack(spacing: 10) {
-                Button {
+                TintedActionButton(
+                    title: tr("confirm"),
+                    symbol: "checkmark",
+                    foreground: .white,
+                    background: Theme.green,
+                    font: .subheadline.weight(.semibold)
+                ) {
                     validate(entry)
-                } label: {
-                    Label(tr("Valider", "Confirm"), systemImage: "checkmark")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 44)
-                        .background(Theme.green, in: .rect(cornerRadius: 12))
                 }
-                .buttonStyle(PressableButtonStyle())
 
-                Button {
+                TintedActionButton(
+                    title: tr("reject"),
+                    symbol: "xmark",
+                    foreground: Theme.red,
+                    background: Theme.redTint,
+                    font: .subheadline.weight(.semibold)
+                ) {
                     rejecting = RejectTarget(
                         callId: entry.call.id,
                         memberId: entry.item.memberId,
-                        name: member?.firstName ?? tr("ce membre", "this member")
+                        name: member?.firstName ?? tr("this_member")
                     )
-                } label: {
-                    Label(tr("Refuser", "Reject"), systemImage: "xmark")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(Theme.red)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 44)
-                        .background(Theme.redTint, in: .rect(cornerRadius: 12))
                 }
-                .buttonStyle(PressableButtonStyle())
             }
 
             NavigationLink(value: ClubRoute.paymentCall(entry.call.id)) {
                 HStack(spacing: 4) {
-                    Text(tr("Voir l'appel à paiement", "Open the payment request"))
+                    Text(tr("open_the_payment_request"))
                         .font(.caption.weight(.semibold))
                     Image(systemName: "chevron.right")
                         .font(.caption2.weight(.bold))
@@ -213,11 +188,8 @@ struct PaymentValidationView: View {
             )
         }
         NotificationService.notify(
-            title: tr("Paiement validé", "Payment confirmed"),
-            body: tr(
-                "\(store.memberName(entry.item.memberId)) · \(Fmt.money(entry.call.amountCents)) encaissés.",
-                "\(store.memberName(entry.item.memberId)) · \(Fmt.money(entry.call.amountCents)) collected."
-            )
+            title: tr("payment_confirmed_paymentvalidationview"),
+            body: tr("collected_paymentvalidationview \(store.memberName(entry.item.memberId)) \(Fmt.money(entry.call.amountCents))")
         )
     }
 }

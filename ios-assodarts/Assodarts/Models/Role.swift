@@ -11,35 +11,23 @@ enum Role: String, Codable, CaseIterable, Identifiable, Sendable {
 
     var label: String {
         switch self {
-        case .membre: tr("Membre", "Member")
-        case .bureau: tr("Bureau", "Committee")
-        case .admin: tr("Admin", "Admin")
-        case .developpeur: tr("Développeur", "Developer")
+        case .membre: tr("member")
+        case .bureau: tr("committee")
+        case .admin: tr("admin")
+        case .developpeur: tr("developer")
         }
     }
 
     var permissionSummary: String {
         switch self {
         case .membre:
-            tr(
-                "Consulte les annonces, les événements et règle ses paiements",
-                "Reads announcements and events, and pays their dues"
-            )
+            tr("reads_announcements_and_events_and_pays_their_dues")
         case .bureau:
-            tr(
-                "Peut gérer les membres, les annonces et les appels à paiement",
-                "Can manage members, announcements and payment requests"
-            )
+            tr("can_manage_members_announcements_and_payment_requests")
         case .admin:
-            tr(
-                "Gère l'ensemble du club, les rôles et l'abonnement",
-                "Manages the whole club, roles and the subscription"
-            )
+            tr("manages_the_whole_club_roles_and_the_subscription")
         case .developpeur:
-            tr(
-                "Accès à la console développeur de la plateforme",
-                "Access to the platform developer console"
-            )
+            tr("access_to_the_platform_developer_console")
         }
     }
 
