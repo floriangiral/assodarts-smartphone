@@ -9,6 +9,7 @@ nonisolated enum NotificationKind: String, Codable, Sendable {
     case paymentDue = "payment_due"
     case paymentToConfirm = "payment_to_confirm"
     case paymentConfirmed = "payment_confirmed"
+    case platformAnnouncement = "platform_announcement"
     case event
     case unknown
 
@@ -23,28 +24,31 @@ nonisolated enum NotificationKind: String, Codable, Sendable {
         case .paymentDue: "eurosign.circle.fill"
         case .paymentToConfirm: "clock.badge.checkmark"
         case .paymentConfirmed: "checkmark.seal.fill"
+        case .platformAnnouncement: "megaphone.fill"
         case .event: "calendar"
         case .unknown: "bell.fill"
         }
     }
 
-    var tint: Color {
+    @MainActor var tint: Color {
         switch self {
         case .announcement: Theme.orange
         case .paymentDue: Theme.amber
         case .paymentToConfirm: Theme.navy
         case .paymentConfirmed: Theme.green
+        case .platformAnnouncement: Theme.orange
         case .event: Theme.navy
         case .unknown: Theme.inkSecondary
         }
     }
 
-    var background: Color {
+    @MainActor var background: Color {
         switch self {
         case .announcement: Theme.orangeTint
         case .paymentDue: Theme.amberTint
         case .paymentToConfirm: Theme.navyTint
         case .paymentConfirmed: Theme.greenTint
+        case .platformAnnouncement: Theme.orangeTint
         case .event: Theme.navyTint
         case .unknown: Theme.navyTint
         }
@@ -110,17 +114,19 @@ nonisolated struct AppNotification: Identifiable, Codable, Sendable, Hashable {
     var localizedTitle: String {
         switch kind {
         case .announcement:
-            return tr("Nouvelle annonce", "New announcement")
+            return tr("new_announcement")
         case .paymentDue:
-            return tr("Nouveau paiement à régler", "New payment to settle")
+            return tr("new_payment_to_settle")
         case .paymentToConfirm:
-            return tr("Paiement à valider", "Payment to confirm")
+            return tr("payment_to_confirm")
         case .paymentConfirmed:
-            return tr("Paiement confirmé", "Payment confirmed")
+            return tr("payment_confirmed")
+        case .platformAnnouncement:
+            return title.isEmpty ? tr("notification") : title
         case .event:
-            return tr("Nouvel événement", "New event")
+            return tr("new_event")
         case .unknown:
-            return title.isEmpty ? tr("Notification", "Notification") : title
+            return title.isEmpty ? tr("notification") : title
         }
     }
 
@@ -134,16 +140,18 @@ nonisolated struct AppNotification: Identifiable, Codable, Sendable, Hashable {
             return title.isEmpty ? body : title
         case .paymentDue:
             guard let amount else { return label }
-            return tr("\(label) · \(amount) à régler", "\(label) · \(amount) to settle")
+            return tr("to_settle \(label) \(amount)")
         case .paymentToConfirm:
-            let who = payload.memberName ?? tr("Un membre", "A member")
+            let who = payload.memberName ?? tr("a_member")
             guard let amount else {
-                return tr("\(who) a déclaré un paiement.", "\(who) declared a payment.")
+                return tr("declared_a_payment \(who)")
             }
-            return tr("\(who) déclare \(amount) pour \(label).", "\(who) declared \(amount) for \(label).")
+            return tr("declared_for \(who) \(amount) \(label)")
         case .paymentConfirmed:
             guard let amount else { return label }
-            return tr("\(label) · \(amount) encaissé", "\(label) · \(amount) received")
+            return tr("received \(label) \(amount)")
+        case .platformAnnouncement:
+            return title.isEmpty ? body : title
         case .event:
             return body.isEmpty ? label : "\(label) · \(body)"
         case .unknown:
@@ -162,7 +170,7 @@ nonisolated struct AppNotification: Identifiable, Codable, Sendable, Hashable {
             return .myPayments
         case .paymentToConfirm:
             return .paymentValidation
-        case .unknown:
+        case .platformAnnouncement, .unknown:
             return nil
         }
     }

@@ -39,7 +39,7 @@ enum Fmt {
     nonisolated static func conversationStamp(_ date: Date) -> String {
         let calendar = Calendar(identifier: .gregorian)
         if calendar.isDateInToday(date) { return time(date) }
-        if calendar.isDateInYesterday(date) { return tr("hier", "yesterday") }
+        if calendar.isDateInYesterday(date) { return tr("yesterday") }
         guard let days = calendar.dateComponents([.day], from: date, to: .now).day else {
             return shortDate(date)
         }
@@ -51,18 +51,43 @@ enum Fmt {
 
     nonisolated static func daySeparator(_ date: Date) -> String {
         let calendar = Calendar(identifier: .gregorian)
-        if calendar.isDateInToday(date) { return tr("Aujourd'hui", "Today") }
-        if calendar.isDateInYesterday(date) { return tr("Hier", "Yesterday") }
+        if calendar.isDateInToday(date) { return tr("today") }
+        if calendar.isDateInYesterday(date) { return tr("yesterday_formatters") }
         return mediumDate(date)
     }
 
     /// Pluralizes a countable label in both languages, e.g. `3 membres` / `3 members`.
-    nonisolated static func count(_ value: Int, _ frenchSingular: String, _ frenchPlural: String, _ englishSingular: String, _ englishPlural: String) -> String {
-        let number = value.formatted(.number.locale(locale))
-        if currentLang == .fr {
-            return "\(number) \(value > 1 ? frenchPlural : frenchSingular)"
+        enum CountKey {
+            case clubs
+            case targetedClubs
+            case openCalls
+            case attendees
+            case committeeMembers
+            case pendingPayments
+            case results
+            case paymentsToConfirm
+            case memberDeclarations
+            case clubMembers
+            case members
+            case duePayments
         }
-        return "\(number) \(value == 1 ? englishSingular : englishPlural)"
+
+        /// Resolves a count through String Catalog plural variations.
+        nonisolated static func count(_ value: Int, key: CountKey) -> String {
+            switch key {
+            case .clubs: return tr("count_clubs \(value)")
+            case .targetedClubs: return tr("count_targeted_clubs \(value)")
+            case .openCalls: return tr("count_open_calls \(value)")
+            case .attendees: return tr("count_attendees \(value)")
+            case .committeeMembers: return tr("count_committee_members \(value)")
+            case .pendingPayments: return tr("count_pending_payments \(value)")
+            case .results: return tr("count_results \(value)")
+            case .paymentsToConfirm: return tr("count_payments_to_confirm \(value)")
+            case .memberDeclarations: return tr("count_member_declarations \(value)")
+            case .clubMembers: return tr("count_club_members \(value)")
+            case .members: return tr("count_members \(value)")
+            case .duePayments: return tr("count_due_payments \(value)")
+            }
     }
 
     nonisolated static func number(_ value: Int) -> String {

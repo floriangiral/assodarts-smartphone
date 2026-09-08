@@ -1,5 +1,5 @@
+import FirebaseAuth
 import Foundation
-import Supabase
 import SwiftUI
 
 /// Single source of truth for the whole app: authentication, tenant-isolated
@@ -8,21 +8,44 @@ import SwiftUI
 final class AppStore {
     private static let storageKey = "assodarts.database.v1"
     private static let sessionKey = "assodarts.session.v1"
+    /// Cached once an administrator is known to exist, so the bootstrap check
+    /// never costs a network round-trip again.
+    private static let platformAdminConfirmedKey = "assodarts.platformAdminConfirmedExists.v1"
 
     var db: Database
     var currentUserId: UUID?
 
     /// Where the displayed data comes from. `.demo` keeps the app fully usable
-    /// offline; `.live` mirrors the club's Supabase data.
+    /// offline; `.live` mirrors the club's Firebase data.
     var mode: BackendMode = .demo
     /// True while a full refresh is in flight.
     var isSyncing: Bool = false
     /// Last backend failure, already translated for display.
     var syncError: String?
-    /// True until the stored Supabase session has been checked at launch.
+    /// True until the stored Firebase session has been checked at launch.
     var isRestoringSession: Bool = true
     /// The signed-in member's notification inbox, filled by the server.
     var notifications: [AppNotification] = []
+    /// Every club the signed-in member belongs to (`.live` mode only).
+    var availableClubs: [RemoteRepository.AvailableClub] = []
+    /// The real Firestore club id backing `currentClub`, needed to switch clubs.
+    var activeClubRemoteId: String?
+    /// Set when accepting a pending invitation just joined a club other than
+    /// the currently active one, so the UI can offer an immediate switch.
+    var pendingClubSwitchOffer: RemoteRepository.AvailableClub?
+    /// Set right after a member creates their own club, so the app can offer
+    /// inviting board members before landing on the normal dashboard.
+    var showsPostCreationInviteOffer: Bool = false
+    var needsOnboardingChoice: Bool = false
+    var isPlatformAdmin: Bool = false
+    /// True when the platform has no administrator yet and the very first one
+    /// must be created before anything else.
+    var needsPlatformAdminBootstrap: Bool = false
+    /// One-shot message handed over to `LoginView`, consumed on display.
+    var authNotice: String?
+    var platformClubsRemote: [Club] = []
+    var platformCoupons: [Coupon] = []
+    var platformAnnouncementsRemote: [PlatformAnnouncement] = []
 
     init() {
         if let data = UserDefaults.standard.data(forKey: Self.storageKey),
@@ -59,6 +82,11 @@ final class AppStore {
         save()
     }
 
+    var hasConfirmedPlatformAdminExists: Bool {
+        get { UserDefaults.standard.bool(forKey: Self.platformAdminConfirmedKey) }
+        set { UserDefaults.standard.set(newValue, forKey: Self.platformAdminConfirmedKey) }
+    }
+
     // MARK: - Session
 
     var currentUser: Member? {
@@ -71,7 +99,7 @@ final class AppStore {
         return db.clubs.first { $0.id == user.clubId }
     }
 
-    var isDeveloper: Bool { currentUser?.role == .developpeur }
+    var isDeveloper: Bool { isPlatformAdmin }
 
     var canManageClub: Bool { currentUser?.role.canManageClub ?? false }
 
@@ -79,19 +107,13 @@ final class AppStore {
     func signIn(email: String, password: String) -> String? {
         let normalized = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard let member = db.members.first(where: { $0.email.lowercased() == normalized }) else {
-            return tr(
-                "Aucun compte ne correspond à cette adresse.",
-                "No account matches this email address."
-            )
+            return tr("no_account_matches_this_email_address")
         }
         guard member.password == password else {
-            return tr("Mot de passe incorrect.", "Incorrect password.")
+            return tr("incorrect_password")
         }
         guard member.isActive else {
-            return tr(
-                "Ce compte a été désactivé par le club.",
-                "This account has been deactivated by the club."
-            )
+            return tr("this_account_has_been_deactivated_by_the_club")
         }
         currentUserId = member.id
         save()
@@ -108,11 +130,20 @@ final class AppStore {
         currentUserId = nil
         syncError = nil
         notifications = []
+        availableClubs = []
+        activeClubRemoteId = nil
+        pendingClubSwitchOffer = nil
+        showsPostCreationInviteOffer = false
+        needsOnboardingChoice = false
+        isPlatformAdmin = false
+        platformClubsRemote = []
+        platformCoupons = []
+        platformAnnouncementsRemote = []
         NotificationService.clearScheduledReminders()
         if wasLive {
             db = DemoData.seed()
             mode = .demo
-            Task { try? await Backend.client.auth.signOut() }
+            try? Backend.auth.signOut()
         }
         save()
     }
@@ -123,7 +154,7 @@ final class AppStore {
 
     func member(_ id: UUID) -> Member? { db.members.first { $0.id == id } }
 
-    func memberName(_ id: UUID) -> String { member(id)?.fullName ?? tr("Membre", "Member") }
+    func memberName(_ id: UUID) -> String { member(id)?.fullName ?? tr("member") }
 
     func members(of clubId: UUID, includeInactive: Bool = false) -> [Member] {
         db.members
@@ -213,10 +244,10 @@ final class AppStore {
             if viewer.role.canManageClub, let memberId = conversation.participantIds.first {
                 return memberName(memberId)
             }
-            return tr("Le Bureau", "The Committee")
+            return tr("the_committee")
         case .direct:
             guard let otherId = conversation.counterpartId(for: viewer.id) else {
-                return tr("Conversation", "Conversation")
+                return tr("conversation")
             }
             return memberName(otherId)
         }
@@ -226,10 +257,10 @@ final class AppStore {
         switch conversation.kind {
         case .bureau:
             if viewer.role.canManageClub {
-                return tr("Message adressé au bureau", "Message sent to the committee")
+                return tr("message_sent_to_the_committee")
             }
             let count = bureauMembers(of: conversation.clubId).count
-            let people = Fmt.count(count, "membre du bureau", "membres du bureau", "committee member", "committee members")
+            let people = Fmt.count(count, key: .committeeMembers)
             return "\(club(conversation.clubId)?.name ?? "Club") · \(people)"
         case .direct:
             guard let otherId = conversation.counterpartId(for: viewer.id),
@@ -259,7 +290,19 @@ final class AppStore {
             db.conversations[index].messages[messageIndex].readBy.append(memberId)
             changed = true
         }
-        if changed { save() }
+        if changed {
+            let messageIds = db.conversations[index].messages
+                .filter { !$0.readBy.contains(memberId) }
+                .map(\.id)
+            save()
+            push {
+                try await RemoteRepository.markConversationRead(
+                    conversationId: conversationId,
+                    messageIds: messageIds,
+                    by: memberId
+                )
+            }
+        }
     }
 
     @discardableResult
@@ -270,6 +313,7 @@ final class AppStore {
         let message = Message(senderId: senderId, text: trimmed, readBy: [senderId], imageData: imageData)
         db.conversations[index].messages.append(message)
         save()
+        push { try await RemoteRepository.sendMessage(message, conversationId: conversationId) }
         return true
     }
 
@@ -283,6 +327,7 @@ final class AppStore {
         let conversation = Conversation(clubId: clubId, kind: .bureau, participantIds: [memberId])
         db.conversations.append(conversation)
         save()
+        push { try await RemoteRepository.createConversation(conversation) }
         return conversation
     }
 
@@ -296,6 +341,7 @@ final class AppStore {
         let conversation = Conversation(clubId: clubId, kind: .direct, participantIds: [a, b])
         db.conversations.append(conversation)
         save()
+        push { try await RemoteRepository.createConversation(conversation) }
         return conversation
     }
 
@@ -327,11 +373,14 @@ final class AppStore {
         if going == true { db.events[index].attendeeIds.append(memberId) }
         if going == false { db.events[index].declinedIds.append(memberId) }
         save()
+        let clubId = db.events[index].clubId
+        push { try await RemoteRepository.setEventAttendance(going, eventId: eventId, clubId: clubId, memberId: memberId) }
     }
 
     func addEvent(_ event: ClubEvent) {
         db.events.append(event)
         save()
+        push { try await RemoteRepository.createEvent(event) }
     }
 
     func updateMember(_ member: Member) {
@@ -340,26 +389,41 @@ final class AppStore {
         save()
     }
 
+    /// Adds a member locally; in demo mode this is the whole story. In live
+    /// mode it also sends a real invitation — the row shown here is only a
+    /// placeholder until that person actually signs up and joins the club.
     func addMember(_ member: Member) {
         db.members.append(member)
         save()
+        push {
+            try await RemoteRepository.inviteMember(
+                clubId: member.clubId,
+                email: member.email,
+                role: member.role,
+                licenseNumber: member.isLicensed ? member.licenceNumber : nil
+            )
+        }
     }
 
     func addTournament(_ tournament: Tournament) {
         db.tournaments.append(tournament)
         save()
+        push { try await RemoteRepository.createTournament(tournament) }
     }
 
     func addEntry(_ entry: TournamentEntry, to tournamentId: UUID) {
         guard let index = db.tournaments.firstIndex(where: { $0.id == tournamentId }) else { return }
         db.tournaments[index].entries.append(entry)
         save()
+        let clubId = db.tournaments[index].clubId
+        push { try await RemoteRepository.addTournamentEntry(entry, tournamentId: tournamentId, clubId: clubId) }
     }
 
     func deleteEntry(_ entryId: UUID, from tournamentId: UUID) {
         guard let index = db.tournaments.firstIndex(where: { $0.id == tournamentId }) else { return }
         db.tournaments[index].entries.removeAll { $0.id == entryId }
         save()
+        push { try await RemoteRepository.deleteTournamentEntry(id: entryId) }
     }
 
     // MARK: - Club bank details
@@ -544,7 +608,10 @@ final class AppStore {
 
     func coupon(for club: Club) -> Coupon? {
         guard let code = club.couponCode else { return nil }
-        return db.coupons.first { $0.code == code && $0.clubIds.contains(club.id) && !$0.isExpired }
+        return platformCoupons.first { $0.code == code && $0.clubIds.contains(club.id)
+            && !$0.isExpired }
+            ?? db.coupons.first { $0.code == code && $0.clubIds.contains(club.id)
+                && !$0.isExpired }
     }
 
     func annualPriceCents(for club: Club) -> Int {
@@ -558,14 +625,28 @@ final class AppStore {
 
     // MARK: - Developer console
 
+    func loadPlatformData() async {
+        guard isPlatformAdmin else { return }
+        do {
+            async let clubs = RemoteRepository.loadPlatformClubs()
+            async let coupons = RemoteRepository.loadCoupons()
+            async let announcements = RemoteRepository.loadPlatformAnnouncements()
+            platformClubsRemote = try await clubs
+            platformCoupons = try await coupons
+            platformAnnouncementsRemote = try await announcements
+        } catch {
+            syncError = friendlyMessage(for: error)
+        }
+    }
+
     var platformClubs: [Club] {
-        db.clubs.filter { $0.name != "Assodarts" }
+        platformClubsRemote
     }
 
     var totalClubs: Int { platformClubs.count }
 
     var totalMembers: Int {
-        platformClubs.reduce(0) { $0 + memberCount(of: $1) }
+        platformClubs.reduce(0) { $0 + $1.seedMemberCount }
     }
 
     var trialClubs: Int { platformClubs.filter { $0.status == .trial }.count }
@@ -613,40 +694,38 @@ final class AppStore {
     }
 
     func clubsUsing(_ coupon: Coupon) -> [Club] {
-        db.clubs.filter { coupon.clubIds.contains($0.id) }
+        platformClubs.filter { coupon.clubIds.contains($0.id) }
     }
 
-    func createCoupon(_ coupon: Coupon) {
-        db.coupons.insert(coupon, at: 0)
-        for clubId in coupon.clubIds {
-            guard let index = db.clubs.firstIndex(where: { $0.id == clubId }) else { continue }
-            db.clubs[index].couponCode = coupon.code
+    func createCoupon(_ coupon: Coupon) async {
+        do {
+            try await RemoteRepository.createCoupon(coupon)
+            await loadPlatformData()
+        } catch {
+            syncError = friendlyMessage(for: error)
         }
-        save()
     }
 
-    func deleteCoupon(_ id: UUID) {
-        guard let coupon = db.coupons.first(where: { $0.id == id }) else { return }
-        for clubId in coupon.clubIds {
-            guard let index = db.clubs.firstIndex(where: { $0.id == clubId }) else { continue }
-            if db.clubs[index].couponCode == coupon.code { db.clubs[index].couponCode = nil }
+    func deleteCoupon(_ id: UUID) async {
+        do {
+            try await RemoteRepository.deleteCoupon(id: id)
+            await loadPlatformData()
+        } catch {
+            syncError = friendlyMessage(for: error)
         }
-        db.coupons.removeAll { $0.id == id }
-        save()
     }
 
-    func broadcast(title: String, body: String, audience: BroadcastAudience) {
-        let announcement = PlatformAnnouncement(
-            title: title.trimmingCharacters(in: .whitespacesAndNewlines),
-            body: body.trimmingCharacters(in: .whitespacesAndNewlines),
-            audience: audience
-        )
-        db.platformAnnouncements.insert(announcement, at: 0)
-        save()
+    func broadcast(title: String, body: String, audience: BroadcastAudience) async {
+        do {
+            try await RemoteRepository.broadcast(title: title, body: body, audience: audience)
+            await loadPlatformData()
+        } catch {
+            syncError = friendlyMessage(for: error)
+        }
     }
 
     var platformAnnouncements: [PlatformAnnouncement] {
-        db.platformAnnouncements.sorted { $0.publishedAt > $1.publishedAt }
+        platformAnnouncementsRemote
     }
 
     /// Platform announcements a given user is allowed to see.
@@ -655,6 +734,6 @@ final class AppStore {
     }
 
     var broadcastRecipients: Int {
-        platformClubs.reduce(0) { $0 + max(2, memberCount(of: $1) / 12) }
+        platformClubs.reduce(0) { $0 + max(2, $1.seedMemberCount / 12) }
     }
 }

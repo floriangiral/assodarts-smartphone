@@ -60,7 +60,7 @@ struct AdminDashboardContent: View {
 
             if let nextEvent {
                 VStack(alignment: .leading, spacing: 12) {
-                    SectionLabel(text: tr("Prochain rendez-vous", "Next date"))
+                    SectionLabel(text: tr("next_date"))
                     NavigationLink(value: ClubRoute.event(nextEvent.id)) {
                         EventSummaryCard(event: nextEvent, attendingCount: nextEvent.attendeeIds.count)
                     }
@@ -88,11 +88,11 @@ struct AdminDashboardContent: View {
 
     private var metrics: some View {
         HStack(spacing: 12) {
-            MetricTile(value: "\(members.count)", label: tr("Membres", "Members"))
-            MetricTile(value: "\(licensedCount)", label: tr("Licenciés", "Licensed"))
+            MetricTile(value: "\(members.count)", label: tr("members"))
+            MetricTile(value: "\(licensedCount)", label: tr("licensed_admindashboardcontent"))
             MetricTile(
                 value: "\(upToDateCount)/\(members.count)",
-                label: tr("Cotisations à jour", "Fees up to date"),
+                label: tr("fees_up_to_date"),
                 tint: upToDateCount == members.count ? Theme.green : Theme.ink
             )
         }
@@ -102,7 +102,7 @@ struct AdminDashboardContent: View {
         NavigationLink(value: ClubRoute.paymentCalls) {
             VStack(alignment: .leading, spacing: 14) {
                 HStack {
-                    Text(tr("Encaissements du club", "Club collections"))
+                    Text(tr("club_collections"))
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Theme.inkSecondary)
                     Spacer()
@@ -111,29 +111,17 @@ struct AdminDashboardContent: View {
                         .foregroundStyle(Theme.inkSecondary.opacity(0.6))
                 }
 
-                Text(Fmt.money(collectedCents))
-                    .font(.system(size: 34, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(Theme.ink)
+                MetricNumber(value: Fmt.money(collectedCents))
 
                 HStack(spacing: 16) {
                     Label(
-                        tr(
-                            "\(Fmt.money(outstandingCents)) en attente",
-                            "\(Fmt.money(outstandingCents)) outstanding"
-                        ),
+                        tr("outstanding \(Fmt.money(outstandingCents))"),
                         systemImage: "clock.badge.exclamationmark"
                     )
                     .font(.caption.weight(.medium))
                     .foregroundStyle(outstandingCents > 0 ? Theme.amber : Theme.green)
 
-                    Text(Fmt.count(
-                        openCalls.count,
-                        "appel en cours",
-                        "appels en cours",
-                        "open request",
-                        "open requests"
-                    ))
+                    Text(Fmt.count(openCalls.count, key: .openCalls))
                         .font(.caption)
                         .foregroundStyle(Theme.inkSecondary)
                 }
@@ -145,20 +133,20 @@ struct AdminDashboardContent: View {
 
     private var quickActions: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionLabel(text: tr("Actions du bureau", "Committee actions"))
+            SectionLabel(text: tr("committee_actions"))
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
-                actionTile(tr("Appel à paiement", "Payment request"), symbol: "eurosign.circle.fill", tint: Theme.navy) {
+                actionTile(tr("payment_request"), symbol: "eurosign.circle.fill", tint: Theme.navy) {
                     showsNewPaymentCall = true
                 }
-                actionTile(tr("Nouvelle annonce", "New announcement"), symbol: "megaphone.fill", tint: Theme.orange) {
+                actionTile(tr("new_announcement"), symbol: "megaphone.fill", tint: Theme.orange) {
                     showsNewAnnouncement = true
                 }
-                actionTile(tr("Inviter un membre", "Invite a member"), symbol: "person.badge.plus", tint: Theme.green) {
+                actionTile(tr("invite_a_member"), symbol: "person.badge.plus", tint: Theme.green) {
                     showsInvite = true
                 }
                 NavigationLink(value: ClubRoute.messages) {
                     actionTileLabel(
-                        tr("Messagerie", "Messages"),
+                        tr("messages"),
                         symbol: "bubble.left.and.bubble.right.fill",
                         tint: Theme.navy
                     )
@@ -166,7 +154,7 @@ struct AdminDashboardContent: View {
                 .buttonStyle(.plain)
                 NavigationLink(value: ClubRoute.bankSettings) {
                     actionTileLabel(
-                        tr("Coordonnées bancaires", "Bank details"),
+                        tr("bank_details_admindashboardcontent"),
                         symbol: "building.columns.fill",
                         tint: Theme.navy
                     )
@@ -174,7 +162,7 @@ struct AdminDashboardContent: View {
                 .buttonStyle(.plain)
                 NavigationLink(value: ClubRoute.paymentValidation) {
                     actionTileLabel(
-                        tr("Valider les paiements", "Confirm payments"),
+                        tr("confirm_payments"),
                         symbol: "checkmark.seal.fill",
                         tint: Theme.orange
                     )
@@ -222,7 +210,7 @@ struct AdminDashboardContent: View {
         NavigationLink(value: ClubRoute.paymentValidation) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
-                    Label(tr("Paiements à valider", "Payments to confirm"), systemImage: "clock.badge.checkmark")
+                    Label(tr("payments_to_confirm"), systemImage: "clock.badge.checkmark")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Theme.navy)
                     Spacer()
@@ -234,18 +222,12 @@ struct AdminDashboardContent: View {
                         .background(Theme.navy, in: .capsule)
                 }
 
-                Text(tr(
-                    "\(Fmt.money(validationCents)) déclarés par virement ou espèces",
-                    "\(Fmt.money(validationCents)) declared by transfer or cash"
-                ))
+                Text(tr("declared_by_transfer_or_cash \(Fmt.money(validationCents))"))
                     .font(.title3.bold())
                     .monospacedDigit()
                     .foregroundStyle(Theme.ink)
 
-                Text(tr(
-                    "Confirmez la réception pour marquer ces membres comme payés.",
-                    "Confirm receipt to mark these members as paid."
-                ))
+                Text(tr("confirm_receipt_to_mark_these_members_as_paid"))
                     .font(.caption)
                     .foregroundStyle(Theme.inkSecondary)
             }
@@ -266,19 +248,13 @@ struct AdminDashboardContent: View {
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(bank?.isComplete == true
-                         ? tr("Activez les paiements en ligne", "Activate online payments")
-                         : tr("Renseignez vos coordonnées bancaires", "Add your bank details"))
+                         ? tr("activate_online_payments")
+                         : tr("add_your_bank_details"))
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Theme.ink)
                     Text(bank?.isComplete == true
-                         ? tr(
-                            "Apple Pay, Google Pay et carte après vérification du compte.",
-                            "Apple Pay, Google Pay and card once the account is verified."
-                         )
-                         : tr(
-                            "IBAN et BIC du club pour encaisser virements et paiements en ligne.",
-                            "The club IBAN and BIC to collect transfers and online payments."
-                         ))
+                         ? tr("apple_pay_google_pay_and_card_once_the_account_is_verifi")
+                         : tr("the_club_iban_and_bic_to_collect_transfers_and_online_pa"))
                         .font(.caption)
                         .foregroundStyle(Theme.inkSecondary)
                 }
@@ -297,7 +273,7 @@ struct AdminDashboardContent: View {
     private var alertsCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Label(tr("Alertes", "Alerts"), systemImage: "exclamationmark.triangle.fill")
+                Label(tr("alerts"), systemImage: "exclamationmark.triangle.fill")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Theme.red)
                 Spacer()
@@ -342,7 +318,7 @@ struct AdminDashboardContent: View {
                     .frame(width: 44, height: 44)
                     .background(Theme.navyTint, in: .circle)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(tr("Abonnement du club", "Club subscription"))
+                    Text(tr("club_subscription"))
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Theme.ink)
                     Text("\(store.tier(for: club).name) · \(club.status.label)")

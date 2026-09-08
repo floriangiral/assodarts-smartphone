@@ -28,23 +28,23 @@ struct DevOverviewView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 18) {
-                DevHeaderBand(title: tr("Vue d'ensemble", "Overview"))
+                DevHeaderBand(title: tr("overview"))
 
                 HStack(spacing: 12) {
                     MetricTile(
                         value: "\(store.totalClubs)",
-                        label: tr("Clubs actifs", "Active clubs"),
+                        label: tr("active_clubs"),
                         delta: newClubsThisMonth > 0
-                            ? tr("+\(newClubsThisMonth) ce mois", "+\(newClubsThisMonth) this month")
+                            ? tr("this_month \(newClubsThisMonth)")
                             : nil
                     )
                     MetricTile(
                         value: store.totalMembers.formatted(.number.locale(Fmt.locale)),
-                        label: tr("Membres", "Members")
+                        label: tr("members")
                     )
                     MetricTile(
                         value: Fmt.money(store.annualRevenueCents),
-                        label: tr("Revenu annuel", "Annual revenue"),
+                        label: tr("annual_revenue"),
                         tint: Theme.navy
                     )
                 }
@@ -53,7 +53,7 @@ struct DevOverviewView: View {
                 alertsCard
 
                 VStack(alignment: .leading, spacing: 12) {
-                    SectionLabel(text: tr("Derniers clubs inscrits", "Latest clubs signed up"))
+                    SectionLabel(text: tr("latest_clubs_signed_up"))
                     VStack(spacing: 0) {
                         ForEach(latestClubs) { club in
                             clubRow(club)
@@ -70,6 +70,7 @@ struct DevOverviewView: View {
         }
         .assoCanvas()
         .toolbar(.hidden, for: .navigationBar)
+        .task { await store.loadPlatformData() }
     }
 
     private var chartCard: some View {
@@ -78,13 +79,10 @@ struct DevOverviewView: View {
 
         return VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(tr("Nouveaux clubs par mois", "New clubs per month"))
+                Text(tr("new_clubs_per_month"))
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Theme.ink)
-                Text(tr(
-                    "\(store.totalClubs) clubs · \(store.trialClubs) en essai",
-                    "\(store.totalClubs) clubs · \(store.trialClubs) on trial"
-                ))
+                Text(tr("clubs_on_trial \(store.totalClubs) \(store.trialClubs)"))
                     .font(.caption)
                     .foregroundStyle(Theme.inkSecondary)
             }
@@ -92,7 +90,7 @@ struct DevOverviewView: View {
             HStack(alignment: .bottom, spacing: 6) {
                 ForEach(Array(data.enumerated()), id: \.offset) { index, point in
                     VStack(spacing: 6) {
-                        RoundedRectangle(cornerRadius: 4)
+                        RoundedRectangle(cornerRadius: Theme.microRadius)
                             .fill(index == data.count - 1 ? Theme.orange : Theme.navy.opacity(0.75))
                             .frame(height: max(6, CGFloat(point.count) / CGFloat(maximum) * 92))
                         Text(point.label)
@@ -109,19 +107,16 @@ struct DevOverviewView: View {
 
     private var alertsCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionLabel(text: tr("Alertes", "Alerts"))
+            SectionLabel(text: tr("alerts"))
 
             HStack(spacing: 10) {
                 Image(systemName: "hourglass")
                     .foregroundStyle(Theme.amber)
-                Text(tr(
-                    "\(expiringTrials.count) essai\(expiringTrials.count > 1 ? "s" : "") expire\(expiringTrials.count > 1 ? "nt" : "") sous 7 jours",
-                    "\(expiringTrials.count) trial\(expiringTrials.count == 1 ? "" : "s") expiring within 7 days"
-                ))
+                Text(tr("expiring_trials_count \(expiringTrials.count)"))
                     .font(.subheadline)
                     .foregroundStyle(Theme.ink)
                 Spacer()
-                StatusChip(text: tr("Essai", "Trial"), tint: Theme.amber, background: Theme.amberTint)
+                StatusChip(text: tr("trial"), tint: Theme.amber, background: Theme.amberTint)
             }
 
             Divider().overlay(Theme.border)
@@ -129,14 +124,11 @@ struct DevOverviewView: View {
             HStack(spacing: 10) {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundStyle(Theme.red)
-                Text(tr(
-                    "\(graceClubs.count) abonnement\(graceClubs.count > 1 ? "s" : "") en délai de grâce",
-                    "\(graceClubs.count) subscription\(graceClubs.count == 1 ? "" : "s") in grace period"
-                ))
+                Text(tr("grace_subscriptions_count \(graceClubs.count)"))
                     .font(.subheadline)
                     .foregroundStyle(Theme.ink)
                 Spacer()
-                StatusChip(text: tr("Lecture seule", "Read-only"), tint: Theme.red, background: Theme.redTint)
+                StatusChip(text: tr("read_only"), tint: Theme.red, background: Theme.redTint)
             }
         }
         .assoCard()
@@ -149,10 +141,7 @@ struct DevOverviewView: View {
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(Theme.ink)
                     .lineLimit(1)
-                Text(tr(
-                    "\(store.memberCount(of: club)) membres · \(Fmt.euros(store.tier(for: club).priceEuros))/an",
-                    "\(store.memberCount(of: club)) members · \(Fmt.euros(store.tier(for: club).priceEuros))/year"
-                ))
+                Text(tr("members_year \(store.memberCount(of: club)) \(Fmt.euros(store.tier(for: club).priceEuros))"))
                     .font(.caption)
                     .monospacedDigit()
                     .foregroundStyle(Theme.inkSecondary)
@@ -160,8 +149,8 @@ struct DevOverviewView: View {
             Spacer(minLength: 4)
             StatusChip(
                 text: club.status == .trial
-                    ? tr("Essai", "Trial")
-                    : club.status == .active ? tr("Actif", "Active") : tr("Grâce", "Grace"),
+                    ? tr("trial")
+                    : club.status == .active ? tr("active") : tr("grace"),
                 tint: club.status == .active ? Theme.green : Theme.amber,
                 background: club.status == .active ? Theme.greenTint : Theme.amberTint
             )

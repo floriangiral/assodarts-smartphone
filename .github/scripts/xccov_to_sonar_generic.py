@@ -1,60 +1,102 @@
 #!/usr/bin/env python3
-"""Convert an xcresult code coverage report into SonarQube's generic coverage XML format.
+"""Convert an Xcode .xcresult bundle into SonarQube's generic coverage XML format.
 
-Usage: xccov_to_sonar_generic.py <xcresult-path> <output-xml-path> <workspace-root>
+Usage: xccov_to_sonar_generic.py <result.xcresult> <output.xml> <repo_root>
+
+For each source file covered by any target in the report, this walks the
+per-line `xcrun xccov view --file` output (a line number, a colon, and either
+nothing for non-executable lines or an execution count) and emits one
+<lineToCover> element per executable line.
 """
+
 import json
-import os
 import subprocess
 import sys
-import xml.sax.saxutils as sax
+import xml.etree.ElementTree as ET
 
 
-def covered_lines(xcresult_path: str, file_path: str) -> list[tuple[str, str]]:
-    report = subprocess.check_output(
-        ["xcrun", "xccov", "view", "--file", file_path, "--report", xcresult_path],
+def xccov_json(xcresult_path: str) -> dict:
+    output = subprocess.run(
+        ["xcrun", "xccov", "view", "--report", "--json", xcresult_path],
+        check=True,
+        capture_output=True,
         text=True,
-    )
+    ).stdout
+    return json.loads(output)
+
+
+def covered_file_paths(report: dict) -> set:
+    paths = set()
+    for target in report.get("targets", []):
+        for file_entry in target.get("files", []):
+            paths.add(file_entry["path"])
+    return paths
+
+
+def file_line_coverage(xcresult_path: str, file_path: str) -> list:
+    """Returns a list of (line_number, covered) tuples for executable lines."""
+    output = subprocess.run(
+        ["xcrun", "xccov", "view", "--file", file_path, xcresult_path],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+
     lines = []
-    for raw_line in report.splitlines():
-        line_number, sep, rest = raw_line.partition(":")
-        line_number = line_number.strip()
-        if not sep or not line_number.isdigit():
+    for raw_line in output.splitlines():
+        if ":" not in raw_line:
             continue
-        hits = rest.strip().split()[0] if rest.strip() else ""
-        if hits in ("", "*"):
-            continue  # line is not executable
-        lines.append((line_number, "false" if hits == "0" else "true"))
+        line_number_str, _, rest = raw_line.partition(":")
+        line_number_str = line_number_str.strip()
+        if not line_number_str.isdigit() or int(line_number_str) <= 0:
+            continue
+        rest = rest.strip()
+        if rest == "" or rest.lower() == "*":
+            # Not an executable line (comment, blank line, or unreachable marker).
+            continue
+        try:
+            execution_count = int(rest)
+        except ValueError:
+            # Some lines report a percentage or symbol instead of a raw count;
+            # treat anything we can't parse as executable-but-unknown coverage.
+            continue
+        lines.append((int(line_number_str), execution_count > 0))
     return lines
+
+
+def relative_path(file_path: str, repo_root: str) -> str:
+    if file_path.startswith(repo_root):
+        return file_path[len(repo_root):].lstrip("/")
+    return file_path
 
 
 def main() -> int:
     if len(sys.argv) != 4:
-        print("usage: xccov_to_sonar_generic.py <xcresult-path> <output-xml-path> <workspace-root>", file=sys.stderr)
-        return 1
+        print(__doc__, file=sys.stderr)
+        return 2
 
-    xcresult_path, output_path, workspace_root = sys.argv[1], sys.argv[2], sys.argv[3]
+    xcresult_path, output_path, repo_root = sys.argv[1:4]
+    report = xccov_json(xcresult_path)
 
-    report = json.loads(
-        subprocess.check_output(["xcrun", "xccov", "view", "--report", "--json", xcresult_path])
-    )
-    file_paths = sorted({f["path"] for target in report.get("targets", []) for f in target.get("files", [])})
+    coverage = ET.Element("coverage", {"version": "1"})
+    for file_path in sorted(covered_file_paths(report)):
+        lines = file_line_coverage(xcresult_path, file_path)
+        if not lines:
+            continue
+        file_elem = ET.SubElement(
+            coverage, "file", {"path": relative_path(file_path, repo_root)}
+        )
+        for line_number, covered in lines:
+            ET.SubElement(
+                file_elem,
+                "lineToCover",
+                {
+                    "lineNumber": str(line_number),
+                    "covered": "true" if covered else "false",
+                },
+            )
 
-    with open(output_path, "w") as out:
-        out.write('<coverage version="1">\n')
-        for path in file_paths:
-            relative_path = os.path.relpath(path, workspace_root)
-            if relative_path.startswith(".."):
-                continue  # outside the repository (e.g. system frameworks)
-            lines = covered_lines(xcresult_path, path)
-            if not lines:
-                continue
-            out.write(f'  <file path="{sax.escape(relative_path)}">\n')
-            for line_number, covered in lines:
-                out.write(f'    <lineToCover lineNumber="{line_number}" covered="{covered}"/>\n')
-            out.write("  </file>\n")
-        out.write("</coverage>\n")
-
+    ET.ElementTree(coverage).write(output_path, encoding="UTF-8", xml_declaration=True)
     return 0
 
 

@@ -1,10 +1,8 @@
-title = "Assodarts secret scanning policy"
-
-[extend]
-useDefault = true
+title = "Assodarts Gitleaks configuration"
 
 [allowlist]
-description = "Generated public configuration contains intentionally empty values."
-paths = [
-  '''ios-assodarts/Assodarts/Config\.swift$''',
+description = "Firebase iOS API keys are public client identifiers"
+regexes = [
+    '''AIzaSyD9N1fqXevqDQs_BaM6ujJ4SIrhq0wEGhU''',
+    '''AIzaSyA9Ytv-16YCsaUaBTfLf5qgpZzksg8mZuQ''',
 ]

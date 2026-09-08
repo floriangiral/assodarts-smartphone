@@ -14,7 +14,7 @@ struct Coupon: Identifiable, Codable, Sendable, Hashable {
     var isOffered: Bool { percent >= 100 }
 
     var discountLabel: String {
-        isOffered ? tr("Offert", "Free") : tr("−\(percent) %", "−\(percent)%")
+        isOffered ? tr("free") : tr("discount_percent \(percent)")
     }
 
     var isExpired: Bool { expiresAt < .now }

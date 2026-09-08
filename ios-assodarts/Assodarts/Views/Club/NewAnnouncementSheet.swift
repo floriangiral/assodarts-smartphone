@@ -6,51 +6,50 @@ struct NewAnnouncementSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var title: String = ""
-    @State private var announcementBody: String = ""
+    @State private var body_: String = ""
     @State private var isPinned: Bool = false
     @State private var notify: Bool = true
     @FocusState private var isEditing: Bool
 
     private var canPublish: Bool {
         !title.trimmingCharacters(in: .whitespaces).isEmpty
-            && !announcementBody.trimmingCharacters(in: .whitespaces).isEmpty
+            && !body_.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
     var body: some View {
         NavigationStack {
             Form {
-                Section(tr("Annonce", "Announcement")) {
-                    TextField(tr("Titre de l'annonce", "Announcement title"), text: $title)
+                Section(tr("announcement")) {
+                    TextField(tr("announcement_title"), text: $title)
                         .keyboardField(.freeText, submit: .next)
                         .focused($isEditing)
-                    TextField(tr("Votre message…", "Your message…"), text: $announcementBody, axis: .vertical)
+                        .foregroundStyle(Theme.ink)
+                    TextField(tr("your_message"), text: $body_, axis: .vertical)
                         .lineLimit(5...10)
                         .keyboardField(.freeText, submit: .return)
                         .focused($isEditing)
+                        .foregroundStyle(Theme.ink)
                 }
 
                 Section {
-                    Toggle(tr("Épingler en haut du fil", "Pin to the top of the feed"), isOn: $isPinned)
-                    Toggle(tr("Notifier les membres", "Notify members"), isOn: $notify)
+                    Toggle(tr("pin_to_the_top_of_the_feed"), isOn: $isPinned)
+                    Toggle(tr("notify_members"), isOn: $notify)
                 } footer: {
-                    Text(tr(
-                        "Les membres ayant activé les notifications d'annonces recevront une alerte.",
-                        "Members who enabled announcement notifications will get an alert."
-                    ))
+                    Text(tr("members_who_enabled_announcement_notifications_will_get_"))
                 }
             }
             .scrollContentBackground(.hidden)
             .background(Theme.canvas)
             .keyboardDismissable()
             .keyboardDoneBar(isVisible: isEditing) { isEditing = false }
-            .navigationTitle(tr("Nouvelle annonce", "New announcement"))
+            .navigationTitle(tr("new_announcement"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(tr("Annuler", "Cancel")) { dismiss() }
+                    Button(tr("cancel")) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(tr("Publier", "Publish"), action: publish)
+                    Button(tr("publish"), action: publish)
                         .disabled(!canPublish)
                         .fontWeight(.semibold)
                 }
@@ -60,10 +59,10 @@ struct NewAnnouncementSheet: View {
 
     private func publish() {
         guard let user = store.currentUser else { return }
-        store.publishAnnouncement(title: title, body: announcementBody, pinned: isPinned, author: user)
+        store.publishAnnouncement(title: title, body: body_, pinned: isPinned, author: user)
         if notify {
             NotificationService.notify(
-                title: store.currentClub?.name ?? tr("Votre club", "Your club"),
+                title: store.currentClub?.name ?? tr("your_club"),
                 body: title.trimmingCharacters(in: .whitespaces)
             )
         }

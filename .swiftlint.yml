@@ -1,32 +1,9 @@
 included:
   - ios-assodarts/Assodarts
-
 excluded:
-  - ios-assodarts/Assodarts/Config.swift
-
+  - ios-assodarts/Assodarts/Assets.xcassets
+  - ios-assodarts/AssodartsTests
+  - ios-assodarts/AssodartsUITests
 line_length:
-  warning: 180
-  error: 220
-
-identifier_name:
-  excluded:
-    - a
-    - b
-    - db
-    - en
-    - fr
-    - id
-    - me
-
-opt_in_rules:
-  - empty_count
-  - explicit_init
-  - first_where
-  - redundant_nil_coalescing
-
-disabled_rules:
-  - file_length
-  - function_body_length
-  - large_tuple
-  - trailing_comma
-  - type_body_length
+  warning: 150
+  error: 200

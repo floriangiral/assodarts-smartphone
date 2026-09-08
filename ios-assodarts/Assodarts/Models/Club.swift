@@ -9,10 +9,10 @@ enum SubscriptionStatus: String, Codable, Sendable {
 
     var label: String {
         switch self {
-        case .trial: tr("Essai gratuit", "Free trial")
-        case .active: tr("Abonnement actif", "Active subscription")
-        case .grace: tr("Délai de grâce", "Grace period")
-        case .expired: tr("Abonnement expiré", "Subscription expired")
+        case .trial: tr("free_trial")
+        case .active: tr("active_subscription")
+        case .grace: tr("grace_period")
+        case .expired: tr("subscription_expired")
         }
     }
 }
@@ -25,22 +25,22 @@ struct PricingTier: Identifiable, Sendable, Hashable {
 
     var rangeLabel: String {
         switch id {
-        case "essentiel": tr("1 à 20 membres", "1 to 20 members")
-        case "club": tr("21 à 50 membres", "21 to 50 members")
-        case "federal": tr("51 à 100 membres", "51 to 100 members")
-        case "ligue": tr("101 à 200 membres", "101 to 200 members")
-        default: tr("Plus de 200 membres", "More than 200 members")
+        case "essentiel": tr("1_to_20_members")
+        case "club": tr("21_to_50_members")
+        case "federal": tr("51_to_100_members")
+        case "ligue": tr("101_to_200_members")
+        default: tr("more_than_200_members")
         }
     }
 
     /// Localized commercial name of the tier.
     var name: String {
         switch id {
-        case "essentiel": tr("Essentiel", "Essential")
-        case "club": tr("Club", "Club")
-        case "federal": tr("Fédéral", "Federal")
-        case "ligue": tr("Ligue", "League")
-        default: tr("Sur devis", "Custom quote")
+        case "essentiel": tr("essential")
+        case "club": tr("club")
+        case "federal": tr("federal")
+        case "ligue": tr("league")
+        default: tr("custom_quote")
         }
     }
 
