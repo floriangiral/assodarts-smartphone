@@ -146,19 +146,26 @@ extension AppStore {
             let result = try await Backend.auth.createUser(withEmail: normalized, password: password)
             let userId = UUID()
 
-            try await RemoteRepository.createSelfMember(
-                userId: userId,
-                authUid: result.user.uid,
-                firstName: first,
-                lastName: last,
-                email: normalized,
-                phone: phone.isEmpty ? nil : phone
-            )
-            let message = await loadRemote(userId: userId)
-            if message == nil {
-                AnalyticsService.logSignUp(method: "invitation")
+            do {
+                try await RemoteRepository.createSelfMember(
+                    userId: userId,
+                    authUid: result.user.uid,
+                    firstName: first,
+                    lastName: last,
+                    email: normalized,
+                    phone: phone.isEmpty ? nil : phone
+                )
+                let message = await loadRemote(userId: userId)
+                if message != nil {
+                    await rollbackCreatedAuthUser(result.user, context: "invited member sign-up")
+                } else {
+                    AnalyticsService.logSignUp(method: "invitation")
+                }
+                return message
+            } catch {
+                await rollbackCreatedAuthUser(result.user, context: "invited member sign-up")
+                throw error
             }
-            return message
         } catch {
             print("Sign-up failed: \(error)")
             return friendlyMessage(for: error)
@@ -197,24 +204,31 @@ extension AppStore {
             let result = try await Backend.auth.createUser(withEmail: normalized, password: password)
             let userId = UUID()
 
-            try await RemoteRepository.createSelfMember(
-                userId: userId,
-                authUid: result.user.uid,
-                firstName: first,
-                lastName: last,
-                email: normalized,
-                phone: phone.isEmpty ? nil : phone
-            )
+            do {
+                try await RemoteRepository.createSelfMember(
+                    userId: userId,
+                    authUid: result.user.uid,
+                    firstName: first,
+                    lastName: last,
+                    email: normalized,
+                    phone: phone.isEmpty ? nil : phone
+                )
 
-            let clubId = try await RemoteRepository.createClub(name: name)
+                let clubId = try await RemoteRepository.createClub(name: name)
 
-            let message = await loadRemote(userId: userId)
-            if message == nil {
-                showsPostCreationInviteOffer = true
-                AnalyticsService.logSignUp(method: "club_creator")
-                AnalyticsService.logClubCreated(clubId: clubId, source: "sign_up")
+                let message = await loadRemote(userId: userId)
+                if message == nil {
+                    showsPostCreationInviteOffer = true
+                    AnalyticsService.logSignUp(method: "club_creator")
+                    AnalyticsService.logClubCreated(clubId: clubId, source: "sign_up")
+                } else {
+                    await rollbackCreatedAuthUser(result.user, context: "club owner sign-up")
+                }
+                return message
+            } catch {
+                await rollbackCreatedAuthUser(result.user, context: "club owner sign-up")
+                throw error
             }
-            return message
         } catch {
             print("Club creation failed: \(error)")
             return friendlyMessage(for: error)
@@ -275,8 +289,8 @@ extension AppStore {
         } catch {
             print("Club sync failed: \(error)")
             if case BackendError.noMembership = error {
-                needsOnboardingChoice = true
-                isLive = true
+                prepareOnboardingForMemberWithoutClub(userId: userId)
+                return nil
             }
             return friendlyMessage(for: error)
         }
@@ -289,7 +303,7 @@ extension AppStore {
     /// currently active, `pendingClubSwitchOffer` is set so the UI can offer
     /// an immediate switch instead of silently reloading the old club.
     private func loadSnapshotAcceptingInvitations(for userId: UUID) async throws -> RemoteRepository.Snapshot {
-        let joinedClubId = try? await RemoteRepository.acceptPendingInvitation()
+        let joinedClubId = try await RemoteRepository.acceptPendingInvitation()
 
         let snapshot: RemoteRepository.Snapshot
         do {
@@ -307,6 +321,14 @@ extension AppStore {
         }
 
         return snapshot
+    }
+
+    private func rollbackCreatedAuthUser(_ user: User, context: String) async {
+        do {
+            try await user.delete()
+        } catch {
+            print("Auth rollback failed after \(context): \(error)")
+        }
     }
 
     /// Re-reads everything from the server: pull-to-refresh, and recovery after

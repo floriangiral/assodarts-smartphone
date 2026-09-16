@@ -85,6 +85,33 @@ service cloud.firestore {
             || (conversation.kind == 'bureau' && isBoard(conversation.clubId)));
     }
 
+    function bankAccountClientFields() {
+      return [
+        'clubId',
+        'holder',
+        'iban',
+        'bic',
+        'bankName',
+        'acceptsTransfer',
+        'acceptsCash',
+        'transferNote',
+        'cashNote',
+        'updatedByMemberId',
+        'updatedAt'
+      ];
+    }
+
+    function bankAccountClientCreateIsValid(clubId) {
+      return request.resource.data.clubId == clubId
+        && request.resource.data.keys().hasOnly(bankAccountClientFields());
+    }
+
+    function bankAccountClientUpdateIsValid(clubId) {
+      return resource.data.clubId == clubId
+        && request.resource.data.clubId == clubId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(bankAccountClientFields());
+    }
+
     match /clubs/{clubId} {
       allow read: if isActiveMember(clubId) || isPlatformAdmin();
       // Subscription fields are written by the Stripe Cloud Functions with the
@@ -101,6 +128,7 @@ service cloud.firestore {
     match /memberships/{membershipId} {
       allow read: if isSignedIn()
         && (resource.data.authUid == request.auth.uid
+            || isActiveMember(resource.data.clubId)
             || isBoard(resource.data.clubId)
             || isPlatformAdmin());
       allow create, update: if isBoard(request.resource.data.clubId);
@@ -132,7 +160,9 @@ service cloud.firestore {
 
     match /club_bank_accounts/{clubId} {
       allow read: if isActiveMember(clubId);
-      allow write: if isBoard(clubId);
+      allow create: if isBoard(clubId) && bankAccountClientCreateIsValid(clubId);
+      allow update: if isBoard(clubId) && bankAccountClientUpdateIsValid(clubId);
+      allow delete: if false;
     }
 
     match /announcements/{announcementId} {

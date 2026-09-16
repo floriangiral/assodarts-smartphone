@@ -152,6 +152,11 @@ jobs:
         working-directory: backend
         run: npx --yes firebase-tools@$FIREBASE_TOOLS_VERSION deploy --only functions --project "$FIREBASE_PROJECT_ID" --non-interactive
 
+      - name: Verify deployed functions match source exports
+        run: |
+          npx --yes firebase-tools@$FIREBASE_TOOLS_VERSION --json functions:list --project "$FIREBASE_PROJECT_ID" > deployed-functions.json
+          node backend/scripts/verify-functions-deployment.js --functions-json deployed-functions.json
+
       - name: Verify deployed functions are healthy
         working-directory: backend
         run: npx --yes firebase-tools@$FIREBASE_TOOLS_VERSION functions:list --project "$FIREBASE_PROJECT_ID"
