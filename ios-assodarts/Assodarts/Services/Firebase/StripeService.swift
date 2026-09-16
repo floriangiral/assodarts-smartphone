@@ -18,6 +18,10 @@ nonisolated struct CheckoutResponse: Decodable, Sendable {
     let sessionId: String
 }
 
+nonisolated struct BillingPortalResponse: Decodable, Sendable {
+    let url: String
+}
+
 /// Calls the Stripe Cloud Functions.
 ///
 /// Nothing sensitive lives in the app: the secret key, the amounts and the
@@ -56,6 +60,31 @@ enum StripeService {
         let result = try await Backend.functions.httpsCallable("stripeCreateCheckout")
             .call(["itemId": itemId.uuidString])
         let response = try decode(result.data, as: CheckoutResponse.self)
+        guard let url = URL(string: response.url) else {
+            throw BackendError.message(tr("payment_is_unavailable_right_now"))
+        }
+        return url
+    }
+
+    /// Opens Stripe Checkout for the club's own yearly Assodarts subscription.
+    /// The price is decided server-side from the club's member count.
+    static func startClubSubscriptionCheckout(clubId: UUID) async throws -> URL {
+        let result = try await Backend.functions
+            .httpsCallable("stripeCreateClubSubscriptionCheckout")
+            .call(["clubId": clubId.uuidString])
+        let response = try decode(result.data, as: CheckoutResponse.self)
+        guard let url = URL(string: response.url) else {
+            throw BackendError.message(tr("payment_is_unavailable_right_now"))
+        }
+        return url
+    }
+
+    /// Opens Stripe's hosted billing portal to change card, read invoices or cancel.
+    static func openBillingPortal(clubId: UUID) async throws -> URL {
+        let result = try await Backend.functions
+            .httpsCallable("stripeCreateClubBillingPortal")
+            .call(["clubId": clubId.uuidString])
+        let response = try decode(result.data, as: BillingPortalResponse.self)
         guard let url = URL(string: response.url) else {
             throw BackendError.message(tr("payment_is_unavailable_right_now"))
         }

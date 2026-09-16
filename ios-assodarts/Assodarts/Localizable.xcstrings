@@ -3041,22 +3041,6 @@
         }
       }
     },
-    "excludes_club_level_payments_stripe_collection_coming_so": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Hors paiements des clubs · encaissement Stripe bientôt disponible"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Excludes club-level payments · Stripe collection coming soon"
-          }
-        }
-      }
-    },
     "expired": {
       "localizations": {
         "fr": {
@@ -4257,6 +4241,22 @@
         }
       }
     },
+    "manage_my_subscription": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gérer mon abonnement"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manage my subscription"
+          }
+        }
+      }
+    },
     "no_platform_administrator_exists_yet_this_first_account_": {
       "localizations": {
         "fr": {
@@ -4273,6 +4273,102 @@
         }
       }
     },
+    "opening": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouverture…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opening…"
+          }
+        }
+      }
+    },
+    "reactivate_my_subscription": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réactiver mon abonnement"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reactivate my subscription"
+          }
+        }
+      }
+    },
+    "revenue_counts_clubs_with_a_confirmed_stripe_subscriptio": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chiffre d'affaires des clubs dont l'abonnement Stripe est confirmé (actif ou en période de grâce)."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Revenue from clubs with a confirmed Stripe subscription (active or in grace period)."
+          }
+        }
+      }
+    },
+    "subscribe_now": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "S'abonner maintenant"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subscribe now"
+          }
+        }
+      }
+    },
+    "the_last_payment_failed_update_your_card_to_keep_the_clu": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le dernier paiement a échoué. Mettez votre carte à jour pour que le club reste actif."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The last payment failed. Update your card to keep the club active."
+          }
+        }
+      }
+    },
+    "the_subscription_has_expired_the_club_is_read_only_until": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L'abonnement a expiré. Le club reste consultable, mais aucune nouvelle donnée ne peut être créée tant qu'il n'est pas régularisé."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The subscription has expired. The club stays readable, but no new data can be created until it is settled."
+          }
+        }
+      }
+    },
     "the_two_passwords_do_not_match": {
       "localizations": {
         "fr": {
@@ -4285,6 +4381,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "The two passwords do not match."
+          }
+        }
+      }
+    },
+    "update_my_payment_method": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mettre à jour ma carte"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update my payment method"
+          }
+        }
+      }
+    },
+    "your_free_trial_ends_on %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Votre essai gratuit se termine le %@."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your free trial ends on %@."
           }
         }
       }

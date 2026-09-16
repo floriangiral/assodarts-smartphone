@@ -30,6 +30,19 @@ service cloud.firestore {
       return isActiveMember(clubId) && membership(clubId).role in ['admin', 'board'];
     }
 
+    // An unpaid club keeps full read access — its data stays intact and
+    // visible — but stops being able to create or change club content until
+    // the subscription is settled. `trial` and `grace` still write: a trial has
+    // not been asked to pay yet, and a club in grace is one Stripe is still
+    // retrying. Only `expired` is read-only.
+    function isSubscriptionActive(clubId) {
+      return get(/databases/$(database)/documents/clubs/$(clubId)).data.subscriptionStatus != 'expired';
+    }
+
+    function canWriteClubContent(clubId) {
+      return isBoard(clubId) && isSubscriptionActive(clubId);
+    }
+
     function isOwnMember(clubId, memberId) {
       return isActiveMember(clubId) && membership(clubId).memberId == memberId;
     }
@@ -74,7 +87,10 @@ service cloud.firestore {
 
     match /clubs/{clubId} {
       allow read: if isActiveMember(clubId) || isPlatformAdmin();
-      allow write: if isBoard(clubId);
+      // Subscription fields are written by the Stripe Cloud Functions with the
+      // Admin SDK, which bypasses these rules; an expired club can no longer
+      // edit its own settings from the app.
+      allow write: if canWriteClubContent(clubId);
     }
 
     match /platform_admins/{uid} {
@@ -121,7 +137,7 @@ service cloud.firestore {
 
     match /announcements/{announcementId} {
       allow read: if isActiveMember(resource.data.clubId);
-      allow create: if isBoard(request.resource.data.clubId);
+      allow create: if canWriteClubContent(request.resource.data.clubId);
       allow update, delete: if isBoard(resource.data.clubId);
     }
 
@@ -137,7 +153,7 @@ service cloud.firestore {
 
     match /events/{eventId} {
       allow read: if isActiveMember(resource.data.clubId);
-      allow create: if isBoard(request.resource.data.clubId);
+      allow create: if canWriteClubContent(request.resource.data.clubId);
       allow update, delete: if isBoard(resource.data.clubId);
     }
 
@@ -151,7 +167,7 @@ service cloud.firestore {
 
     match /tournaments/{tournamentId} {
       allow read: if isActiveMember(resource.data.clubId);
-      allow create: if isBoard(request.resource.data.clubId);
+      allow create: if canWriteClubContent(request.resource.data.clubId);
       allow update, delete: if isBoard(resource.data.clubId);
     }
 
@@ -181,7 +197,7 @@ service cloud.firestore {
 
     match /payment_calls/{callId} {
       allow read: if isActiveMember(resource.data.clubId);
-      allow write: if isBoard(request.resource.data.clubId);
+      allow write: if canWriteClubContent(request.resource.data.clubId);
     }
 
     match /payment_call_items/{itemId} {

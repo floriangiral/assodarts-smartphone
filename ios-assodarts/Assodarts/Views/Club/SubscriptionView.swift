@@ -4,11 +4,19 @@ import SwiftUI
 struct SubscriptionView: View {
     @Environment(AppStore.self) private var store
 
+    @State private var stripeSheet: IdentifiableURL?
+    @State private var isWorking: Bool = false
+    @State private var errorMessage: String?
+
     var body: some View {
         ScrollView {
             if let club = store.currentClub {
                 VStack(spacing: 16) {
                     currentPlanCard(club)
+
+                    if store.canManageClub {
+                        actionCard(club)
+                    }
 
                     if let coupon = store.coupon(for: club) {
                         couponCard(coupon, club: club)
@@ -33,6 +41,84 @@ struct SubscriptionView: View {
         .assoCanvas()
         .navigationTitle(tr("subscription"))
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(item: $stripeSheet, onDismiss: { Task { await store.refresh() } }) { sheet in
+            SafariSheet(url: sheet.url)
+        }
+    }
+
+    /// Subscribe, manage or reactivate, depending on where the club stands.
+    private func actionCard(_ club: Club) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            switch club.status {
+            case .trial:
+                Text(tr("your_free_trial_ends_on \(Fmt.shortDate(club.renewalDate))"))
+                    .font(.footnote)
+                    .foregroundStyle(Theme.inkSecondary)
+                PrimaryButton(
+                    title: isWorking ? tr("opening") : tr("subscribe_now"),
+                    symbol: isWorking ? "ellipsis" : "creditcard.fill",
+                    isEnabled: !isWorking,
+                    action: { startCheckout(club) }
+                )
+            case .active:
+                PrimaryButton(
+                    title: isWorking ? tr("opening") : tr("manage_my_subscription"),
+                    symbol: isWorking ? "ellipsis" : "gearshape.fill",
+                    isEnabled: !isWorking,
+                    action: { openPortal(club) }
+                )
+            case .grace:
+                Label(tr("the_last_payment_failed_update_your_card_to_keep_the_clu"), systemImage: "exclamationmark.triangle.fill")
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(Theme.amber)
+                PrimaryButton(
+                    title: isWorking ? tr("opening") : tr("update_my_payment_method"),
+                    symbol: isWorking ? "ellipsis" : "creditcard.fill",
+                    isEnabled: !isWorking,
+                    action: { openPortal(club) }
+                )
+            case .expired:
+                Label(tr("the_subscription_has_expired_the_club_is_read_only_until"), systemImage: "lock.fill")
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(Theme.red)
+                PrimaryButton(
+                    title: isWorking ? tr("opening") : tr("reactivate_my_subscription"),
+                    symbol: isWorking ? "ellipsis" : "arrow.clockwise",
+                    isEnabled: !isWorking,
+                    action: { startCheckout(club) }
+                )
+            }
+
+            if let errorMessage {
+                Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(Theme.red)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .assoCard(padding: 20)
+    }
+
+    private func startCheckout(_ club: Club) {
+        run { try await StripeService.startClubSubscriptionCheckout(clubId: club.id) }
+    }
+
+    private func openPortal(_ club: Club) {
+        run { try await StripeService.openBillingPortal(clubId: club.id) }
+    }
+
+    private func run(_ operation: @escaping () async throws -> URL) {
+        guard !isWorking else { return }
+        isWorking = true
+        errorMessage = nil
+        Task {
+            do {
+                stripeSheet = IdentifiableURL(url: try await operation())
+            } catch {
+                errorMessage = friendlyMessage(for: error)
+            }
+            isWorking = false
+        }
     }
 
     private func currentPlanCard(_ club: Club) -> some View {

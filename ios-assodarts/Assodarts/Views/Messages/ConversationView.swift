@@ -81,6 +81,7 @@ struct ConversationView: View {
                 )
             }
         }
+        .task { await store.refresh() }
         .task(id: photoItem) {
             guard let photoItem,
                   let data = try? await photoItem.loadTransferable(type: Data.self) else { return }
