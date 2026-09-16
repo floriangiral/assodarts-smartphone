@@ -308,7 +308,7 @@ jobs:
     # il ne doit pas partir sur un commit qui fuite une clé.
     if: >-
       always() &&
-      github.event_name == 'push' && startsWith(github.ref, 'refs/heads/release-') &&
+      (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/release-'))) &&
       (needs.ios.result == 'success' || needs.ios.result == 'skipped') &&
       needs.backend.result == 'success' &&
       needs.secret-scan.result == 'success' &&
@@ -327,7 +327,7 @@ jobs:
     # soient évalués au lieu de faire sauter le job d'office.
     if: >-
       always() &&
-      github.event_name == 'push' && startsWith(github.ref, 'refs/heads/release-') &&
+      (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/release-'))) &&
       (needs.ios.result == 'success' || needs.ios.result == 'skipped') &&
       needs.backend.result == 'success' &&
       needs.secret-scan.result == 'success' &&
