@@ -399,20 +399,21 @@ final class AppStore {
         if member.photoData != previous.photoData {
             updated.photoPath = member.photoData == nil ? nil : "profile_photos/\(member.id.uuidString)"
         }
-        db.members[index] = updated
+        let memberToSave = updated
+        db.members[index] = memberToSave
         save()
         push {
-            if updated.photoData != previous.photoData {
-                if let data = updated.photoData {
+            if memberToSave.photoData != previous.photoData {
+                if let data = memberToSave.photoData {
                     _ = try await RemoteRepository.uploadProfilePhoto(
-                        memberId: updated.id,
+                        memberId: memberToSave.id,
                         data: data
                     )
                 } else if let path = previous.photoPath {
                     try? await RemoteRepository.deleteProfilePhoto(path: path)
                 }
             }
-            try await RemoteRepository.updateMember(updated)
+            try await RemoteRepository.updateMember(memberToSave)
         }
     }
 

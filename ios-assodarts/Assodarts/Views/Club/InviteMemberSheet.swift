@@ -46,7 +46,7 @@ struct InviteMemberSheet: View {
                 }
 
                 if let invitation {
-                    Section(tr("invitation_link")) {
+                    Section {
                         if let url = invitation.inviteURL {
                             QRCodeImage(url: url)
                                 .frame(maxWidth: .infinity)
@@ -75,6 +75,8 @@ struct InviteMemberSheet: View {
                         if !invitation.inviteCode.isEmpty {
                             LabeledContent(tr("invitation_code"), value: invitation.inviteCode)
                         }
+                    } header: {
+                        Text(tr("invitation_link"))
                     } footer: {
                         Text(tr("the_invited_person_can_scan_this_code_or_create_an_account"))
                     }
