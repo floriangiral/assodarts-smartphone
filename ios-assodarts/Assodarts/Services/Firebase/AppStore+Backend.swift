@@ -392,7 +392,7 @@ extension AppStore {
         currentUserId = snapshot.currentMemberId
         availableClubs = snapshot.availableClubs
         activeClubRemoteId = snapshot.activeClubRemoteId
-        let activeClubId = snapshot.activeClubRemoteId.flatMap(UUID.init(uuidString:))
+        let activeClubId = UUID(uuidString: snapshot.activeClubRemoteId)
         AnalyticsService.updateUserProperties(clubId: activeClubId, role: currentUser?.role)
     }
 
