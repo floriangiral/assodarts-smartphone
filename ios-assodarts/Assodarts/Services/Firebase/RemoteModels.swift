@@ -60,6 +60,12 @@ struct RemoteMember: Codable {
     let lastName: String
     let email: String
     let phone: String?
+    let birthDate: Date?
+    let photoPath: String?
+    let notifyAnnouncements: Bool?
+    let notifyEvents: Bool?
+    let notifyPayments: Bool?
+    let notifyTournaments: Bool?
     let status: String
 }
 
@@ -70,7 +76,7 @@ struct RemoteBankAccount: Codable {
     let iban: String
     let bic: String
     let bankName: String
-    let stripeStatus: String
+    let stripeStatus: String?
     let stripeAccountId: String?
     let acceptsTransfer: Bool
     let acceptsCash: Bool
@@ -119,6 +125,7 @@ struct RemotePaymentCall: Codable {
     let dueDate: Date
     let createdByMemberId: String?
     let createdAt: Date
+    let notify: Bool?
 }
 
 struct RemotePaymentItem: Codable {
@@ -183,8 +190,6 @@ nonisolated struct BankAccountUpsert: Encodable, Sendable {
     let iban: String
     let bic: String
     let bankName: String
-    let stripeStatus: String
-    let stripeAccountId: String?
     let acceptsTransfer: Bool
     let acceptsCash: Bool
     let transferNote: String
@@ -202,6 +207,7 @@ nonisolated struct PaymentCallInsert: Encodable, Sendable {
     let dueDate: Date
     let createdByMemberId: String
     let createdAt: Date
+    let notify: Bool
 }
 
 nonisolated struct PaymentItemInsert: Encodable, Sendable {
@@ -358,7 +364,7 @@ extension ClubBankAccount {
             iban: remote.iban,
             bic: remote.bic,
             bankName: remote.bankName,
-            stripeStatus: .fromRemote(remote.stripeStatus),
+            stripeStatus: .fromRemote(remote.stripeStatus ?? "not_connected"),
             stripeAccountId: remote.stripeAccountId,
             acceptsTransfer: remote.acceptsTransfer,
             acceptsCash: remote.acceptsCash,

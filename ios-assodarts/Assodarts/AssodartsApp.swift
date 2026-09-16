@@ -7,17 +7,23 @@ import FirebaseCore
 import FirebaseMessaging
 import SwiftUI
 import UIKit
+import UserNotifications
 
 /// Bridges the APNs device token to FCM, and forwards the FCM registration
 /// token to the store so the club can push to this phone.
 final class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate {
     static let didRegisterToken = Notification.Name("assodarts.push.token")
+    private let notificationDelegate = PushNotificationDelegate()
 
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         Backend.configure()
+        if Backend.isConfigured {
+            AnalyticsService.applyCollectionPreference()
+        }
+        UNUserNotificationCenter.current().delegate = notificationDelegate
         Messaging.messaging().delegate = self
         return true
     }
@@ -70,4 +76,3 @@ struct AssodartsApp: App {
         }
     }
 }
-

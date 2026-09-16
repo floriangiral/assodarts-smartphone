@@ -58,15 +58,18 @@ extension AppStore {
         activeClubRemoteId = nil
         isPlatformAdmin = false
         isLive = false
+        AnalyticsService.clearUserProperties()
         save()
     }
 
     /// Asks the server, only while nobody is signed in, whether the very first
-    /// platform administrator still has to be created. Any failure is treated
-    /// as "an admin exists" so a network glitch can never strand a normal user
-    /// on the bootstrap screen.
+    /// platform administrator still has to be created. The local confirmation
+    /// is only a hint: staging can be reset from Firebase, and then the app
+    /// must not stay stuck on the login screen with no admin account left.
+    /// Any failure is treated as "an admin exists" so a network glitch can
+    /// never strand a normal user on the bootstrap screen.
     func checkPlatformAdminBootstrap() async {
-        guard Backend.isConfigured, !hasConfirmedPlatformAdminExists else {
+        guard Backend.isConfigured else {
             needsPlatformAdminBootstrap = false
             return
         }
@@ -76,6 +79,7 @@ extension AppStore {
             if exists {
                 confirmPlatformAdminExists()
             } else {
+                hasConfirmedPlatformAdminExists = false
                 needsPlatformAdminBootstrap = true
             }
         } catch {
@@ -103,12 +107,16 @@ extension AppStore {
                 if isPlatformAdmin {
                     isLive = true
                     await loadPlatformData()
+                    AnalyticsService.logLogin(memberRole: "admin")
                     return nil
                 }
                 return friendlyMessage(for: BackendError.message(tr("profile_not_found_contact_support")))
             }
             let message = await loadRemote(userId: userId)
             await loadPlatformData()
+            if message == nil {
+                AnalyticsService.logLogin(memberRole: AnalyticsService.roleProperty(currentUser?.role ?? .membre))
+            }
             return message
         } catch {
             print("Sign-in failed: \(error)")
@@ -141,15 +149,26 @@ extension AppStore {
             let result = try await Backend.auth.createUser(withEmail: normalized, password: password)
             let userId = UUID()
 
-            try await RemoteRepository.createSelfMember(
-                userId: userId,
-                authUid: result.user.uid,
-                firstName: first,
-                lastName: last,
-                email: normalized,
-                phone: phone.isEmpty ? nil : phone
-            )
-            return await loadRemote(userId: userId)
+            do {
+                try await RemoteRepository.createSelfMember(
+                    userId: userId,
+                    authUid: result.user.uid,
+                    firstName: first,
+                    lastName: last,
+                    email: normalized,
+                    phone: phone.isEmpty ? nil : phone
+                )
+                let message = await loadRemote(userId: userId)
+                if message != nil {
+                    await rollbackCreatedAuthUser(result.user, context: "invited member sign-up")
+                } else {
+                    AnalyticsService.logSignUp(method: "invitation")
+                }
+                return message
+            } catch {
+                await rollbackCreatedAuthUser(result.user, context: "invited member sign-up")
+                throw error
+            }
         } catch {
             print("Sign-up failed: \(error)")
             return friendlyMessage(for: error)
@@ -188,22 +207,29 @@ extension AppStore {
             let result = try await Backend.auth.createUser(withEmail: normalized, password: password)
             let userId = UUID()
 
-            try await RemoteRepository.createSelfMember(
-                userId: userId,
-                authUid: result.user.uid,
-                firstName: first,
-                lastName: last,
-                email: normalized,
-                phone: phone.isEmpty ? nil : phone
-            )
+            do {
+                try await RemoteRepository.createSelfMember(
+                    userId: userId,
+                    authUid: result.user.uid,
+                    firstName: first,
+                    lastName: last,
+                    email: normalized,
+                    phone: phone.isEmpty ? nil : phone
+                )
 
-            _ = try await RemoteRepository.createClub(name: name)
+                let clubId = try await RemoteRepository.createClub(name: name)
 
-            let message = await loadRemote(userId: userId)
-            if message == nil {
-                showsPostCreationInviteOffer = true
+                let message = await loadRemote(userId: userId)
+                if message == nil {
+                    showsPostCreationInviteOffer = true
+                    AnalyticsService.logSignUp(method: "club_creator")
+                    AnalyticsService.logClubCreated(clubId: clubId, source: "sign_up")
+                }
+                return message
+            } catch {
+                await rollbackCreatedAuthUser(result.user, context: "club owner sign-up")
+                throw error
             }
-            return message
         } catch {
             print("Club creation failed: \(error)")
             return friendlyMessage(for: error)
@@ -214,10 +240,11 @@ extension AppStore {
     /// The snapshot reload also switches the app into the new live club.
     func createClubFromOnboarding(name: String, userId: UUID) async -> String? {
         do {
-            _ = try await RemoteRepository.createClub(name: name)
+            let clubId = try await RemoteRepository.createClub(name: name)
             let message = await loadRemote(userId: userId)
             if message == nil {
                 showsPostCreationInviteOffer = true
+                AnalyticsService.logClubCreated(clubId: clubId, source: "onboarding")
             }
             return message
         } catch {
@@ -259,12 +286,13 @@ extension AppStore {
             save()
             await loadNotifications()
             scheduleDueReminders()
+            await activatePushNotifications()
             return nil
         } catch {
             print("Club sync failed: \(error)")
             if case BackendError.noMembership = error {
-                needsOnboardingChoice = true
-                isLive = true
+                prepareOnboardingForMemberWithoutClub(userId: userId)
+                return nil
             }
             return friendlyMessage(for: error)
         }
@@ -277,7 +305,7 @@ extension AppStore {
     /// currently active, `pendingClubSwitchOffer` is set so the UI can offer
     /// an immediate switch instead of silently reloading the old club.
     private func loadSnapshotAcceptingInvitations(for userId: UUID) async throws -> RemoteRepository.Snapshot {
-        let joinedClubId = try? await RemoteRepository.acceptPendingInvitation()
+        let joinedClubId = try await RemoteRepository.acceptPendingInvitation()
 
         let snapshot: RemoteRepository.Snapshot
         do {
@@ -290,8 +318,19 @@ extension AppStore {
            let offer = snapshot.availableClubs.first(where: { $0.id == joinedClubId }) {
             pendingClubSwitchOffer = offer
         }
+        if let joinedClubId {
+            AnalyticsService.logClubJoined(clubId: joinedClubId)
+        }
 
         return snapshot
+    }
+
+    private func rollbackCreatedAuthUser(_ user: User, context: String) async {
+        do {
+            try await user.delete()
+        } catch {
+            print("Auth rollback failed after \(context): \(error)")
+        }
     }
 
     /// Re-reads everything from the server: pull-to-refresh, and recovery after
@@ -309,6 +348,7 @@ extension AppStore {
             save()
             await loadNotifications()
             scheduleDueReminders()
+            await activatePushNotifications()
         } catch {
             print("Refresh failed: \(error)")
             syncError = friendlyMessage(for: error)
@@ -355,6 +395,8 @@ extension AppStore {
         currentUserId = snapshot.currentMemberId
         availableClubs = snapshot.availableClubs
         activeClubRemoteId = snapshot.activeClubRemoteId
+        let activeClubId = UUID(uuidString: snapshot.activeClubRemoteId)
+        AnalyticsService.updateUserProperties(clubId: activeClubId, role: currentUser?.role)
     }
 
     // MARK: - Notifications
@@ -398,8 +440,18 @@ extension AppStore {
     /// Stores the FCM token for this device so real push can be switched on
     /// without asking members to do anything.
     func registerPushToken(_ token: String) {
+        registeredPushToken = token
+        UserDefaults.standard.set(token, forKey: Self.pushTokenKey)
         guard isLive, let memberId = currentUserId else { return }
         push { try await NotificationsRepository.registerDeviceToken(token, memberId: memberId) }
+    }
+
+    func activatePushNotifications() async {
+        if let token = await NotificationService.requestAuthorizationAndRegisterForRemoteNotifications() {
+            registerPushToken(token)
+        } else if let token = registeredPushToken {
+            registerPushToken(token)
+        }
     }
 
     /// Re-arms the local reminders for everything this member still owes.
@@ -421,11 +473,15 @@ extension AppStore {
     /// Pushes a mutation after the local state has already been updated. A
     /// failure is surfaced and the club re-synced, so the screen never keeps a
     /// change the server rejected.
-    func push(_ operation: @escaping @Sendable () async throws -> Void) {
+    func push(
+        _ operation: @escaping @Sendable () async throws -> Void,
+        onSuccess: (@MainActor @Sendable () -> Void)? = nil
+    ) {
         guard isLive else { return }
         Task { @MainActor in
             do {
                 try await operation()
+                onSuccess?()
             } catch {
                 print("Backend write failed: \(error)")
                 syncError = friendlyMessage(for: error)

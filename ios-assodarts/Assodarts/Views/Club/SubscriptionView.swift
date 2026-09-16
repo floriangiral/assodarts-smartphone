@@ -14,7 +14,7 @@ struct SubscriptionView: View {
                 VStack(spacing: 16) {
                     currentPlanCard(club)
 
-                    if store.canManageClub {
+                    if store.currentUser?.role.canManageRoles == true {
                         actionCard(club)
                     }
 
@@ -100,20 +100,35 @@ struct SubscriptionView: View {
     }
 
     private func startCheckout(_ club: Club) {
-        run { try await StripeService.startClubSubscriptionCheckout(clubId: club.id) }
+        let tier = store.tier(for: club)
+        let priceCents = store.annualPriceCents(for: club)
+        run(
+            operation: { try await StripeService.startClubSubscriptionCheckout(clubId: club.id) },
+            onSuccess: {
+                AnalyticsService.logClubSubscriptionCheckoutStarted(
+                    club: club,
+                    tier: tier,
+                    priceCents: priceCents
+                )
+            }
+        )
     }
 
     private func openPortal(_ club: Club) {
-        run { try await StripeService.openBillingPortal(clubId: club.id) }
+        run(operation: { try await StripeService.openBillingPortal(clubId: club.id) })
     }
 
-    private func run(_ operation: @escaping () async throws -> URL) {
+    private func run(
+        operation: @escaping () async throws -> URL,
+        onSuccess: @escaping () -> Void = {}
+    ) {
         guard !isWorking else { return }
         isWorking = true
         errorMessage = nil
         Task {
             do {
                 stripeSheet = IdentifiableURL(url: try await operation())
+                onSuccess()
             } catch {
                 errorMessage = friendlyMessage(for: error)
             }

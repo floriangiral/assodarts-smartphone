@@ -43,6 +43,10 @@ service cloud.firestore {
       return isBoard(clubId) && isSubscriptionActive(clubId);
     }
 
+    function currentMemberId(clubId) {
+      return membership(clubId).memberId;
+    }
+
     function isOwnMember(clubId, memberId) {
       return isActiveMember(clubId) && membership(clubId).memberId == memberId;
     }
@@ -71,18 +75,76 @@ service cloud.firestore {
         || (member.defaultClubId != null && isActiveMember(member.defaultClubId));
     }
 
-    // Same two-field candidates as canViewMemberProfile(), but requires board/
-    // admin rather than any active member — editing a profile is a management
-    // action, not just visibility.
-    function canManageMemberProfile(member) {
-      return (member.clubId != null && isBoard(member.clubId))
-        || (member.defaultClubId != null && isBoard(member.defaultClubId));
-    }
-
     function canAccessConversation(conversation) {
       return isActiveMember(conversation.clubId)
         && (conversation.participantIds.hasAny([membership(conversation.clubId).memberId])
             || (conversation.kind == 'bureau' && isBoard(conversation.clubId)));
+    }
+
+    function isTournamentMarker(clubId, tournamentId) {
+      return isActiveMember(clubId)
+        && get(/databases/$(database)/documents/tournaments/$(tournamentId))
+          .data.markerIds.hasAny([currentMemberId(clubId)]);
+    }
+
+    function canCreateTournamentEntry(entry) {
+      return isSubscriptionActive(entry.clubId)
+        && (isBoard(entry.clubId)
+          || (isTournamentMarker(entry.clubId, entry.tournamentId)
+            && entry.recordedByMemberId == currentMemberId(entry.clubId)));
+    }
+
+    function canDeleteTournamentEntry(entry) {
+      return isSubscriptionActive(entry.clubId)
+        && (isBoard(entry.clubId) || isTournamentMarker(entry.clubId, entry.tournamentId));
+    }
+
+    function pushTokenFieldsAreValid() {
+      return request.resource.data.keys().hasOnly(['memberId', 'platform', 'environment', 'locale', 'updatedAt'])
+        && request.resource.data.platform in ['ios', 'android']
+        && request.resource.data.environment is string
+        && request.resource.data.locale is string;
+    }
+
+    function paymentItemClientUpdateIsValid() {
+      return request.resource.data.clubId == resource.data.clubId
+        && request.resource.data.memberId == resource.data.memberId
+        && request.resource.data.paymentCallId == resource.data.paymentCallId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'isPaid',
+          'paidAt',
+          'method',
+          'declaredAt',
+          'remindedAt',
+          'updatedAt'
+        ]);
+    }
+
+    function bankAccountClientFields() {
+      return [
+        'clubId',
+        'holder',
+        'iban',
+        'bic',
+        'bankName',
+        'acceptsTransfer',
+        'acceptsCash',
+        'transferNote',
+        'cashNote',
+        'updatedByMemberId',
+        'updatedAt'
+      ];
+    }
+
+    function bankAccountClientCreateIsValid(clubId) {
+      return request.resource.data.clubId == clubId
+        && request.resource.data.keys().hasOnly(bankAccountClientFields());
+    }
+
+    function bankAccountClientUpdateIsValid(clubId) {
+      return resource.data.clubId == clubId
+        && request.resource.data.clubId == clubId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(bankAccountClientFields());
     }
 
     match /clubs/{clubId} {
@@ -101,10 +163,10 @@ service cloud.firestore {
     match /memberships/{membershipId} {
       allow read: if isSignedIn()
         && (resource.data.authUid == request.auth.uid
+            || isActiveMember(resource.data.clubId)
             || isBoard(resource.data.clubId)
             || isPlatformAdmin());
-      allow create, update: if isBoard(request.resource.data.clubId);
-      allow delete: if isBoard(resource.data.clubId);
+      allow write: if false;
     }
 
     match /members/{memberId} {
@@ -114,31 +176,27 @@ service cloud.firestore {
         && (resource.data.authUid == request.auth.uid || canViewMemberProfile(resource.data));
       allow create: if isSignedIn()
         && request.resource.data.authUid == request.auth.uid;
-      // Board/admin management access is checked against both `clubId` and
-      // `defaultClubId` (see canManageMemberProfile), so the board of a
-      // member's currently active club can manage them, not just the board
-      // of their historical first club. This 2-field model is a deliberate
-      // scope limit: a member active in a 3rd club beyond these two is not
-      // covered. If that becomes necessary, prefer a denormalized field
-      // (e.g. `activeClubIds`, maintained by a Cloud Function on every
-      // `memberships` write) or move this check into a Cloud Function
-      // entirely, rather than a direct security rule.
+      // Profile, role, licence and status updates go through `updateMemberProfile`
+      // so the server can update both `members` and `memberships` atomically.
+      // The only direct member write left in the app is switching default club.
       allow update: if isSignedIn()
-        && ((resource.data.authUid == request.auth.uid
-              && request.resource.data.authUid == resource.data.authUid
-              && ownClubIdChangeIsValid())
-            || canManageMemberProfile(resource.data));
+        && resource.data.authUid == request.auth.uid
+        && request.resource.data.authUid == resource.data.authUid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['defaultClubId'])
+        && ownClubIdChangeIsValid();
     }
 
     match /club_bank_accounts/{clubId} {
       allow read: if isActiveMember(clubId);
-      allow write: if isBoard(clubId);
+      allow create: if isBoard(clubId) && bankAccountClientCreateIsValid(clubId);
+      allow update: if isBoard(clubId) && bankAccountClientUpdateIsValid(clubId);
+      allow delete: if false;
     }
 
     match /announcements/{announcementId} {
       allow read: if isActiveMember(resource.data.clubId);
       allow create: if canWriteClubContent(request.resource.data.clubId);
-      allow update, delete: if isBoard(resource.data.clubId);
+      allow update, delete: if canWriteClubContent(resource.data.clubId);
     }
 
     match /platform_announcements/{announcementId} {
@@ -154,7 +212,7 @@ service cloud.firestore {
     match /events/{eventId} {
       allow read: if isActiveMember(resource.data.clubId);
       allow create: if canWriteClubContent(request.resource.data.clubId);
-      allow update, delete: if isBoard(resource.data.clubId);
+      allow update, delete: if canWriteClubContent(resource.data.clubId);
     }
 
     match /event_registrations/{registrationId} {
@@ -168,13 +226,13 @@ service cloud.firestore {
     match /tournaments/{tournamentId} {
       allow read: if isActiveMember(resource.data.clubId);
       allow create: if canWriteClubContent(request.resource.data.clubId);
-      allow update, delete: if isBoard(resource.data.clubId);
+      allow update, delete: if canWriteClubContent(resource.data.clubId);
     }
 
     match /tournament_entries/{entryId} {
       allow read: if isActiveMember(resource.data.clubId);
-      allow create: if isBoard(request.resource.data.clubId);
-      allow delete: if isBoard(resource.data.clubId);
+      allow create: if canCreateTournamentEntry(request.resource.data);
+      allow delete: if canDeleteTournamentEntry(resource.data);
       allow update: if false;
     }
 
@@ -206,7 +264,8 @@ service cloud.firestore {
       // `markPaid` (cash/transfer) and `remind` are the only direct client
       // writes; declare/validate/cancel and Stripe updates go through
       // Cloud Functions with the Admin SDK.
-      allow update: if isBoard(resource.data.clubId);
+      allow update: if canWriteClubContent(resource.data.clubId)
+        && paymentItemClientUpdateIsValid();
     }
 
     match /notifications/{notificationId} {
@@ -216,13 +275,20 @@ service cloud.firestore {
     }
 
     match /device_push_tokens/{token} {
-      allow create, update: if isOwnProfile(request.resource.data.memberId);
-      allow read, delete: if false;
+      allow create, update: if isOwnProfile(request.resource.data.memberId)
+        && pushTokenFieldsAreValid();
+      allow delete: if isOwnProfile(resource.data.memberId);
+      allow read: if false;
     }
 
     match /invitations/{invitationId} {
       // Created by `createInvitation`, consumed by `acceptInvitation` — both
       // Cloud Functions using the Admin SDK, which bypasses these rules.
+      allow read, write: if false;
+    }
+
+    match /mail/{mailId} {
+      // Only Cloud Functions using the Admin SDK may write transactional mail.
       allow read, write: if false;
     }
   }

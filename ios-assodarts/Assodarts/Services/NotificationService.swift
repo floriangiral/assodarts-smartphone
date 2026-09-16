@@ -1,6 +1,16 @@
+import FirebaseMessaging
 import Foundation
 import UIKit
 import UserNotifications
+
+final class PushNotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification
+    ) async -> UNNotificationPresentationOptions {
+        [.banner, .list, .badge, .sound]
+    }
+}
 
 /// Local notifications: immediate confirmations, and the due-date reminders that
 /// chase members before a payment falls late.
@@ -19,15 +29,41 @@ enum NotificationService {
 
     private static let reminderPrefix = "due-reminder-"
 
-    static func requestAuthorization() async {
+    @MainActor
+    static func requestAuthorizationAndRegisterForRemoteNotifications() async -> String? {
         do {
-            let granted = try await UNUserNotificationCenter.current()
-                .requestAuthorization(options: [.alert, .badge, .sound])
-            if granted {
+            let center = UNUserNotificationCenter.current()
+            let settings = await center.notificationSettings()
+
+            switch settings.authorizationStatus {
+            case .notDetermined:
+                let granted = try await center.requestAuthorization(options: [.alert, .badge, .sound])
+                if granted {
+                    UIApplication.shared.registerForRemoteNotifications()
+                    return await currentFCMToken()
+                }
+            case .authorized, .provisional, .ephemeral:
                 UIApplication.shared.registerForRemoteNotifications()
+                return await currentFCMToken()
+            case .denied:
+                break
+            @unknown default:
+                break
             }
         } catch {
             print("Notifications: authorization denied or unavailable")
+        }
+        return nil
+    }
+
+    private static func currentFCMToken() async -> String? {
+        await withCheckedContinuation { continuation in
+            Messaging.messaging().token { token, error in
+                if let error {
+                    print("FCM token fetch failed: \(error)")
+                }
+                continuation.resume(returning: token)
+            }
         }
     }
 

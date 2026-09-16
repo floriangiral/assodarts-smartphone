@@ -25,6 +25,7 @@
   <li>Identité : nom, prénom, adresse e-mail</li>
   <li>Données de compte : identifiant d'authentification (Firebase Authentication)</li>
   <li>Données d'usage associatif : club(s) rejoint(s), rôle au sein du club, inscriptions à des événements ou tournois, messages échangés au sein de l'application</li>
+  <li>Mesures d'utilisation anonymisées via Firebase Analytics, si l'utilisateur ne les désactive pas dans l'application</li>
   <li>Jeton de notification (pour l'envoi de notifications push via Firebase Cloud Messaging), si activées</li>
 </ul>
 <p>Assodarts ne collecte pas de données de paiement à ce stade (fonctionnalité de paiement en ligne non activée dans la version actuelle).</p>
@@ -34,11 +35,12 @@
 <ul>
   <li>Permettre l'authentification et l'accès sécurisé au compte</li>
   <li>Assurer le fonctionnement des fonctionnalités associatives (annonces, événements, tournois, messagerie interne au club)</li>
+  <li>Comprendre quels parcours fonctionnent ou échouent afin d'améliorer l'application</li>
   <li>Envoyer des notifications relatives à la vie du club, si l'utilisateur les a activées</li>
 </ul>
 
 <h2>3. Partage des données avec des tiers</h2>
-<p>Les données sont hébergées et traitées via <strong>Google Firebase</strong> (Firestore, Authentication, Cloud Messaging), utilisé comme prestataire technique d'hébergement et d'infrastructure. Aucune donnée n'est vendue ni partagée à des fins publicitaires ou commerciales avec des tiers.</p>
+<p>Les données sont hébergées et traitées via <strong>Google Firebase</strong> (Firestore, Authentication, Cloud Messaging, Analytics), utilisé comme prestataire technique d'hébergement, d'infrastructure et de mesure d'utilisation. Aucune donnée n'est vendue ni partagée à des fins publicitaires ou commerciales avec des tiers.</p>
 
 <h2>4. Conservation des données</h2>
 <p>Les données sont conservées tant que le compte utilisateur est actif. Un utilisateur peut demander la suppression de son compte et des données associées à tout moment en contactant l'adresse ci-dessous.</p>

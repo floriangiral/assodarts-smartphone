@@ -43,7 +43,9 @@ struct MessagesListView: View {
                     }
                     .padding(.horizontal, 20)
                     .padding(.vertical, 12)
+                    .frame(maxWidth: .infinity)
                 }
+                .scrollContentBackground(.hidden)
                 .assoCanvas()
                 .refreshable { await store.refresh() }
                 .safeAreaInset(edge: .bottom) {

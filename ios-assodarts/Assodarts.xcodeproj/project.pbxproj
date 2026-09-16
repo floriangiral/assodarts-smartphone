@@ -12,6 +12,8 @@
 		XXE5F6A7B8C9D0E1F2A3B4XX /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = XXF6A7B8C9D0E1F2A3B4C5XX /* FirebaseFirestore */; };
 		XXA7B8C9D0E1F2A3B4C5D6XX /* FirebaseFunctions in Frameworks */ = {isa = PBXBuildFile; productRef = XXB8C9D0E1F2A3B4C5D6E7XX /* FirebaseFunctions */; };
 		XXC9D0E1F2A3B4C5D6E7F8XX /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = XXD0E1F2A3B4C5D6E7F8A9XX /* FirebaseMessaging */; };
+		XXE0A1B2C3D4E5F6A7B8C9XX /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = XXF0A1B2C3D4E5F6A7B8C9XX /* FirebaseAnalytics */; };
+		XXA2B3C4D5E6F7A8B9C0D1XX /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = XXB3C4D5E6F7A8B9C0D1E2XX /* FirebaseStorage */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -68,6 +70,8 @@
 				XXE5F6A7B8C9D0E1F2A3B4XX /* FirebaseFirestore in Frameworks */,
 				XXA7B8C9D0E1F2A3B4C5D6XX /* FirebaseFunctions in Frameworks */,
 				XXC9D0E1F2A3B4C5D6E7F8XX /* FirebaseMessaging in Frameworks */,
+				XXE0A1B2C3D4E5F6A7B8C9XX /* FirebaseAnalytics in Frameworks */,
+				XXA2B3C4D5E6F7A8B9C0D1XX /* FirebaseStorage in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -137,6 +141,8 @@
 				XXF6A7B8C9D0E1F2A3B4C5XX /* FirebaseFirestore */,
 				XXB8C9D0E1F2A3B4C5D6E7XX /* FirebaseFunctions */,
 				XXD0E1F2A3B4C5D6E7F8A9XX /* FirebaseMessaging */,
+				XXF0A1B2C3D4E5F6A7B8C9XX /* FirebaseAnalytics */,
+				XXB3C4D5E6F7A8B9C0D1E2XX /* FirebaseStorage */,
 			);
 			productName = Assodarts;
 			productReference = 105FC57A2E9EAD3100EA8BCF /* Assodarts.app */;
@@ -792,6 +798,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = XXE1F2A3B4C5D6E7F8A9B0XX /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseMessaging;
+		};
+		XXF0A1B2C3D4E5F6A7B8C9XX /* FirebaseAnalytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = XXE1F2A3B4C5D6E7F8A9B0XX /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAnalytics;
+		};
+		XXB3C4D5E6F7A8B9C0D1E2XX /* FirebaseStorage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = XXE1F2A3B4C5D6E7F8A9B0XX /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseStorage;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

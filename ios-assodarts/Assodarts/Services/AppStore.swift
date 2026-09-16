@@ -1,15 +1,18 @@
 import FirebaseAuth
+import FirebaseMessaging
 import Foundation
 import SwiftUI
 
 /// Single source of truth for the whole app: authentication, tenant-isolated
 /// reads and every mutation. Persisted locally between launches.
+@MainActor
 @Observable
 final class AppStore {
     // Bumpées en v2 pour jeter toute base locale persistée avant le nettoyage
     // du backend. Aucune migration : l'intention est bien de repartir de zéro.
     private static let storageKey = "assodarts.database.v2"
     private static let sessionKey = "assodarts.session.v2"
+    static let pushTokenKey = "assodarts.pushToken.v1"
     /// Cached once an administrator is known to exist, so the bootstrap check
     /// never costs a network round-trip again.
     private static let platformAdminConfirmedKey = "assodarts.platformAdminConfirmedExists.v1"
@@ -47,6 +50,7 @@ final class AppStore {
     var platformClubsRemote: [Club] = []
     var platformCoupons: [Coupon] = []
     var platformAnnouncementsRemote: [PlatformAnnouncement] = []
+    var registeredPushToken: String?
 
     init() {
         if let data = UserDefaults.standard.data(forKey: Self.storageKey),
@@ -60,6 +64,7 @@ final class AppStore {
            db.members.contains(where: { $0.id == id }) {
             currentUserId = id
         }
+        registeredPushToken = UserDefaults.standard.string(forKey: Self.pushTokenKey)
         save()
     }
 
@@ -97,7 +102,8 @@ final class AppStore {
 
     var canManageClub: Bool { currentUser?.role.canManageClub ?? false }
 
-    func signOut() {
+    func signOut() async {
+        await unregisterPushToken()
         currentUserId = nil
         syncError = nil
         notifications = []
@@ -113,7 +119,37 @@ final class AppStore {
         db = Database()
         isLive = false
         NotificationService.clearScheduledReminders()
+        AnalyticsService.clearUserProperties()
         try? Backend.auth.signOut()
+        save()
+    }
+
+    private func unregisterPushToken() async {
+        guard let token = registeredPushToken else { return }
+        do {
+            try await NotificationsRepository.deleteDeviceToken(token)
+        } catch {
+            print("Push token cleanup failed: \(error)")
+        }
+        Messaging.messaging().deleteToken { error in
+            if let error {
+                print("FCM token deletion failed: \(error)")
+            }
+        }
+        registeredPushToken = nil
+        UserDefaults.standard.removeObject(forKey: Self.pushTokenKey)
+    }
+
+    func prepareOnboardingForMemberWithoutClub(userId: UUID) {
+        db = Database()
+        currentUserId = userId
+        notifications = []
+        availableClubs = []
+        activeClubRemoteId = nil
+        pendingClubSwitchOffer = nil
+        needsOnboardingChoice = true
+        isLive = true
+        syncError = nil
         save()
     }
 
@@ -180,11 +216,15 @@ final class AppStore {
     }
 
     func isUpToDate(_ memberId: UUID) -> Bool {
-        !payments(for: memberId).contains { !$0.item.isPaid && $0.call.category == .cotisation }
+        let membershipFees = payments(for: memberId).filter { $0.call.category == .cotisation }
+        guard !membershipFees.isEmpty else { return false }
+        return !membershipFees.contains { !$0.item.isPaid }
     }
 
     func membershipState(for memberId: UUID) -> PaymentState {
-        let unpaid = payments(for: memberId).filter { !$0.item.isPaid && $0.call.category == .cotisation }
+        let membershipFees = payments(for: memberId).filter { $0.call.category == .cotisation }
+        guard !membershipFees.isEmpty else { return .pending }
+        let unpaid = membershipFees.filter { !$0.item.isPaid }
         guard let worst = unpaid.first else { return .paid }
         return worst.item.state(dueDate: worst.call.dueDate)
     }
@@ -354,30 +394,54 @@ final class AppStore {
 
     func updateMember(_ member: Member) {
         guard let index = db.members.firstIndex(where: { $0.id == member.id }) else { return }
-        db.members[index] = member
-        save()
-    }
-
-    /// Adds a member locally, then sends a real invitation — the row shown
-    /// here is only a placeholder until that person actually signs up and
-    /// joins the club.
-    func addMember(_ member: Member) {
-        db.members.append(member)
+        let previous = db.members[index]
+        var updated = member
+        if member.photoData != previous.photoData {
+            updated.photoPath = member.photoData == nil ? nil : "profile_photos/\(member.id.uuidString)"
+        }
+        let memberToSave = updated
+        db.members[index] = memberToSave
         save()
         push {
-            try await RemoteRepository.inviteMember(
-                clubId: member.clubId,
-                email: member.email,
-                role: member.role,
-                licenseNumber: member.isLicensed ? member.licenceNumber : nil
-            )
+            if memberToSave.photoData != previous.photoData {
+                if let data = memberToSave.photoData {
+                    _ = try await RemoteRepository.uploadProfilePhoto(
+                        memberId: memberToSave.id,
+                        data: data
+                    )
+                } else if let path = previous.photoPath {
+                    try? await RemoteRepository.deleteProfilePhoto(path: path)
+                }
+            }
+            try await RemoteRepository.updateMember(memberToSave)
+        }
+    }
+
+    /// Sends an invitation. The member appears in the directory only once they
+    /// sign up and the backend creates their active membership.
+    func inviteMember(email: String, to clubId: UUID) async -> RemoteRepository.Invitation? {
+        guard isLive else { return nil }
+        do {
+            return try await RemoteRepository.inviteMember(clubId: clubId, email: email)
+        } catch {
+            print("Invitation failed: \(error)")
+            syncError = friendlyMessage(for: error)
+            return nil
         }
     }
 
     func addTournament(_ tournament: Tournament) {
         db.tournaments.append(tournament)
         save()
-        push { try await RemoteRepository.createTournament(tournament) }
+        push {
+            try await RemoteRepository.createTournament(tournament)
+        } onSuccess: {
+            AnalyticsService.logTournamentCreated(
+                clubId: tournament.clubId,
+                tournamentId: tournament.id,
+                markerCount: tournament.markerIds.count
+            )
+        }
     }
 
     func addEntry(_ entry: TournamentEntry, to tournamentId: UUID) {

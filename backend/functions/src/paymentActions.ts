@@ -16,6 +16,32 @@ async function loadItem(
   return { ref, data: snap.data()! };
 }
 
+async function requirePaymentOwner(
+  data: DocumentData,
+  uid: string,
+): Promise<void> {
+  const clubId = String(data.clubId ?? "").trim();
+  const memberId = String(data.memberId ?? "").trim();
+  if (!clubId || !memberId) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Payment line is missing its ownership data",
+    );
+  }
+
+  const membership = (
+    await getFirestore().collection("memberships").doc(`${clubId}_${uid}`).get()
+  ).data();
+
+  if (
+    !membership ||
+    membership.status !== "active" ||
+    membership.memberId !== memberId
+  ) {
+    throw new HttpsError("permission-denied", "This payment is not yours");
+  }
+}
+
 /** A member self-declares a cash/transfer payment, pending board validation. */
 export const declarePayment = onCall(async (request) => {
   if (!request.auth)
@@ -28,9 +54,7 @@ export const declarePayment = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "itemId and method are required");
 
   const { ref, data } = await loadItem(itemId);
-  if (data.memberId !== request.auth.uid) {
-    throw new HttpsError("permission-denied", "This payment is not yours");
-  }
+  await requirePaymentOwner(data, request.auth.uid);
   if (data.isPaid)
     throw new HttpsError(
       "failed-precondition",
@@ -80,7 +104,12 @@ export const cancelPaymentDeclaration = onCall(async (request) => {
   if (!itemId) throw new HttpsError("invalid-argument", "itemId is required");
 
   const { ref, data } = await loadItem(itemId);
-  if (data.memberId !== request.auth.uid) {
+  try {
+    await requirePaymentOwner(data, request.auth.uid);
+  } catch (err) {
+    if (!(err instanceof HttpsError) || err.code !== "permission-denied") {
+      throw err;
+    }
     await requireClubBoard(data.clubId, request.auth.uid);
   }
 

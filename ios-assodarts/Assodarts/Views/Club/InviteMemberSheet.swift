@@ -1,46 +1,31 @@
 import SwiftUI
+import CoreImage.CIFilterBuiltins
+import UIKit
 
-/// Invite a new member by email — the account is created with the "Membre" role.
+/// Registers a pending invitation for an email address. The member profile is
+/// created by the invited person when they sign up with that email.
 struct InviteMemberSheet: View {
     @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
 
-    @State private var firstName: String = ""
-    @State private var lastName: String = ""
     @State private var email: String = ""
-    @State private var role: Role = .membre
-    @State private var isLicensed: Bool = false
-    @State private var licenceNumber: String = ""
-    @State private var showsConfirmation: Bool = false
+    @State private var invitation: RemoteRepository.Invitation?
+    @State private var isSending: Bool = false
+    @State private var didCopy: Bool = false
     @FocusState private var focusedField: Field?
 
     private enum Field: Hashable {
-        case firstName
-        case lastName
         case email
-        case licence
     }
 
     private var canInvite: Bool {
-        !firstName.trimmingCharacters(in: .whitespaces).isEmpty
-            && !lastName.trimmingCharacters(in: .whitespaces).isEmpty
-            && email.contains("@")
+        email.trimmingCharacters(in: .whitespacesAndNewlines).contains("@")
     }
 
     var body: some View {
         NavigationStack {
             Form {
-                Section(tr("identity")) {
-                    TextField(tr("first_name"), text: $firstName)
-                        .keyboardField(.name, submit: .next)
-                        .focused($focusedField, equals: .firstName)
-                        .onSubmit { focusedField = .lastName }
-                        .foregroundStyle(Theme.ink)
-                    TextField(tr("last_name"), text: $lastName)
-                        .keyboardField(.name, submit: .next)
-                        .focused($focusedField, equals: .lastName)
-                        .onSubmit { focusedField = .email }
-                        .foregroundStyle(Theme.ink)
+                Section(tr("email_address")) {
                     TextField(tr("email"), text: $email)
                         .keyboardField(.email, submit: .done)
                         .focused($focusedField, equals: .email)
@@ -48,40 +33,53 @@ struct InviteMemberSheet: View {
                         .foregroundStyle(Theme.ink)
                 }
 
-                Section(tr("licence")) {
-                    Toggle(tr("ffd_licensed"), isOn: $isLicensed)
-                    if isLicensed {
-                        TextField(tr("licence_number"), text: $licenceNumber)
-                            .keyboardField(.licence, submit: .done)
-                            .focused($focusedField, equals: .licence)
-                            .foregroundStyle(Theme.ink)
-                    }
-                }
-
-                if store.currentUser?.role.canManageRoles == true {
-                    Section(tr("role")) {
-                        Picker(tr("role"), selection: $role) {
-                            ForEach(Role.clubRoles) { role in
-                                Text(role.label).tag(role)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-                        Text(role.permissionSummary)
-                            .font(.caption)
-                            .foregroundStyle(Theme.inkSecondary)
-                    }
-                }
-
                 Section {
                     Button {
                         invite()
                     } label: {
-                        Label(tr("send_invitation"), systemImage: "paperplane.fill")
+                        Label(isSending ? tr("sending") : tr("send_invitation"), systemImage: "paperplane.fill")
                             .frame(maxWidth: .infinity)
                     }
-                    .disabled(!canInvite)
+                    .disabled(!canInvite || isSending)
                 } footer: {
                     Text(tr("the_member_receives_an_invitation_email_with_a_temporary"))
+                }
+
+                if let invitation {
+                    Section {
+                        if let url = invitation.inviteURL {
+                            QRCodeImage(url: url)
+                                .frame(maxWidth: .infinity)
+                                .listRowBackground(Color.clear)
+
+                            Text(url.absoluteString)
+                                .font(.footnote)
+                                .foregroundStyle(Theme.inkSecondary)
+                                .textSelection(.enabled)
+
+                            ShareLink(item: url) {
+                                Label(tr("share_invitation_link"), systemImage: "square.and.arrow.up")
+                            }
+
+                            Button {
+                                UIPasteboard.general.string = url.absoluteString
+                                didCopy = true
+                            } label: {
+                                Label(
+                                    didCopy ? tr("invitation_link_copied") : tr("copy_invitation_link"),
+                                    systemImage: didCopy ? "checkmark" : "doc.on.doc"
+                                )
+                            }
+                        }
+
+                        if !invitation.inviteCode.isEmpty {
+                            LabeledContent(tr("invitation_code"), value: invitation.inviteCode)
+                        }
+                    } header: {
+                        Text(tr("invitation_link"))
+                    } footer: {
+                        Text(tr("the_invited_person_can_scan_this_code_or_create_an_account"))
+                    }
                 }
             }
             .scrollContentBackground(.hidden)
@@ -95,27 +93,50 @@ struct InviteMemberSheet: View {
                     Button(tr("cancel")) { dismiss() }
                 }
             }
-            .alert(tr("invitation_sent"), isPresented: $showsConfirmation) {
-                Button(tr("done")) { dismiss() }
-            } message: {
-                Text(tr("has_been_added_to_the_club_and_will_receive_an_email_inv \(firstName) \(lastName)"))
-            }
         }
     }
 
     private func invite() {
         guard let club = store.currentClub else { return }
-        let member = Member(
-            clubId: club.id,
-            firstName: firstName.trimmingCharacters(in: .whitespaces),
-            lastName: lastName.trimmingCharacters(in: .whitespaces),
-            email: email.trimmingCharacters(in: .whitespaces).lowercased(),
-            role: role,
-            isLicensed: isLicensed,
-            licenceNumber: isLicensed ? licenceNumber : "",
-            joinedAt: .now
-        )
-        store.addMember(member)
-        showsConfirmation = true
+        isSending = true
+        didCopy = false
+        Task { @MainActor in
+            invitation = await store.inviteMember(
+                email: email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+                to: club.id
+            )
+            isSending = false
+        }
+    }
+}
+
+private struct QRCodeImage: View {
+    let url: URL
+
+    private let context = CIContext()
+    private let filter = CIFilter.qrCodeGenerator()
+
+    var body: some View {
+        if let image = makeImage() {
+            Image(uiImage: image)
+                .interpolation(.none)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 190, height: 190)
+                .padding(16)
+                .background(Theme.surface, in: .rect(cornerRadius: Theme.cardRadius))
+                .overlay {
+                    RoundedRectangle(cornerRadius: Theme.cardRadius)
+                        .stroke(Theme.border, lineWidth: 1)
+                }
+        }
+    }
+
+    private func makeImage() -> UIImage? {
+        filter.message = Data(url.absoluteString.utf8)
+        filter.correctionLevel = "M"
+        guard let output = filter.outputImage?.transformed(by: CGAffineTransform(scaleX: 10, y: 10)),
+              let cgImage = context.createCGImage(output, from: output.extent) else { return nil }
+        return UIImage(cgImage: cgImage)
     }
 }

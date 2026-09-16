@@ -130,6 +130,7 @@ export interface PaymentCallDoc {
   dueDate: FirebaseFirestore.Timestamp;
   createdByMemberId: string | null;
   createdAt: FirebaseFirestore.Timestamp;
+  notify: boolean;
 }
 
 export interface PaymentCallItemDoc {
@@ -153,7 +154,9 @@ export interface NotificationPayload {
   callId?: string;
   itemId?: string;
   announcementId?: string;
+  conversationId?: string;
   eventId?: string;
+  tournamentId?: string;
   label?: string;
   amountCents?: number;
   memberName?: string;
@@ -165,7 +168,7 @@ export interface NotificationPayload {
 export interface NotificationDoc {
   memberId: string;
   clubId: string;
-  kind: "announcement" | "payment_due" | "payment_to_confirm" | "payment_confirmed" | "platform_announcement" | "event";
+  kind: "announcement" | "message" | "payment_due" | "payment_to_confirm" | "payment_confirmed" | "platform_announcement" | "event" | "tournament";
   title: string;
   body: string;
   payload: NotificationPayload;
@@ -179,6 +182,7 @@ export interface DevicePushTokenDoc {
   platform: "ios" | "android";
   environment: string;
   locale: string;
+  updatedAt: FirebaseFirestore.Timestamp;
 }
 
 /**

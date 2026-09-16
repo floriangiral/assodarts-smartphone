@@ -6,6 +6,7 @@ struct MyProfileView: View {
     @Environment(Localization.self) private var localization
     @State private var showsEditor: Bool = false
     @State private var showsSignOutAlert: Bool = false
+    @State private var analyticsCollectionEnabled = AnalyticsService.isCollectionEnabled
 
     private var payments: [(call: PaymentCall, item: PaymentItem)] {
         guard let user = store.currentUser else { return [] }
@@ -22,6 +23,7 @@ struct MyProfileView: View {
                     paymentsCard
                     notificationsCard(user)
                     languageCard
+                    privacyCard
 
                     VStack(spacing: 12) {
                         SecondaryButton(title: tr("edit_my_profile"), symbol: "pencil") {
@@ -47,7 +49,7 @@ struct MyProfileView: View {
         }
         .alert(tr("sign_out_developertabview"), isPresented: $showsSignOutAlert) {
             Button(tr("cancel"), role: .cancel) {}
-            Button(tr("sign_out"), role: .destructive) { store.signOut() }
+            Button(tr("sign_out"), role: .destructive) { Task { await store.signOut() } }
         }
     }
 
@@ -71,6 +73,36 @@ struct MyProfileView: View {
                 : tr("dates_amounts_and_keyboard_follow_this_language"))
                 .font(.caption)
                 .foregroundStyle(Theme.inkSecondary)
+        }
+        .assoCard()
+    }
+
+    private var privacyCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            SectionLabel(text: tr("privacy_and_analytics"))
+
+            Toggle(isOn: Binding(
+                get: { analyticsCollectionEnabled },
+                set: { isEnabled in
+                    analyticsCollectionEnabled = isEnabled
+                    AnalyticsService.setCollectionEnabled(isEnabled)
+                }
+            )) {
+                Text(tr("share_usage_analytics"))
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.ink)
+            }
+            .tint(Theme.navy)
+
+            Text(tr("analytics_help_improve_assodarts_without_names_or_email"))
+                .font(.caption)
+                .foregroundStyle(Theme.inkSecondary)
+
+            Link(destination: AnalyticsService.privacyPolicyURL) {
+                Label(tr("privacy_policy"), systemImage: "lock.shield")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Theme.navy)
+            }
         }
         .assoCard()
     }

@@ -32,14 +32,13 @@ struct ContentView: View {
         .animation(.easeInOut(duration: 0.25), value: store.needsPlatformAdminBootstrap)
         .task {
             await store.restoreSession()
-            await NotificationService.requestAuthorization()
         }
         // Only a real return from the background: at launch there is no prior
         // `.background` phase, so this never doubles up with restoreSession(),
         // and a passing `.inactive` (control centre, system alert) is ignored.
         .onChange(of: scenePhase) { previous, phase in
             guard phase == .active, previous == .background, store.currentUser != nil else { return }
-            Task { await store.refresh() }
+            Task { @MainActor in await store.refresh() }
         }
     }
 }

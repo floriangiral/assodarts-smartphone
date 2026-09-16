@@ -38,6 +38,15 @@ struct OnboardingChoiceView: View {
                 }
                 if !showsCreateClub {
                     PrimaryButton(title: tr("refresh"), symbol: "arrow.clockwise", isEnabled: !isRefreshing, action: refresh)
+                    Button {
+                        Task { await store.signOut() }
+                    } label: {
+                        Label(tr("back_to_home"), systemImage: "arrow.left")
+                            .font(.footnote.weight(.semibold))
+                            .frame(maxWidth: .infinity)
+                    }
+                    .foregroundStyle(Theme.inkSecondary)
+                    .padding(.top, 4)
                 } else {
                     CreateClubView(onCancel: { showsCreateClub = false })
                 }
@@ -85,7 +94,7 @@ struct OnboardingChoiceView: View {
     private func refresh() {
         guard let userId = store.currentUserId else { return }
         isRefreshing = true
-        Task {
+        Task { @MainActor in
             _ = await store.loadRemote(userId: userId)
             isRefreshing = false
         }

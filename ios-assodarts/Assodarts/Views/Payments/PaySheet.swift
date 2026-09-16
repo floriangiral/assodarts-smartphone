@@ -465,8 +465,11 @@ struct PaySheet: View {
             try? await Task.sleep(for: .milliseconds(900))
             await store.refresh()
 
-            var isPaid = store.paymentCall(call.id)?.item(for: user.id)?.isPaid ?? false
-            if !isPaid {
+            let initialIsPaid = store.paymentCall(call.id)?.item(for: user.id)?.isPaid ?? false
+            let isPaid: Bool
+            if initialIsPaid {
+                isPaid = true
+            } else {
                 try? await Task.sleep(for: .seconds(2))
                 await store.refresh()
                 isPaid = store.paymentCall(call.id)?.item(for: user.id)?.isPaid ?? false

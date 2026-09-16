@@ -1,0 +1,44 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function member(memberId) {
+      return firestore.get(
+        /databases/(default)/documents/members/$(memberId)
+      ).data;
+    }
+
+    function membership(clubId) {
+      return firestore.get(
+        /databases/(default)/documents/memberships/$(clubId + '_' + request.auth.uid)
+      ).data;
+    }
+
+    function isActiveMember(clubId) {
+      return isSignedIn() && membership(clubId).status == 'active';
+    }
+
+    function canViewMemberPhoto(memberId) {
+      return isSignedIn()
+        && (
+          member(memberId).authUid == request.auth.uid
+          || (member(memberId).clubId != null && isActiveMember(member(memberId).clubId))
+          || (member(memberId).defaultClubId != null && isActiveMember(member(memberId).defaultClubId))
+        );
+    }
+
+    match /profile_photos/{memberId} {
+      allow read: if canViewMemberPhoto(memberId);
+      allow create, update: if isSignedIn()
+        && member(memberId).authUid == request.auth.uid
+        && request.resource.size < 2 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      allow delete: if isSignedIn()
+        && member(memberId).authUid == request.auth.uid;
+    }
+  }
+}

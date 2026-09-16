@@ -21,7 +21,9 @@ nonisolated struct RemoteNotificationPayload: Codable, Sendable {
     let callId: String?
     let itemId: String?
     let announcementId: String?
+    let conversationId: String?
     let eventId: String?
+    let tournamentId: String?
     let label: String?
     let amountCents: Int?
     let memberName: String?
@@ -41,6 +43,10 @@ nonisolated struct DeviceTokenUpsert: Encodable, Sendable {
 /// triggers so an announcement or a validated payment reaches everyone
 /// concerned even when their phone was closed.
 enum NotificationsRepository {
+    private static func encodedData<T: Encodable>(from payload: T) throws -> [String: Any] {
+        try Firestore.Encoder().encode(payload)
+    }
+
     /// Most recent notifications for the signed-in member. Security rules
     /// already limit the documents to their own.
     static func load(memberId: UUID, limit: Int = 60) async throws -> [AppNotification] {
@@ -69,7 +75,9 @@ enum NotificationsRepository {
                 callId: payload?.callId.map(remoteId),
                 itemId: payload?.itemId.map(remoteId),
                 announcementId: payload?.announcementId.map(remoteId),
+                conversationId: payload?.conversationId.map(remoteId),
                 eventId: payload?.eventId.map(remoteId),
+                tournamentId: payload?.tournamentId.map(remoteId),
                 label: payload?.label,
                 amountCents: payload?.amountCents,
                 memberName: payload?.memberName,
@@ -115,13 +123,22 @@ enum NotificationsRepository {
         let payload = DeviceTokenUpsert(
             memberId: memberId.uuidString,
             platform: currentPlatform,
-            environment: "production",
+            environment: currentEnvironment,
             locale: Localization.shared.lang.rawValue
         )
-        try Backend.firestore
+        var data = try encodedData(from: payload)
+        data["updatedAt"] = FieldValue.serverTimestamp()
+        try await Backend.firestore
             .collection("device_push_tokens")
             .document(token)
-            .setData(from: payload, merge: true)
+            .setData(data, merge: true)
+    }
+
+    static func deleteDeviceToken(_ token: String) async throws {
+        try await Backend.firestore
+            .collection("device_push_tokens")
+            .document(token)
+            .delete()
     }
 
     private static var currentPlatform: String {
@@ -131,5 +148,11 @@ enum NotificationsRepository {
         "android"
         #endif
     }
+    private static var currentEnvironment: String {
+        #if STAGING
+        "staging"
+        #else
+        "production"
+        #endif
+    }
 }
-

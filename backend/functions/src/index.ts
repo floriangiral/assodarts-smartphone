@@ -18,6 +18,9 @@ export {
 export {
   onPaymentItemWritten,
   onAnnouncementCreated,
+  onEventCreated,
+  onMessageCreated,
+  onTournamentEntryCreated,
   onPlatformAnnouncementCreated,
   onNotificationCreated,
 } from "./notifications";
@@ -27,6 +30,8 @@ export {
   acceptInvitation,
 } from "./invitations";
 export { createClub } from "./createClub";
+export { updateMemberProfile } from "./memberProfile";
+export { sendMailOnCreate } from "./triggers/sendMailOnCreate";
 export {
   platformAdminExists,
   claimPlatformAdmin,
