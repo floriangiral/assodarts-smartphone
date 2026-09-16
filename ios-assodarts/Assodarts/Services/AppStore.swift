@@ -373,18 +373,38 @@ final class AppStore {
 
     func updateMember(_ member: Member) {
         guard let index = db.members.firstIndex(where: { $0.id == member.id }) else { return }
-        db.members[index] = member
+        let previous = db.members[index]
+        var updated = member
+        if member.photoData != previous.photoData {
+            updated.photoPath = member.photoData == nil ? nil : "profile_photos/\(member.id.uuidString)"
+        }
+        db.members[index] = updated
         save()
+        push {
+            if updated.photoData != previous.photoData {
+                if let data = updated.photoData {
+                    _ = try await RemoteRepository.uploadProfilePhoto(
+                        memberId: updated.id,
+                        data: data
+                    )
+                } else if let path = previous.photoPath {
+                    try? await RemoteRepository.deleteProfilePhoto(path: path)
+                }
+            }
+            try await RemoteRepository.updateMember(updated)
+        }
     }
 
     /// Sends an invitation. The member appears in the directory only once they
     /// sign up and the backend creates their active membership.
-    func inviteMember(email: String, to clubId: UUID) {
-        push {
-            try await RemoteRepository.inviteMember(
-                clubId: clubId,
-                email: email
-            )
+    func inviteMember(email: String, to clubId: UUID) async -> RemoteRepository.Invitation? {
+        guard isLive else { return nil }
+        do {
+            return try await RemoteRepository.inviteMember(clubId: clubId, email: email)
+        } catch {
+            print("Invitation failed: \(error)")
+            syncError = friendlyMessage(for: error)
+            return nil
         }
     }
 

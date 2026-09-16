@@ -27,6 +27,7 @@ export {
   acceptInvitation,
 } from "./invitations";
 export { createClub } from "./createClub";
+export { updateMemberProfile } from "./memberProfile";
 export {
   platformAdminExists,
   claimPlatformAdmin,

@@ -14,7 +14,7 @@ struct SubscriptionView: View {
                 VStack(spacing: 16) {
                     currentPlanCard(club)
 
-                    if store.canManageClub {
+                    if store.currentUser?.role.canManageRoles == true {
                         actionCard(club)
                     }
 

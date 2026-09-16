@@ -1,4 +1,4 @@
-const mockRequireClubBoard = jest.fn();
+const mockRequireClubAdmin = jest.fn();
 const mockClubGet = jest.fn();
 const mockClubSet = jest.fn();
 const mockMembershipsGet = jest.fn();
@@ -10,7 +10,7 @@ const mockCouponsRetrieve = jest.fn();
 const mockStripeCouponsCreate = jest.fn();
 
 jest.mock("./shared/auth", () => ({
-  requireClubBoard: mockRequireClubBoard,
+  requireClubAdmin: mockRequireClubAdmin,
 }));
 
 jest.mock("./shared/stripe", () => {
@@ -74,7 +74,7 @@ function membershipsOfSize(size: number) {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockRequireClubBoard.mockResolvedValue(undefined);
+  mockRequireClubAdmin.mockResolvedValue(undefined);
   mockClubGet.mockResolvedValue({
     data: () => ({ name: "FC Test" }),
   });
@@ -102,12 +102,12 @@ describe("stripeCreateClubSubscriptionCheckout", () => {
   });
 
   it("rejects a caller who is not on the committee", async () => {
-    mockRequireClubBoard.mockRejectedValue(new Error("permission denied"));
+    mockRequireClubAdmin.mockRejectedValue(new Error("permission denied"));
 
     await expect(handler(makeRequest({ clubId: "c1" }, "u1"))).rejects.toThrow(
       "permission denied",
     );
-    expect(mockRequireClubBoard).toHaveBeenCalledWith("c1", "u1");
+    expect(mockRequireClubAdmin).toHaveBeenCalledWith("c1", "u1");
     expect(mockCheckoutCreate).not.toHaveBeenCalled();
   });
 

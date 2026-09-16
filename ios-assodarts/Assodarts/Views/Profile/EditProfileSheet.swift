@@ -1,5 +1,6 @@
 import SwiftUI
 import PhotosUI
+import UIKit
 
 /// Edit identity, contact details and per-category notification preferences.
 struct EditProfileSheet: View {
@@ -44,7 +45,7 @@ struct EditProfileSheet: View {
             .task(id: photoItem) {
                 guard let photoItem,
                       let data = try? await photoItem.loadTransferable(type: Data.self) else { return }
-                draft?.photoData = data
+                draft?.photoData = resizedProfilePhotoData(from: data)
             }
             .onAppear {
                 guard draft == nil, let user = store.currentUser else { return }
@@ -167,5 +168,22 @@ struct EditProfileSheet: View {
         draft.birthDate = hasBirthDate ? birthDate : nil
         store.updateMember(draft)
         dismiss()
+    }
+
+    private func resizedProfilePhotoData(from data: Data) -> Data {
+        guard let image = UIImage(data: data) else { return data }
+        let maxSide: CGFloat = 512
+        let largestSide = max(image.size.width, image.size.height)
+        guard largestSide > maxSide else {
+            return image.jpegData(compressionQuality: 0.78) ?? data
+        }
+
+        let scale = maxSide / largestSide
+        let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+        let renderer = UIGraphicsImageRenderer(size: size)
+        let resized = renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: size))
+        }
+        return resized.jpegData(compressionQuality: 0.78) ?? data
     }
 }

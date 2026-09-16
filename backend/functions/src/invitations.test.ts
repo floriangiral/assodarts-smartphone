@@ -17,6 +17,7 @@ function makeRequest(
 const mockMembershipGet = jest.fn();
 const mockInvitationSet = jest.fn();
 const mockInvitationDelete = jest.fn();
+const mockMailAdd = jest.fn();
 
 jest.mock("firebase-admin/firestore", () => ({
   getFirestore: () => ({
@@ -28,6 +29,9 @@ jest.mock("firebase-admin/firestore", () => ({
         return {
           doc: () => ({ set: mockInvitationSet, delete: mockInvitationDelete }),
         };
+      }
+      if (name === "mail") {
+        return { add: mockMailAdd };
       }
       throw new Error(`Unexpected collection ${name}`);
     },
@@ -74,8 +78,9 @@ describe("createInvitation", () => {
       data: () => ({ status: "active", role: "board" }),
     });
     mockInvitationSet.mockResolvedValue(undefined);
+    mockMailAdd.mockResolvedValue({ id: "mail1" });
 
-    await wrapped(
+    const result = await wrapped(
       makeRequest({ clubId: "c1", email: "A@B.com", role: "member" }, "u1"),
     );
 
@@ -84,10 +89,22 @@ describe("createInvitation", () => {
         clubId: "c1",
         email: "a@b.com",
         role: "member",
+        inviteCode: expect.any(String),
+        inviteUrl: expect.stringContaining("email=a%40b.com"),
         status: "pending",
       }),
       { merge: true },
     );
+    expect(mockMailAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: ["a@b.com"],
+        invitationId: "c1_a@b.com",
+      }),
+    );
+    expect(result).toEqual({
+      inviteCode: expect.any(String),
+      inviteUrl: expect.stringContaining("email=a%40b.com"),
+    });
   });
 });
 

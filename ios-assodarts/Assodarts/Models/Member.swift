@@ -17,6 +17,7 @@ struct Member: Identifiable, Codable, Sendable, Hashable {
     var joinedAt: Date
     var isActive: Bool
     var photoData: Data?
+    var photoPath: String?
     var notifyAnnouncements: Bool
     var notifyEvents: Bool
     var notifyPayments: Bool
@@ -52,6 +53,7 @@ struct Member: Identifiable, Codable, Sendable, Hashable {
         joinedAt: Date = .now,
         isActive: Bool = true,
         photoData: Data? = nil,
+        photoPath: String? = nil,
         notifyAnnouncements: Bool = true,
         notifyEvents: Bool = true,
         notifyPayments: Bool = true,
@@ -74,6 +76,7 @@ struct Member: Identifiable, Codable, Sendable, Hashable {
         self.joinedAt = joinedAt
         self.isActive = isActive
         self.photoData = photoData
+        self.photoPath = photoPath
         self.notifyAnnouncements = notifyAnnouncements
         self.notifyEvents = notifyEvents
         self.notifyPayments = notifyPayments
