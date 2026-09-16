@@ -18,6 +18,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate {
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         Backend.configure()
+        if Backend.isConfigured {
+            AnalyticsService.applyCollectionPreference()
+        }
         Messaging.messaging().delegate = self
         return true
     }
@@ -70,4 +73,3 @@ struct AssodartsApp: App {
         }
     }
 }
-

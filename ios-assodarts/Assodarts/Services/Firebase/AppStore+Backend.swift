@@ -58,6 +58,7 @@ extension AppStore {
         activeClubRemoteId = nil
         isPlatformAdmin = false
         isLive = false
+        AnalyticsService.clearUserProperties()
         save()
     }
 
@@ -103,12 +104,16 @@ extension AppStore {
                 if isPlatformAdmin {
                     isLive = true
                     await loadPlatformData()
+                    AnalyticsService.logLogin(memberRole: "admin")
                     return nil
                 }
                 return friendlyMessage(for: BackendError.message(tr("profile_not_found_contact_support")))
             }
             let message = await loadRemote(userId: userId)
             await loadPlatformData()
+            if message == nil {
+                AnalyticsService.logLogin(memberRole: AnalyticsService.roleProperty(currentUser?.role ?? .membre))
+            }
             return message
         } catch {
             print("Sign-in failed: \(error)")
@@ -149,7 +154,11 @@ extension AppStore {
                 email: normalized,
                 phone: phone.isEmpty ? nil : phone
             )
-            return await loadRemote(userId: userId)
+            let message = await loadRemote(userId: userId)
+            if message == nil {
+                AnalyticsService.logSignUp(method: "invitation")
+            }
+            return message
         } catch {
             print("Sign-up failed: \(error)")
             return friendlyMessage(for: error)
@@ -197,11 +206,13 @@ extension AppStore {
                 phone: phone.isEmpty ? nil : phone
             )
 
-            _ = try await RemoteRepository.createClub(name: name)
+            let clubId = try await RemoteRepository.createClub(name: name)
 
             let message = await loadRemote(userId: userId)
             if message == nil {
                 showsPostCreationInviteOffer = true
+                AnalyticsService.logSignUp(method: "club_creator")
+                AnalyticsService.logClubCreated(clubId: clubId, source: "sign_up")
             }
             return message
         } catch {
@@ -214,10 +225,11 @@ extension AppStore {
     /// The snapshot reload also switches the app into the new live club.
     func createClubFromOnboarding(name: String, userId: UUID) async -> String? {
         do {
-            _ = try await RemoteRepository.createClub(name: name)
+            let clubId = try await RemoteRepository.createClub(name: name)
             let message = await loadRemote(userId: userId)
             if message == nil {
                 showsPostCreationInviteOffer = true
+                AnalyticsService.logClubCreated(clubId: clubId, source: "onboarding")
             }
             return message
         } catch {
@@ -290,6 +302,9 @@ extension AppStore {
            let offer = snapshot.availableClubs.first(where: { $0.id == joinedClubId }) {
             pendingClubSwitchOffer = offer
         }
+        if let joinedClubId {
+            AnalyticsService.logClubJoined(clubId: joinedClubId)
+        }
 
         return snapshot
     }
@@ -355,6 +370,8 @@ extension AppStore {
         currentUserId = snapshot.currentMemberId
         availableClubs = snapshot.availableClubs
         activeClubRemoteId = snapshot.activeClubRemoteId
+        let activeClubId = snapshot.activeClubRemoteId.flatMap(UUID.init(uuidString:))
+        AnalyticsService.updateUserProperties(clubId: activeClubId, role: currentUser?.role)
     }
 
     // MARK: - Notifications
@@ -421,11 +438,15 @@ extension AppStore {
     /// Pushes a mutation after the local state has already been updated. A
     /// failure is surfaced and the club re-synced, so the screen never keeps a
     /// change the server rejected.
-    func push(_ operation: @escaping @Sendable () async throws -> Void) {
+    func push(
+        _ operation: @escaping @Sendable () async throws -> Void,
+        onSuccess: (@MainActor @Sendable () -> Void)? = nil
+    ) {
         guard isLive else { return }
         Task { @MainActor in
             do {
                 try await operation()
+                onSuccess?()
             } catch {
                 print("Backend write failed: \(error)")
                 syncError = friendlyMessage(for: error)
