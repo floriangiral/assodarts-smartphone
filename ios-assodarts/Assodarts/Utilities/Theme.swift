@@ -78,7 +78,8 @@ extension View {
 
     /// Applies the app canvas background, ignoring safe areas.
     func assoCanvas() -> some View {
-        background(Theme.canvas.ignoresSafeArea())
+        frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Theme.canvas.ignoresSafeArea())
     }
 }
 
