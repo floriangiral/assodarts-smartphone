@@ -961,6 +961,22 @@
         }
       }
     },
+    "back_to_home": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retour à l'accueil"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back to home"
+          }
+        }
+      }
+    },
     "bank_card": {
       "localizations": {
         "fr": {

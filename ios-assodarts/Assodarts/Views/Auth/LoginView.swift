@@ -10,7 +10,6 @@ struct LoginView: View {
     @State private var email: String = ""
     @State private var phone: String = ""
     @State private var password: String = ""
-    @State private var clubName: String = ""
     @State private var errorMessage: String?
     @State private var infoMessage: String?
     @State private var isSubmitting: Bool = false
@@ -19,40 +18,15 @@ struct LoginView: View {
     private enum Intent: String, CaseIterable, Identifiable {
         case signIn
         case signUp
-        case createClub
 
         var id: String { rawValue }
-
-        /// Top-level choices shown in the main segmented control.
-        static var topLevelCases: [Intent] { [.signIn, .signUp] }
 
         var label: String {
             switch self {
             case .signIn: tr("sign_in")
             case .signUp: tr("sign_up")
-            case .createClub: tr("create_my_club")
             }
         }
-
-        /// Distinct phrasing for the invited-vs-founder sub-choice shown once
-        /// "Sign up" is selected — clearer there than the generic `label`.
-        var signUpChoiceLabel: String {
-            switch self {
-            case .signUp: tr("i_was_invited_by_my_club")
-            case .createClub: tr("i_m_creating_my_club")
-            case .signIn: label
-            }
-        }
-    }
-
-    /// The top segmented control only ever shows "Sign in"/"Sign up"; picking
-    /// between the invited/founder sub-choice happens one level down and
-    /// keeps this binding on `.signUp` so the top control stays highlighted.
-    private var topIntentBinding: Binding<Intent> {
-        Binding(
-            get: { intent == .createClub ? .signUp : intent },
-            set: { intent = $0 }
-        )
     }
 
     private enum Field: Hashable {
@@ -60,7 +34,6 @@ struct LoginView: View {
         case lastName
         case email
         case phone
-        case clubName
         case password
     }
 
@@ -107,8 +80,8 @@ struct LoginView: View {
 
     private var form: some View {
         VStack(spacing: 14) {
-            Picker("", selection: topIntentBinding) {
-                ForEach(Intent.topLevelCases) { option in
+            Picker("", selection: $intent) {
+                ForEach(Intent.allCases) { option in
                     Text(option.label).tag(option)
                 }
             }
@@ -118,17 +91,7 @@ struct LoginView: View {
                 infoMessage = nil
             }
 
-            if intent == .signUp || intent == .createClub {
-                Picker("", selection: $intent) {
-                    ForEach([Intent.signUp, .createClub]) { option in
-                        Text(option.signUpChoiceLabel).tag(option)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .transition(.opacity.combined(with: .move(edge: .top)))
-            }
-
-            if intent == .signUp || intent == .createClub {
+            if intent == .signUp {
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 8) {
                         SectionLabel(text: tr("first_name"))
@@ -163,26 +126,13 @@ struct LoginView: View {
                     .background(Theme.canvas, in: .rect(cornerRadius: Theme.controlRadius))
             }
 
-            if intent == .signUp || intent == .createClub {
+            if intent == .signUp {
                 VStack(alignment: .leading, spacing: 8) {
                     SectionLabel(text: tr("phone_optional"))
                     TextField("06 12 34 56 78", text: $phone)
                         .keyboardType(.phonePad)
                         .textContentType(.telephoneNumber)
                         .focused($focusedField, equals: .phone)
-                        .foregroundStyle(Theme.ink)
-                        .padding(14)
-                        .background(Theme.canvas, in: .rect(cornerRadius: Theme.controlRadius))
-                }
-                .transition(.opacity.combined(with: .move(edge: .top)))
-            }
-
-            if intent == .createClub {
-                VStack(alignment: .leading, spacing: 8) {
-                    SectionLabel(text: tr("club_name"))
-                    TextField(tr("lyon_darts_club"), text: $clubName)
-                        .focused($focusedField, equals: .clubName)
-                        .onSubmit { focusedField = .password }
                         .foregroundStyle(Theme.ink)
                         .padding(14)
                         .background(Theme.canvas, in: .rect(cornerRadius: Theme.controlRadius))
@@ -199,7 +149,7 @@ struct LoginView: View {
                     .foregroundStyle(Theme.ink)
                     .padding(14)
                     .background(Theme.canvas, in: .rect(cornerRadius: Theme.controlRadius))
-                if intent == .signUp || intent == .createClub {
+                if intent == .signUp {
                     Text(tr("at_least_6_characters"))
                         .font(.caption)
                         .foregroundStyle(Theme.inkSecondary)
@@ -264,15 +214,6 @@ struct LoginView: View {
                     email: email,
                     password: password,
                     phone: phone
-                )
-            case .createClub:
-                result = await store.signUpAndCreateClub(
-                    firstName: firstName,
-                    lastName: lastName,
-                    email: email,
-                    password: password,
-                    phone: phone,
-                    clubName: clubName
                 )
             }
 

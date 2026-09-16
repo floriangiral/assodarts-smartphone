@@ -38,6 +38,15 @@ struct OnboardingChoiceView: View {
                 }
                 if !showsCreateClub {
                     PrimaryButton(title: tr("refresh"), symbol: "arrow.clockwise", isEnabled: !isRefreshing, action: refresh)
+                    Button {
+                        store.signOut()
+                    } label: {
+                        Label(tr("back_to_home"), systemImage: "arrow.left")
+                            .font(.footnote.weight(.semibold))
+                            .frame(maxWidth: .infinity)
+                    }
+                    .foregroundStyle(Theme.inkSecondary)
+                    .padding(.top, 4)
                 } else {
                     CreateClubView(onCancel: { showsCreateClub = false })
                 }
