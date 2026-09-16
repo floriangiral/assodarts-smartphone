@@ -25,7 +25,7 @@ struct DevFinancesView: View {
                 couponsCard
 
                 Label(
-                    tr("excludes_club_level_payments_stripe_collection_coming_so"),
+                    tr("revenue_counts_clubs_with_a_confirmed_stripe_subscriptio"),
                     systemImage: "info.circle"
                 )
                     .font(.caption)

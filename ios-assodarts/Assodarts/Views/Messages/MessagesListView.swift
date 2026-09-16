@@ -45,6 +45,7 @@ struct MessagesListView: View {
                     .padding(.vertical, 12)
                 }
                 .assoCanvas()
+                .refreshable { await store.refresh() }
                 .safeAreaInset(edge: .bottom) {
                     HStack {
                         Spacer()

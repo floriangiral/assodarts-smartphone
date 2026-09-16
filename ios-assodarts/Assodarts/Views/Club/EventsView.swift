@@ -44,6 +44,7 @@ struct EventsView: View {
             .padding(.vertical, 12)
         }
         .assoCanvas()
+        .refreshable { await store.refresh() }
         .navigationTitle(tr("events"))
         .toolbar {
             if store.canManageClub {
@@ -218,6 +219,7 @@ struct EventDetailView: View {
             }
         }
         .assoCanvas()
+        .task { await store.refresh() }
         .navigationTitle(tr("event"))
         .navigationBarTitleDisplayMode(.inline)
     }

@@ -58,34 +58,43 @@ describe("declarePayment", () => {
   it("rejects when the item does not belong to the caller", async () => {
     mockItemGet.mockResolvedValue({
       exists: true,
-      data: () => ({ memberId: "someoneElse", isPaid: false }),
+      data: () => ({ clubId: "c1", memberId: "someoneElse", isPaid: false }),
+    });
+    mockMembershipGet.mockResolvedValue({
+      data: () => ({ status: "active", role: "member", memberId: "member1" }),
     });
     await expect(
-      wrapped(makeRequest({ itemId: "i1", method: "cash" }, "member1")),
+      wrapped(makeRequest({ itemId: "i1", method: "cash" }, "auth1")),
     ).rejects.toThrow();
   });
 
   it("rejects when the item is already paid", async () => {
     mockItemGet.mockResolvedValue({
       exists: true,
-      data: () => ({ memberId: "member1", isPaid: true }),
+      data: () => ({ clubId: "c1", memberId: "member1", isPaid: true }),
+    });
+    mockMembershipGet.mockResolvedValue({
+      data: () => ({ status: "active", role: "member", memberId: "member1" }),
     });
     await expect(
-      wrapped(makeRequest({ itemId: "i1", method: "cash" }, "member1")),
+      wrapped(makeRequest({ itemId: "i1", method: "cash" }, "auth1")),
     ).rejects.toThrow();
   });
 
-  it("declares the payment for its own owner", async () => {
+  it("declares the payment for its owner even when authUid differs from memberId", async () => {
     mockItemGet.mockResolvedValue({
       exists: true,
-      data: () => ({ memberId: "member1", isPaid: false }),
+      data: () => ({ clubId: "c1", memberId: "member1", isPaid: false }),
+    });
+    mockMembershipGet.mockResolvedValue({
+      data: () => ({ status: "active", role: "member", memberId: "member1" }),
     });
     mockItemSet.mockResolvedValue(undefined);
 
     await wrapped(
       makeRequest(
         { itemId: "i1", method: "cash", reference: "ref-1" },
-        "member1",
+        "auth1",
       ),
     );
 
@@ -146,9 +155,12 @@ describe("cancelPaymentDeclaration", () => {
       exists: true,
       data: () => ({ memberId: "member1", clubId: "c1" }),
     });
+    mockMembershipGet.mockResolvedValue({
+      data: () => ({ status: "active", role: "member", memberId: "member1" }),
+    });
     mockItemSet.mockResolvedValue(undefined);
 
-    await wrapped(makeRequest({ itemId: "i1" }, "member1"));
+    await wrapped(makeRequest({ itemId: "i1" }, "auth1"));
 
     expect(mockItemSet).toHaveBeenCalledWith(
       expect.objectContaining({

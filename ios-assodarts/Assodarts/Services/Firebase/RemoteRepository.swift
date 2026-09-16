@@ -46,9 +46,11 @@ enum RemoteRepository {
     ///   `defaultClubId`, then to the club they hold the highest role in.
     static func loadSnapshot(for userId: UUID, preferredClubId: String? = nil) async throws -> Snapshot {
         let db = Backend.firestore
+        guard let authUid = Backend.auth.currentUser?.uid else { throw BackendError.noMembership }
 
         let mineSnap = try await db.collection("memberships")
             .whereField("memberId", isEqualTo: userId.uuidString)
+            .whereField("authUid", isEqualTo: authUid)
             .whereField("status", isEqualTo: "active")
             .getDocuments()
         let mine = mineSnap.documents.compactMap { try? $0.data(as: RemoteMembership.self) }
@@ -156,10 +158,16 @@ enum RemoteRepository {
             name: remoteClub.name,
             city: remoteClub.address ?? remoteClub.country ?? "",
             createdAt: remoteClub.createdAt,
-            renewalDate: remoteClub.trialEndsAt ?? remoteClub.createdAt.addingTimeInterval(365 * 86_400),
+            // Once the club pays, Stripe's period end is the real renewal date;
+            // before that it is the end of the free trial.
+            renewalDate: remoteClub.currentPeriodEnd
+                ?? remoteClub.trialEndsAt
+                ?? remoteClub.createdAt.addingTimeInterval(365 * 86_400),
             status: .fromRemote(remoteClub.subscriptionStatus),
             seedMemberCount: clubMemberships.count,
             couponCode: remoteClub.couponCode,
+            stripeCustomerId: remoteClub.stripeCustomerId,
+            stripeSubscriptionId: remoteClub.stripeSubscriptionId,
             bank: bankAccount.map(ClubBankAccount.init(remote:))
         )
         club.seedMemberCount = clubMemberships.filter { $0.status == "active" }.count
@@ -386,8 +394,6 @@ enum RemoteRepository {
             iban: account.iban,
             bic: account.bic,
             bankName: account.bankName,
-            stripeStatus: account.stripeStatus.remoteValue,
-            stripeAccountId: account.stripeAccountId,
             acceptsTransfer: account.acceptsTransfer,
             acceptsCash: account.acceptsCash,
             transferNote: account.transferNote,
@@ -695,10 +701,14 @@ enum RemoteRepository {
                 name: remote.name,
                 city: remote.address ?? remote.country ?? "",
                 createdAt: remote.createdAt,
-                renewalDate: remote.trialEndsAt ?? remote.createdAt.addingTimeInterval(365 * 86_400),
+                renewalDate: remote.currentPeriodEnd
+                    ?? remote.trialEndsAt
+                    ?? remote.createdAt.addingTimeInterval(365 * 86_400),
                 status: .fromRemote(remote.subscriptionStatus),
                 seedMemberCount: memberships.documents.count,
                 couponCode: remote.couponCode,
+                stripeCustomerId: remote.stripeCustomerId,
+                stripeSubscriptionId: remote.stripeSubscriptionId,
                 bank: nil
             ))
         }

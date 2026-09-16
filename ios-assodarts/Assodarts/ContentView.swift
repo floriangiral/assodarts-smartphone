@@ -3,6 +3,7 @@ import SwiftUI
 /// Routes to the right space: login, the club app, or the developer console.
 struct ContentView: View {
     @Environment(AppStore.self) private var store
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         Group {
@@ -32,6 +33,13 @@ struct ContentView: View {
         .task {
             await store.restoreSession()
             await NotificationService.requestAuthorization()
+        }
+        // Only a real return from the background: at launch there is no prior
+        // `.background` phase, so this never doubles up with restoreSession(),
+        // and a passing `.inactive` (control centre, system alert) is ignored.
+        .onChange(of: scenePhase) { previous, phase in
+            guard phase == .active, previous == .background, store.currentUser != nil else { return }
+            Task { await store.refresh() }
         }
     }
 }

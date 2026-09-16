@@ -52,4 +52,51 @@ struct AssodartsTests {
         #expect(!account.isIbanValid)
     }
 
+    @Test func onboardingPreparationKeepsMemberIdAndClearsClubState() {
+        let memberId = UUID()
+        let staleClubId = UUID()
+        let store = AppStore()
+        store.db = Database(
+            clubs: [
+                Club(
+                    id: staleClubId,
+                    name: "Old Club",
+                    city: "Paris",
+                    createdAt: .now,
+                    renewalDate: .now,
+                    status: .trial,
+                    seedMemberCount: 1
+                )
+            ],
+            members: [
+                Member(
+                    id: memberId,
+                    clubId: staleClubId,
+                    firstName: "Ada",
+                    lastName: "Lovelace",
+                    email: "ada@example.com"
+                )
+            ]
+        )
+        store.currentUserId = nil
+        store.availableClubs = [.init(id: "old-club", name: "Old Club")]
+        store.activeClubRemoteId = "old-club"
+        store.pendingClubSwitchOffer = .init(id: "other-club", name: "Other Club")
+        store.needsOnboardingChoice = false
+        store.isLive = false
+        store.syncError = "stale error"
+
+        store.prepareOnboardingForMemberWithoutClub(userId: memberId)
+
+        #expect(store.currentUserId == memberId)
+        #expect(store.needsOnboardingChoice)
+        #expect(store.isLive)
+        #expect(store.syncError == nil)
+        #expect(store.db.clubs.isEmpty)
+        #expect(store.db.members.isEmpty)
+        #expect(store.availableClubs.isEmpty)
+        #expect(store.activeClubRemoteId == nil)
+        #expect(store.pendingClubSwitchOffer == nil)
+    }
+
 }
