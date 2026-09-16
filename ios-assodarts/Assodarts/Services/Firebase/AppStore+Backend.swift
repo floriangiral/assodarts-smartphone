@@ -224,8 +224,6 @@ extension AppStore {
                     showsPostCreationInviteOffer = true
                     AnalyticsService.logSignUp(method: "club_creator")
                     AnalyticsService.logClubCreated(clubId: clubId, source: "sign_up")
-                } else {
-                    await rollbackCreatedAuthUser(result.user, context: "club owner sign-up")
                 }
                 return message
             } catch {
