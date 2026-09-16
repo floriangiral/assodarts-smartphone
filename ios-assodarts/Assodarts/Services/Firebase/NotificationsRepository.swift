@@ -41,6 +41,10 @@ nonisolated struct DeviceTokenUpsert: Encodable, Sendable {
 /// triggers so an announcement or a validated payment reaches everyone
 /// concerned even when their phone was closed.
 enum NotificationsRepository {
+    private static func encodedData<T: Encodable>(from payload: T) throws -> [String: Any] {
+        try Firestore.Encoder().encode(payload)
+    }
+
     /// Most recent notifications for the signed-in member. Security rules
     /// already limit the documents to their own.
     static func load(memberId: UUID, limit: Int = 60) async throws -> [AppNotification] {
@@ -118,10 +122,10 @@ enum NotificationsRepository {
             environment: "production",
             locale: Localization.shared.lang.rawValue
         )
-        try Backend.firestore
+        try await Backend.firestore
             .collection("device_push_tokens")
             .document(token)
-            .setData(from: payload, merge: true)
+            .setData(encodedData(from: payload), merge: true)
     }
 
     private static var currentPlatform: String {
@@ -132,4 +136,3 @@ enum NotificationsRepository {
         #endif
     }
 }
-

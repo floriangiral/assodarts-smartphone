@@ -16,6 +16,10 @@ enum RemoteRepository {
         let name: String
     }
 
+    private static func encodedData<T: Encodable>(from payload: T) throws -> [String: Any] {
+        try Firestore.Encoder().encode(payload)
+    }
+
     /// Everything the app needs for one signed-in member, already mapped onto
     /// the local models so the whole UI keeps working unchanged.
     struct Snapshot: Sendable {
@@ -440,10 +444,10 @@ enum RemoteRepository {
             cashNote: account.cashNote,
             updatedByMemberId: memberId?.uuidString
         )
-        try Backend.firestore
+        try await Backend.firestore
             .collection("club_bank_accounts")
             .document(clubId.uuidString)
-            .setData(from: payload, merge: true)
+            .setData(encodedData(from: payload), merge: true)
     }
 
     static func createPaymentCall(_ call: PaymentCall) async throws {
@@ -531,10 +535,10 @@ enum RemoteRepository {
             visibility: "members",
             createdAt: .now
         )
-        try Backend.firestore
+        try await Backend.firestore
             .collection("announcements")
             .document(announcement.id.uuidString)
-            .setData(from: payload)
+            .setData(encodedData(from: payload))
     }
 
     static func deleteAnnouncement(id: UUID) async throws {
@@ -550,7 +554,8 @@ enum RemoteRepository {
             location: event.location,
             category: event.kind.remoteValue
         )
-        try Backend.firestore.collection("events").document(event.id.uuidString).setData(from: payload)
+        try await Backend.firestore.collection("events").document(event.id.uuidString)
+            .setData(encodedData(from: payload))
     }
 
     static func setEventAttendance(_ response: Bool?, eventId: UUID, clubId: UUID, memberId: UUID) async throws {
@@ -566,7 +571,7 @@ enum RemoteRepository {
             memberId: memberId.uuidString,
             status: response ? "going" : "declined"
         )
-        try registration.setData(from: payload)
+        try await registration.setData(encodedData(from: payload))
     }
 
     static func createTournament(_ tournament: Tournament) async throws {
@@ -578,7 +583,8 @@ enum RemoteRepository {
             markerIds: tournament.markerIds.map(\.uuidString),
             isFinished: tournament.isFinished
         )
-        try Backend.firestore.collection("tournaments").document(tournament.id.uuidString).setData(from: payload)
+        try await Backend.firestore.collection("tournaments").document(tournament.id.uuidString)
+            .setData(encodedData(from: payload))
     }
 
     static func addTournamentEntry(_ entry: TournamentEntry, tournamentId: UUID, clubId: UUID) async throws {
@@ -595,7 +601,8 @@ enum RemoteRepository {
             recordedByMemberId: entry.recordedById.uuidString,
             recordedAt: entry.recordedAt
         )
-        try Backend.firestore.collection("tournament_entries").document(entry.id.uuidString).setData(from: payload)
+        try await Backend.firestore.collection("tournament_entries").document(entry.id.uuidString)
+            .setData(encodedData(from: payload))
     }
 
     static func deleteTournamentEntry(id: UUID) async throws {
@@ -608,7 +615,8 @@ enum RemoteRepository {
             kind: conversation.kind.rawValue,
             participantIds: conversation.participantIds.map(\.uuidString)
         )
-        try Backend.firestore.collection("conversations").document(conversation.id.uuidString).setData(from: payload)
+        try await Backend.firestore.collection("conversations").document(conversation.id.uuidString)
+            .setData(encodedData(from: payload))
     }
 
     static func sendMessage(_ message: Message, conversationId: UUID) async throws {
@@ -618,8 +626,9 @@ enum RemoteRepository {
             sentAt: message.sentAt,
             readBy: message.readBy.map(\.uuidString)
         )
-        try Backend.firestore.collection("conversations").document(conversationId.uuidString)
-            .collection("messages").document(message.id.uuidString).setData(from: payload)
+        try await Backend.firestore.collection("conversations").document(conversationId.uuidString)
+            .collection("messages").document(message.id.uuidString)
+            .setData(encodedData(from: payload))
     }
 
     static func markConversationRead(conversationId: UUID, messageIds: [UUID], by memberId: UUID) async throws {
@@ -653,10 +662,10 @@ enum RemoteRepository {
             phone: phone,
             status: "active"
         )
-        try Backend.firestore
+        try await Backend.firestore
             .collection("members")
             .document(userId.uuidString)
-            .setData(from: payload, merge: true)
+            .setData(encodedData(from: payload), merge: true)
     }
 
     /// Creates a brand-new club for the signed-in member, who becomes its

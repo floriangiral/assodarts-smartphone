@@ -373,12 +373,9 @@ final class AppStore {
         save()
     }
 
-    /// Adds a member locally, then sends a real invitation — the row shown
-    /// here is only a placeholder until that person actually signs up and
-    /// joins the club.
+    /// Sends an invitation. The member appears in the directory only once they
+    /// sign up and the backend creates their active membership.
     func addMember(_ member: Member) {
-        db.members.append(member)
-        save()
         push {
             try await RemoteRepository.inviteMember(
                 clubId: member.clubId,
