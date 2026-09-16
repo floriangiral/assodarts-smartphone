@@ -1,3 +1,4 @@
+import FirebaseAuth
 import FirebaseFirestore
 import FirebaseFunctions
 import Foundation
