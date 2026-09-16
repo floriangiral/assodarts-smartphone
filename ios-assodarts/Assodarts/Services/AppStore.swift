@@ -195,11 +195,15 @@ final class AppStore {
     }
 
     func isUpToDate(_ memberId: UUID) -> Bool {
-        !payments(for: memberId).contains { !$0.item.isPaid && $0.call.category == .cotisation }
+        let membershipFees = payments(for: memberId).filter { $0.call.category == .cotisation }
+        guard !membershipFees.isEmpty else { return false }
+        return !membershipFees.contains { !$0.item.isPaid }
     }
 
     func membershipState(for memberId: UUID) -> PaymentState {
-        let unpaid = payments(for: memberId).filter { !$0.item.isPaid && $0.call.category == .cotisation }
+        let membershipFees = payments(for: memberId).filter { $0.call.category == .cotisation }
+        guard !membershipFees.isEmpty else { return .pending }
+        let unpaid = membershipFees.filter { !$0.item.isPaid }
         guard let worst = unpaid.first else { return .paid }
         return worst.item.state(dueDate: worst.call.dueDate)
     }
