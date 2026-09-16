@@ -1,9 +1,12 @@
 const mockPaymentCallGet = jest.fn();
 const mockMemberGet = jest.fn();
+const mockConversationGet = jest.fn();
+const mockTournamentGet = jest.fn();
 const mockMembershipsQueryGet = jest.fn();
 const mockTokensQueryGet = jest.fn();
 const mockNotificationAdd = jest.fn();
 const mockSendEachForMulticast = jest.fn();
+const mockTokenDelete = jest.fn();
 let lastMembershipsQuery: { where: jest.Mock; get: jest.Mock };
 
 function makeMembershipsQuery(): {
@@ -26,7 +29,17 @@ jest.mock("firebase-admin/firestore", () => ({
         return { doc: () => ({ get: mockPaymentCallGet }) };
       }
       if (name === "members") {
-        return { doc: () => ({ get: mockMemberGet }) };
+        return {
+          doc: (memberId: string) => ({
+            get: () => mockMemberGet(memberId),
+          }),
+        };
+      }
+      if (name === "conversations") {
+        return { doc: () => ({ get: mockConversationGet }) };
+      }
+      if (name === "tournaments") {
+        return { doc: () => ({ get: mockTournamentGet }) };
       }
       if (name === "memberships") {
         return makeMembershipsQuery();
@@ -35,7 +48,10 @@ jest.mock("firebase-admin/firestore", () => ({
         return { add: mockNotificationAdd };
       }
       if (name === "device_push_tokens") {
-        return { where: jest.fn(() => ({ get: mockTokensQueryGet })) };
+        return {
+          doc: () => ({ delete: mockTokenDelete }),
+          where: jest.fn(() => ({ get: mockTokensQueryGet })),
+        };
       }
       throw new Error(`Unexpected collection ${name}`);
     },
@@ -50,17 +66,32 @@ jest.mock("firebase-admin/messaging", () => ({
 import {
   onPaymentItemWritten,
   onAnnouncementCreated,
+  onEventCreated,
+  onMessageCreated,
+  onTournamentEntryCreated,
   onPlatformAnnouncementCreated,
   onNotificationCreated,
 } from "./notifications";
 
 beforeEach(() => {
+  jest.clearAllMocks();
   mockNotificationAdd.mockResolvedValue(undefined);
+  mockTokenDelete.mockResolvedValue(undefined);
   mockPaymentCallGet.mockResolvedValue({
-    data: () => ({ title: "Cotisation", amountCents: 5000 }),
+    data: () => ({ title: "Cotisation", amountCents: 5000, notify: true }),
   });
   mockMemberGet.mockResolvedValue({
     data: () => ({ displayName: "Jane Doe" }),
+  });
+  mockConversationGet.mockResolvedValue({
+    data: () => ({
+      clubId: "c1",
+      kind: "direct",
+      participantIds: ["member1", "member2"],
+    }),
+  });
+  mockTournamentGet.mockResolvedValue({
+    data: () => ({ name: "Open de rentrée" }),
   });
 });
 
@@ -80,6 +111,27 @@ function paymentItemEvent(
 function announcementEvent(data: Record<string, unknown> | undefined) {
   return {
     params: { announcementId: "ann-1" },
+    data: { data: () => data },
+  } as never;
+}
+
+function eventEvent(data: Record<string, unknown> | undefined) {
+  return {
+    params: { eventId: "event-1" },
+    data: { data: () => data },
+  } as never;
+}
+
+function messageEvent(data: Record<string, unknown> | undefined) {
+  return {
+    params: { conversationId: "conversation-1", messageId: "message-1" },
+    data: { data: () => data },
+  } as never;
+}
+
+function tournamentEntryEvent(data: Record<string, unknown> | undefined) {
+  return {
+    params: { entryId: "entry-1" },
     data: { data: () => data },
   } as never;
 }
@@ -165,6 +217,46 @@ describe("onPaymentItemWritten", () => {
     );
   });
 
+  it("notifies the member when a payable item is created and notify is enabled", async () => {
+    await onPaymentItemWritten.run(
+      paymentItemEvent(undefined, {
+        memberId: "member1",
+        clubId: "c1",
+        paymentCallId: "call1",
+        isPaid: false,
+      }),
+    );
+
+    expect(mockNotificationAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        memberId: "member1",
+        kind: "payment_due",
+        payload: expect.objectContaining({
+          callId: "call1",
+          itemId: "item-1",
+          label: "Cotisation",
+        }),
+      }),
+    );
+  });
+
+  it("does not notify a member who disabled payment notifications", async () => {
+    mockMemberGet.mockResolvedValue({
+      data: () => ({ displayName: "Jane Doe", notifyPayments: false }),
+    });
+
+    await onPaymentItemWritten.run(
+      paymentItemEvent(undefined, {
+        memberId: "member1",
+        clubId: "c1",
+        paymentCallId: "call1",
+        isPaid: false,
+      }),
+    );
+
+    expect(mockNotificationAdd).not.toHaveBeenCalled();
+  });
+
   it("does not renotify when declaredAt/isPaid were already set", async () => {
     await onPaymentItemWritten.run(
       paymentItemEvent(
@@ -222,6 +314,126 @@ describe("onAnnouncementCreated", () => {
         payload: expect.objectContaining({ announcementId: "ann-1" }),
       }),
     );
+  });
+});
+
+describe("onEventCreated", () => {
+  it("notifies active members when an event is created", async () => {
+    mockMembershipsQueryGet.mockResolvedValue({
+      docs: [
+        { data: () => ({ memberId: "m1" }) },
+        { data: () => ({ memberId: "m2" }) },
+      ],
+    });
+
+    await onEventCreated.run(
+      eventEvent({
+        clubId: "c1",
+        title: "Open",
+        location: "Club house",
+      }),
+    );
+
+    expect(mockNotificationAdd).toHaveBeenCalledTimes(2);
+    expect(mockNotificationAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        memberId: "m1",
+        kind: "event",
+        payload: expect.objectContaining({ eventId: "event-1" }),
+      }),
+    );
+  });
+});
+
+describe("onMessageCreated", () => {
+  it("notifies direct conversation recipients except the sender", async () => {
+    await onMessageCreated.run(
+      messageEvent({ senderId: "member1", text: "Salut" }),
+    );
+
+    expect(mockNotificationAdd).toHaveBeenCalledTimes(1);
+    expect(mockNotificationAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        memberId: "member2",
+        clubId: "c1",
+        kind: "message",
+        payload: expect.objectContaining({ conversationId: "conversation-1" }),
+      }),
+    );
+  });
+
+  it("notifies the board when a member writes to a committee conversation", async () => {
+    mockConversationGet.mockResolvedValue({
+      data: () => ({
+        clubId: "c1",
+        kind: "bureau",
+        participantIds: ["member1"],
+      }),
+    });
+    mockMembershipsQueryGet.mockResolvedValue({
+      docs: [
+        { data: () => ({ memberId: "board1" }) },
+        { data: () => ({ memberId: "member1" }) },
+      ],
+    });
+
+    await onMessageCreated.run(
+      messageEvent({ senderId: "member1", text: "Besoin d'aide" }),
+    );
+
+    expect(mockNotificationAdd).toHaveBeenCalledTimes(1);
+    expect(mockNotificationAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        memberId: "board1",
+        kind: "message",
+      }),
+    );
+  });
+});
+
+describe("onTournamentEntryCreated", () => {
+  it("notifies opted-in active members with the recorded result", async () => {
+    mockMembershipsQueryGet.mockResolvedValue({
+      docs: [
+        { data: () => ({ memberId: "m1" }) },
+        { data: () => ({ memberId: "m2" }) },
+      ],
+    });
+    mockMemberGet.mockImplementation((memberId?: string) => ({
+      data: () => ({ notifyTournaments: memberId === "m1" }),
+    }));
+
+    await onTournamentEntryCreated.run(
+      tournamentEntryEvent({
+        clubId: "c1",
+        tournamentId: "tournament-1",
+        playerA: "Alice",
+        playerB: "Bob",
+        scoreA: 3,
+        scoreB: 2,
+      }),
+    );
+
+    expect(mockNotificationAdd).toHaveBeenCalledTimes(1);
+    expect(mockNotificationAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        memberId: "m1",
+        clubId: "c1",
+        kind: "tournament",
+        body: "Alice 3 - 2 Bob",
+        payload: {
+          tournamentId: "tournament-1",
+          label: "Open de rentrée",
+        },
+      }),
+    );
+  });
+
+  it("does not notify when the entry has no data", async () => {
+    await onTournamentEntryCreated.run(tournamentEntryEvent(undefined));
+
+    expect(mockMembershipsQueryGet).not.toHaveBeenCalled();
+    expect(mockNotificationAdd).not.toHaveBeenCalled();
   });
 });
 
@@ -322,6 +534,7 @@ describe("onNotificationCreated", () => {
     mockSendEachForMulticast.mockResolvedValue({
       successCount: 2,
       failureCount: 0,
+      responses: [{ success: true }, { success: true }],
     });
 
     await onNotificationCreated.run(
@@ -331,7 +544,52 @@ describe("onNotificationCreated", () => {
     expect(mockSendEachForMulticast).toHaveBeenCalledWith({
       tokens: ["token1", "token2"],
       notification: { title: "Titre", body: "Corps" },
+      data: {
+        notificationId: "notif-1",
+        memberId: "m1",
+      },
+      apns: {
+        payload: {
+          aps: {
+            sound: "default",
+          },
+        },
+      },
     });
+  });
+
+  it("removes invalid FCM tokens", async () => {
+    mockTokensQueryGet.mockResolvedValue({
+      empty: false,
+      docs: [
+        { id: "token1", ref: { delete: mockTokenDelete } },
+        { id: "token2", ref: { delete: mockTokenDelete } },
+      ],
+    });
+    mockSendEachForMulticast.mockResolvedValue({
+      successCount: 1,
+      failureCount: 1,
+      responses: [
+        { success: true },
+        {
+          success: false,
+          error: { code: "messaging/registration-token-not-registered" },
+        },
+      ],
+    });
+
+    await onNotificationCreated.run(
+      notificationEvent({
+        memberId: "m1",
+        clubId: "c1",
+        kind: "message",
+        title: "Titre",
+        body: "Corps",
+        payload: { conversationId: "conversation-1" },
+      }),
+    );
+
+    expect(mockTokenDelete).toHaveBeenCalledTimes(1);
   });
 
   it("does nothing when the notification document has no data", async () => {

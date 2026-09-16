@@ -50,5 +50,11 @@
       ]
     }
   ],
-  "fieldOverrides": []
+  "fieldOverrides": [
+    {
+      "collectionGroup": "mail",
+      "fieldPath": "expireAt",
+      "ttl": true
+    }
+  ]
 }
