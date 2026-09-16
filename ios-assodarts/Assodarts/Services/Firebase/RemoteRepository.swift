@@ -132,12 +132,13 @@ enum RemoteRepository {
             try? $0.data(as: RemoteTournamentEntry.self)
         }
 
-        let conversationsSnap = try await db.collection("conversations")
-            .whereField("clubId", isEqualTo: clubId)
-            .getDocuments()
-        let remoteConversations = conversationsSnap.documents.compactMap {
-            try? $0.data(as: RemoteConversation.self)
-        }
+        let selectedMembership = mine.first { $0.clubId == clubId }
+        let remoteConversations = try await loadConversations(
+            clubId: clubId,
+            memberId: userId.uuidString,
+            canReadBureauInbox: selectedMembership.map { rank($0.role) > 0 } ?? false,
+            in: db
+        )
         var messagesByConversation: [String: [RemoteMessage]] = [:]
         for conversation in remoteConversations {
             guard let conversationId = conversation.id else { continue }
@@ -376,6 +377,43 @@ enum RemoteRepository {
             }
         }
         return results
+    }
+
+    /// Match the Firestore conversation rules: users may read conversations
+    /// they participate in, and board/admin members may also read bureau inboxes.
+    private static func loadConversations(
+        clubId: String,
+        memberId: String,
+        canReadBureauInbox: Bool,
+        in db: Firestore
+    ) async throws -> [RemoteConversation] {
+        var conversationsById: [String: RemoteConversation] = [:]
+
+        let participantSnap = try await db.collection("conversations")
+            .whereField("clubId", isEqualTo: clubId)
+            .whereField("participantIds", arrayContains: memberId)
+            .getDocuments()
+        for document in participantSnap.documents {
+            if let conversation = try? document.data(as: RemoteConversation.self),
+               let id = conversation.id {
+                conversationsById[id] = conversation
+            }
+        }
+
+        if canReadBureauInbox {
+            let bureauSnap = try await db.collection("conversations")
+                .whereField("clubId", isEqualTo: clubId)
+                .whereField("kind", isEqualTo: ConversationKind.bureau.rawValue)
+                .getDocuments()
+            for document in bureauSnap.documents {
+                if let conversation = try? document.data(as: RemoteConversation.self),
+                   let id = conversation.id {
+                    conversationsById[id] = conversation
+                }
+            }
+        }
+
+        return Array(conversationsById.values)
     }
 
     // MARK: - Writes
