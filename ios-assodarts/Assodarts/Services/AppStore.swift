@@ -379,13 +379,11 @@ final class AppStore {
 
     /// Sends an invitation. The member appears in the directory only once they
     /// sign up and the backend creates their active membership.
-    func addMember(_ member: Member) {
+    func inviteMember(email: String, to clubId: UUID) {
         push {
             try await RemoteRepository.inviteMember(
-                clubId: member.clubId,
-                email: member.email,
-                role: member.role,
-                licenseNumber: member.isLicensed ? member.licenceNumber : nil
+                clubId: clubId,
+                email: email
             )
         }
     }

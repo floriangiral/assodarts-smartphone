@@ -8374,13 +8374,13 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Le membre reçoit un email d'invitation avec un mot de passe provisoire."
+            "value": "L'invitation est enregistrée. La personne crée son compte avec cette adresse email pour rejoindre le club."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The member receives an invitation email with a temporary password."
+            "value": "The invitation is registered. The person creates an account with this email address to join the club."
           }
         }
       }

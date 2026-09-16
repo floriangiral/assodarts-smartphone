@@ -1,75 +1,32 @@
 import SwiftUI
 
-/// Invite a new member by email — the account is created with the "Membre" role.
+/// Registers a pending invitation for an email address. The member profile is
+/// created by the invited person when they sign up with that email.
 struct InviteMemberSheet: View {
     @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
 
-    @State private var firstName: String = ""
-    @State private var lastName: String = ""
     @State private var email: String = ""
-    @State private var role: Role = .membre
-    @State private var isLicensed: Bool = false
-    @State private var licenceNumber: String = ""
     @State private var showsConfirmation: Bool = false
     @FocusState private var focusedField: Field?
 
     private enum Field: Hashable {
-        case firstName
-        case lastName
         case email
-        case licence
     }
 
     private var canInvite: Bool {
-        !firstName.trimmingCharacters(in: .whitespaces).isEmpty
-            && !lastName.trimmingCharacters(in: .whitespaces).isEmpty
-            && email.contains("@")
+        email.trimmingCharacters(in: .whitespacesAndNewlines).contains("@")
     }
 
     var body: some View {
         NavigationStack {
             Form {
-                Section(tr("identity")) {
-                    TextField(tr("first_name"), text: $firstName)
-                        .keyboardField(.name, submit: .next)
-                        .focused($focusedField, equals: .firstName)
-                        .onSubmit { focusedField = .lastName }
-                        .foregroundStyle(Theme.ink)
-                    TextField(tr("last_name"), text: $lastName)
-                        .keyboardField(.name, submit: .next)
-                        .focused($focusedField, equals: .lastName)
-                        .onSubmit { focusedField = .email }
-                        .foregroundStyle(Theme.ink)
+                Section(tr("email_address")) {
                     TextField(tr("email"), text: $email)
                         .keyboardField(.email, submit: .done)
                         .focused($focusedField, equals: .email)
                         .onSubmit { focusedField = nil }
                         .foregroundStyle(Theme.ink)
-                }
-
-                Section(tr("licence")) {
-                    Toggle(tr("ffd_licensed"), isOn: $isLicensed)
-                    if isLicensed {
-                        TextField(tr("licence_number"), text: $licenceNumber)
-                            .keyboardField(.licence, submit: .done)
-                            .focused($focusedField, equals: .licence)
-                            .foregroundStyle(Theme.ink)
-                    }
-                }
-
-                if store.currentUser?.role.canManageRoles == true {
-                    Section(tr("role")) {
-                        Picker(tr("role"), selection: $role) {
-                            ForEach(Role.clubRoles) { role in
-                                Text(role.label).tag(role)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-                        Text(role.permissionSummary)
-                            .font(.caption)
-                            .foregroundStyle(Theme.inkSecondary)
-                    }
                 }
 
                 Section {
@@ -98,24 +55,17 @@ struct InviteMemberSheet: View {
             .alert(tr("invitation_sent"), isPresented: $showsConfirmation) {
                 Button(tr("done")) { dismiss() }
             } message: {
-                Text(tr("has_been_added_to_the_club_and_will_receive_an_email_inv \(firstName) \(lastName)"))
+                Text(tr("the_member_receives_an_invitation_email_with_a_temporary"))
             }
         }
     }
 
     private func invite() {
         guard let club = store.currentClub else { return }
-        let member = Member(
-            clubId: club.id,
-            firstName: firstName.trimmingCharacters(in: .whitespaces),
-            lastName: lastName.trimmingCharacters(in: .whitespaces),
-            email: email.trimmingCharacters(in: .whitespaces).lowercased(),
-            role: role,
-            isLicensed: isLicensed,
-            licenceNumber: isLicensed ? licenceNumber : "",
-            joinedAt: .now
+        store.inviteMember(
+            email: email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+            to: club.id
         )
-        store.addMember(member)
         showsConfirmation = true
     }
 }

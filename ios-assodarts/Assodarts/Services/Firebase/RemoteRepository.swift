@@ -828,12 +828,10 @@ enum RemoteRepository {
 
     /// The board invites someone by email; the membership is only created once
     /// that person signs up or signs in with the same address.
-    static func inviteMember(clubId: UUID, email: String, role: Role, licenseNumber: String?) async throws {
+    static func inviteMember(clubId: UUID, email: String) async throws {
         _ = try await Backend.functions.httpsCallable("createInvitation").call([
             "clubId": clubId.uuidString,
             "email": email,
-            "role": role.remoteValue,
-            "licenseNumber": licenseNumber as Any,
         ])
     }
 
