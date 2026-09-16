@@ -46,9 +46,11 @@ enum RemoteRepository {
     ///   `defaultClubId`, then to the club they hold the highest role in.
     static func loadSnapshot(for userId: UUID, preferredClubId: String? = nil) async throws -> Snapshot {
         let db = Backend.firestore
+        guard let authUid = Backend.auth.currentUser?.uid else { throw BackendError.noMembership }
 
         let mineSnap = try await db.collection("memberships")
             .whereField("memberId", isEqualTo: userId.uuidString)
+            .whereField("authUid", isEqualTo: authUid)
             .whereField("status", isEqualTo: "active")
             .getDocuments()
         let mine = mineSnap.documents.compactMap { try? $0.data(as: RemoteMembership.self) }
@@ -392,8 +394,6 @@ enum RemoteRepository {
             iban: account.iban,
             bic: account.bic,
             bankName: account.bankName,
-            stripeStatus: account.stripeStatus.remoteValue,
-            stripeAccountId: account.stripeAccountId,
             acceptsTransfer: account.acceptsTransfer,
             acceptsCash: account.acceptsCash,
             transferNote: account.transferNote,

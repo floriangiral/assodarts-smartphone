@@ -117,6 +117,19 @@ final class AppStore {
         save()
     }
 
+    func prepareOnboardingForMemberWithoutClub(userId: UUID) {
+        db = Database()
+        currentUserId = userId
+        notifications = []
+        availableClubs = []
+        activeClubRemoteId = nil
+        pendingClubSwitchOffer = nil
+        needsOnboardingChoice = true
+        isLive = true
+        syncError = nil
+        save()
+    }
+
     // MARK: - Tenant-isolated reads
 
     func club(_ id: UUID) -> Club? { db.clubs.first { $0.id == id } }
