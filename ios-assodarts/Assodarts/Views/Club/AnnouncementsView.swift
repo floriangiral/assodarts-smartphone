@@ -167,7 +167,6 @@ struct AnnouncementDetailView: View {
                 .padding(.vertical, 12)
                 .frame(maxWidth: .infinity)
             }
-            .frame(maxWidth: .infinity)
         }
         .scrollContentBackground(.hidden)
         .assoCanvas()
