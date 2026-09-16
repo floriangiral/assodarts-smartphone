@@ -131,10 +131,10 @@ final class AppStore {
         } catch {
             print("Push token cleanup failed: \(error)")
         }
-        Messaging.messaging().deleteToken { error in
-            if let error {
-                print("FCM token deletion failed: \(error)")
-            }
+        do {
+            try await Messaging.messaging().deleteToken()
+        } catch {
+            print("FCM token deletion failed: \(error)")
         }
         registeredPushToken = nil
         UserDefaults.standard.removeObject(forKey: Self.pushTokenKey)
