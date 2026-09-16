@@ -1,4 +1,5 @@
 import FirebaseAuth
+import FirebaseMessaging
 import Foundation
 import SwiftUI
 
@@ -11,6 +12,7 @@ final class AppStore {
     // du backend. Aucune migration : l'intention est bien de repartir de zéro.
     private static let storageKey = "assodarts.database.v2"
     private static let sessionKey = "assodarts.session.v2"
+    static let pushTokenKey = "assodarts.pushToken.v1"
     /// Cached once an administrator is known to exist, so the bootstrap check
     /// never costs a network round-trip again.
     private static let platformAdminConfirmedKey = "assodarts.platformAdminConfirmedExists.v1"
@@ -48,6 +50,7 @@ final class AppStore {
     var platformClubsRemote: [Club] = []
     var platformCoupons: [Coupon] = []
     var platformAnnouncementsRemote: [PlatformAnnouncement] = []
+    var registeredPushToken: String?
 
     init() {
         if let data = UserDefaults.standard.data(forKey: Self.storageKey),
@@ -61,6 +64,7 @@ final class AppStore {
            db.members.contains(where: { $0.id == id }) {
             currentUserId = id
         }
+        registeredPushToken = UserDefaults.standard.string(forKey: Self.pushTokenKey)
         save()
     }
 
@@ -98,7 +102,8 @@ final class AppStore {
 
     var canManageClub: Bool { currentUser?.role.canManageClub ?? false }
 
-    func signOut() {
+    func signOut() async {
+        await unregisterPushToken()
         currentUserId = nil
         syncError = nil
         notifications = []
@@ -117,6 +122,22 @@ final class AppStore {
         AnalyticsService.clearUserProperties()
         try? Backend.auth.signOut()
         save()
+    }
+
+    private func unregisterPushToken() async {
+        guard let token = registeredPushToken else { return }
+        do {
+            try await NotificationsRepository.deleteDeviceToken(token)
+        } catch {
+            print("Push token cleanup failed: \(error)")
+        }
+        Messaging.messaging().deleteToken { error in
+            if let error {
+                print("FCM token deletion failed: \(error)")
+            }
+        }
+        registeredPushToken = nil
+        UserDefaults.standard.removeObject(forKey: Self.pushTokenKey)
     }
 
     func prepareOnboardingForMemberWithoutClub(userId: UUID) {

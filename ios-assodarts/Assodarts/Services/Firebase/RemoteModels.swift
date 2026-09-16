@@ -125,6 +125,7 @@ struct RemotePaymentCall: Codable {
     let dueDate: Date
     let createdByMemberId: String?
     let createdAt: Date
+    let notify: Bool?
 }
 
 struct RemotePaymentItem: Codable {
@@ -206,6 +207,7 @@ nonisolated struct PaymentCallInsert: Encodable, Sendable {
     let dueDate: Date
     let createdByMemberId: String
     let createdAt: Date
+    let notify: Bool
 }
 
 nonisolated struct PaymentItemInsert: Encodable, Sendable {

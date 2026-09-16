@@ -18,6 +18,9 @@ export {
 export {
   onPaymentItemWritten,
   onAnnouncementCreated,
+  onEventCreated,
+  onMessageCreated,
+  onTournamentEntryCreated,
   onPlatformAnnouncementCreated,
   onNotificationCreated,
 } from "./notifications";

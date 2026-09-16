@@ -1,3 +1,5 @@
 // Release uses the production Firebase project.
 FIREBASE_ENVIRONMENT = Production
 INFOPLIST_KEY_CFBundleDisplayName = Assodarts
+CODE_SIGN_ENTITLEMENTS = Assodarts/Assodarts.entitlements
+APS_ENVIRONMENT = production

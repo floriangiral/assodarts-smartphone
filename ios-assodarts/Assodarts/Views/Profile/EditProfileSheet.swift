@@ -154,7 +154,7 @@ struct EditProfileSheet: View {
             Section {
                 Button(tr("sign_out"), role: .destructive) {
                     dismiss()
-                    store.signOut()
+                    Task { await store.signOut() }
                 }
             }
         }

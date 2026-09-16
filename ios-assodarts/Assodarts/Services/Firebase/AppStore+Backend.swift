@@ -286,6 +286,7 @@ extension AppStore {
             save()
             await loadNotifications()
             scheduleDueReminders()
+            await activatePushNotifications()
             return nil
         } catch {
             print("Club sync failed: \(error)")
@@ -347,6 +348,7 @@ extension AppStore {
             save()
             await loadNotifications()
             scheduleDueReminders()
+            await activatePushNotifications()
         } catch {
             print("Refresh failed: \(error)")
             syncError = friendlyMessage(for: error)
@@ -438,8 +440,18 @@ extension AppStore {
     /// Stores the FCM token for this device so real push can be switched on
     /// without asking members to do anything.
     func registerPushToken(_ token: String) {
+        registeredPushToken = token
+        UserDefaults.standard.set(token, forKey: Self.pushTokenKey)
         guard isLive, let memberId = currentUserId else { return }
         push { try await NotificationsRepository.registerDeviceToken(token, memberId: memberId) }
+    }
+
+    func activatePushNotifications() async {
+        if let token = await NotificationService.requestAuthorizationAndRegisterForRemoteNotifications() {
+            registerPushToken(token)
+        } else if let token = registeredPushToken {
+            registerPushToken(token)
+        }
     }
 
     /// Re-arms the local reminders for everything this member still owes.

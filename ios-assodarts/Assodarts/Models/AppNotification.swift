@@ -6,11 +6,13 @@ import SwiftUI
 /// member's own language.
 nonisolated enum NotificationKind: String, Codable, Sendable {
     case announcement
+    case message
     case paymentDue = "payment_due"
     case paymentToConfirm = "payment_to_confirm"
     case paymentConfirmed = "payment_confirmed"
     case platformAnnouncement = "platform_announcement"
     case event
+    case tournament
     case unknown
 
     nonisolated init(from decoder: Decoder) throws {
@@ -21,11 +23,13 @@ nonisolated enum NotificationKind: String, Codable, Sendable {
     var symbol: String {
         switch self {
         case .announcement: "megaphone.fill"
+        case .message: "bubble.left.and.bubble.right.fill"
         case .paymentDue: "eurosign.circle.fill"
         case .paymentToConfirm: "clock.badge.checkmark"
         case .paymentConfirmed: "checkmark.seal.fill"
         case .platformAnnouncement: "megaphone.fill"
         case .event: "calendar"
+        case .tournament: "sportscourt.fill"
         case .unknown: "bell.fill"
         }
     }
@@ -33,11 +37,13 @@ nonisolated enum NotificationKind: String, Codable, Sendable {
     @MainActor var tint: Color {
         switch self {
         case .announcement: Theme.orange
+        case .message: Theme.navy
         case .paymentDue: Theme.amber
         case .paymentToConfirm: Theme.navy
         case .paymentConfirmed: Theme.green
         case .platformAnnouncement: Theme.orange
         case .event: Theme.navy
+        case .tournament: Theme.orange
         case .unknown: Theme.inkSecondary
         }
     }
@@ -45,11 +51,13 @@ nonisolated enum NotificationKind: String, Codable, Sendable {
     @MainActor var background: Color {
         switch self {
         case .announcement: Theme.orangeTint
+        case .message: Theme.navyTint
         case .paymentDue: Theme.amberTint
         case .paymentToConfirm: Theme.navyTint
         case .paymentConfirmed: Theme.greenTint
         case .platformAnnouncement: Theme.orangeTint
         case .event: Theme.navyTint
+        case .tournament: Theme.orangeTint
         case .unknown: Theme.navyTint
         }
     }
@@ -61,7 +69,9 @@ nonisolated struct NotificationPayload: Codable, Sendable, Hashable {
     var callId: UUID?
     var itemId: UUID?
     var announcementId: UUID?
+    var conversationId: UUID?
     var eventId: UUID?
+    var tournamentId: UUID?
     var label: String?
     var amountCents: Int?
     var memberName: String?
@@ -74,7 +84,9 @@ nonisolated struct NotificationPayload: Codable, Sendable, Hashable {
         case callId = "call_id"
         case itemId = "item_id"
         case announcementId = "announcement_id"
+        case conversationId = "conversation_id"
         case eventId = "event_id"
+        case tournamentId = "tournament_id"
         case label
         case amountCents = "amount_cents"
         case memberName = "member_name"
@@ -115,6 +127,8 @@ nonisolated struct AppNotification: Identifiable, Codable, Sendable, Hashable {
         switch kind {
         case .announcement:
             return tr("new_announcement")
+        case .message:
+            return tr("new_message")
         case .paymentDue:
             return tr("new_payment_to_settle")
         case .paymentToConfirm:
@@ -125,6 +139,8 @@ nonisolated struct AppNotification: Identifiable, Codable, Sendable, Hashable {
             return title.isEmpty ? tr("notification") : title
         case .event:
             return tr("new_event")
+        case .tournament:
+            return tr("tournament_results")
         case .unknown:
             return title.isEmpty ? tr("notification") : title
         }
@@ -138,6 +154,8 @@ nonisolated struct AppNotification: Identifiable, Codable, Sendable, Hashable {
         switch kind {
         case .announcement:
             return title.isEmpty ? body : title
+        case .message:
+            return body
         case .paymentDue:
             guard let amount else { return label }
             return tr("to_settle \(label) \(amount)")
@@ -154,6 +172,8 @@ nonisolated struct AppNotification: Identifiable, Codable, Sendable, Hashable {
             return title.isEmpty ? body : title
         case .event:
             return body.isEmpty ? label : "\(label) · \(body)"
+        case .tournament:
+            return body.isEmpty ? label : body
         case .unknown:
             return body
         }
@@ -164,8 +184,12 @@ nonisolated struct AppNotification: Identifiable, Codable, Sendable, Hashable {
         switch kind {
         case .announcement:
             return payload.announcementId.map(ClubRoute.announcement)
+        case .message:
+            return payload.conversationId.map(ClubRoute.conversation) ?? .messages
         case .event:
             return payload.eventId.map(ClubRoute.event)
+        case .tournament:
+            return payload.tournamentId.map(ClubRoute.tournament)
         case .paymentDue, .paymentConfirmed:
             return .myPayments
         case .paymentToConfirm:

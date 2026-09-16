@@ -90,7 +90,7 @@ struct DevHeaderBand: View {
         .clipShape(.rect(cornerRadius: Theme.largeRadius))
         .alert(tr("sign_out_developertabview"), isPresented: $showsSignOut) {
             Button(tr("cancel"), role: .cancel) {}
-            Button(tr("sign_out"), role: .destructive) { store.signOut() }
+            Button(tr("sign_out"), role: .destructive) { Task { await store.signOut() } }
         }
     }
 }

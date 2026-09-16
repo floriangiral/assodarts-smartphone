@@ -21,7 +21,9 @@ nonisolated struct RemoteNotificationPayload: Codable, Sendable {
     let callId: String?
     let itemId: String?
     let announcementId: String?
+    let conversationId: String?
     let eventId: String?
+    let tournamentId: String?
     let label: String?
     let amountCents: Int?
     let memberName: String?
@@ -73,7 +75,9 @@ enum NotificationsRepository {
                 callId: payload?.callId.map(remoteId),
                 itemId: payload?.itemId.map(remoteId),
                 announcementId: payload?.announcementId.map(remoteId),
+                conversationId: payload?.conversationId.map(remoteId),
                 eventId: payload?.eventId.map(remoteId),
+                tournamentId: payload?.tournamentId.map(remoteId),
                 label: payload?.label,
                 amountCents: payload?.amountCents,
                 memberName: payload?.memberName,
@@ -119,13 +123,22 @@ enum NotificationsRepository {
         let payload = DeviceTokenUpsert(
             memberId: memberId.uuidString,
             platform: currentPlatform,
-            environment: "production",
+            environment: currentEnvironment,
             locale: Localization.shared.lang.rawValue
         )
+        var data = try encodedData(from: payload)
+        data["updatedAt"] = FieldValue.serverTimestamp()
         try await Backend.firestore
             .collection("device_push_tokens")
             .document(token)
-            .setData(encodedData(from: payload), merge: true)
+            .setData(data, merge: true)
+    }
+
+    static func deleteDeviceToken(_ token: String) async throws {
+        try await Backend.firestore
+            .collection("device_push_tokens")
+            .document(token)
+            .delete()
     }
 
     private static var currentPlatform: String {
@@ -133,6 +146,14 @@ enum NotificationsRepository {
         "ios"
         #else
         "android"
+        #endif
+    }
+
+    private static var currentEnvironment: String {
+        #if STAGING
+        "staging"
+        #else
+        "production"
         #endif
     }
 }

@@ -280,7 +280,7 @@ enum RemoteRepository {
                 createdAt: remote.createdAt,
                 createdById: remote.createdByMemberId.map(remoteId) ?? userId,
                 reference: remote.detail,
-                notify: true,
+                notify: remote.notify ?? true,
                 items: (itemsByCall[callId] ?? []).map { item in
                     PaymentItem(
                         id: remoteId(item.id),
@@ -544,7 +544,8 @@ enum RemoteRepository {
             currency: "eur",
             dueDate: call.dueDate,
             createdByMemberId: call.createdById.uuidString,
-            createdAt: call.createdAt
+            createdAt: call.createdAt,
+            notify: call.notify
         )
         let callRef = Backend.firestore.collection("payment_calls").document(call.id.uuidString)
         try batch.setData(from: callPayload, forDocument: callRef)

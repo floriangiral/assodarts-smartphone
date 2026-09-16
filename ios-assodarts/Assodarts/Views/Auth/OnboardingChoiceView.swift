@@ -39,7 +39,7 @@ struct OnboardingChoiceView: View {
                 if !showsCreateClub {
                     PrimaryButton(title: tr("refresh"), symbol: "arrow.clockwise", isEnabled: !isRefreshing, action: refresh)
                     Button {
-                        store.signOut()
+                        Task { await store.signOut() }
                     } label: {
                         Label(tr("back_to_home"), systemImage: "arrow.left")
                             .font(.footnote.weight(.semibold))

@@ -99,6 +99,13 @@ service cloud.firestore {
         && (isBoard(entry.clubId) || isTournamentMarker(entry.clubId, entry.tournamentId));
     }
 
+    function pushTokenFieldsAreValid() {
+      return request.resource.data.keys().hasOnly(['memberId', 'platform', 'environment', 'locale', 'updatedAt'])
+        && request.resource.data.platform in ['ios', 'android']
+        && request.resource.data.environment is string
+        && request.resource.data.locale is string;
+    }
+
     function paymentItemClientUpdateIsValid() {
       return request.resource.data.clubId == resource.data.clubId
         && request.resource.data.memberId == resource.data.memberId
@@ -268,8 +275,10 @@ service cloud.firestore {
     }
 
     match /device_push_tokens/{token} {
-      allow create, update: if isOwnProfile(request.resource.data.memberId);
-      allow read, delete: if false;
+      allow create, update: if isOwnProfile(request.resource.data.memberId)
+        && pushTokenFieldsAreValid();
+      allow delete: if isOwnProfile(resource.data.memberId);
+      allow read: if false;
     }
 
     match /invitations/{invitationId} {
