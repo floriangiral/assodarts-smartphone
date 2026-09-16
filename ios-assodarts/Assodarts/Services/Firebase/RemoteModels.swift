@@ -60,6 +60,12 @@ struct RemoteMember: Codable {
     let lastName: String
     let email: String
     let phone: String?
+    let birthDate: Date?
+    let photoPath: String?
+    let notifyAnnouncements: Bool?
+    let notifyEvents: Bool?
+    let notifyPayments: Bool?
+    let notifyTournaments: Bool?
     let status: String
 }
 

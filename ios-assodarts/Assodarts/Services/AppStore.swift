@@ -195,11 +195,15 @@ final class AppStore {
     }
 
     func isUpToDate(_ memberId: UUID) -> Bool {
-        !payments(for: memberId).contains { !$0.item.isPaid && $0.call.category == .cotisation }
+        let membershipFees = payments(for: memberId).filter { $0.call.category == .cotisation }
+        guard !membershipFees.isEmpty else { return false }
+        return !membershipFees.contains { !$0.item.isPaid }
     }
 
     func membershipState(for memberId: UUID) -> PaymentState {
-        let unpaid = payments(for: memberId).filter { !$0.item.isPaid && $0.call.category == .cotisation }
+        let membershipFees = payments(for: memberId).filter { $0.call.category == .cotisation }
+        guard !membershipFees.isEmpty else { return .pending }
+        let unpaid = membershipFees.filter { !$0.item.isPaid }
         guard let worst = unpaid.first else { return .paid }
         return worst.item.state(dueDate: worst.call.dueDate)
     }
@@ -369,23 +373,38 @@ final class AppStore {
 
     func updateMember(_ member: Member) {
         guard let index = db.members.firstIndex(where: { $0.id == member.id }) else { return }
-        db.members[index] = member
-        save()
-    }
-
-    /// Adds a member locally, then sends a real invitation — the row shown
-    /// here is only a placeholder until that person actually signs up and
-    /// joins the club.
-    func addMember(_ member: Member) {
-        db.members.append(member)
+        let previous = db.members[index]
+        var updated = member
+        if member.photoData != previous.photoData {
+            updated.photoPath = member.photoData == nil ? nil : "profile_photos/\(member.id.uuidString)"
+        }
+        db.members[index] = updated
         save()
         push {
-            try await RemoteRepository.inviteMember(
-                clubId: member.clubId,
-                email: member.email,
-                role: member.role,
-                licenseNumber: member.isLicensed ? member.licenceNumber : nil
-            )
+            if updated.photoData != previous.photoData {
+                if let data = updated.photoData {
+                    _ = try await RemoteRepository.uploadProfilePhoto(
+                        memberId: updated.id,
+                        data: data
+                    )
+                } else if let path = previous.photoPath {
+                    try? await RemoteRepository.deleteProfilePhoto(path: path)
+                }
+            }
+            try await RemoteRepository.updateMember(updated)
+        }
+    }
+
+    /// Sends an invitation. The member appears in the directory only once they
+    /// sign up and the backend creates their active membership.
+    func inviteMember(email: String, to clubId: UUID) async -> RemoteRepository.Invitation? {
+        guard isLive else { return nil }
+        do {
+            return try await RemoteRepository.inviteMember(clubId: clubId, email: email)
+        } catch {
+            print("Invitation failed: \(error)")
+            syncError = friendlyMessage(for: error)
+            return nil
         }
     }
 

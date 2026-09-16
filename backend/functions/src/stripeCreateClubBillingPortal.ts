@@ -1,6 +1,6 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { getFirestore } from "firebase-admin/firestore";
-import { requireClubBoard } from "./shared/auth";
+import { requireClubAdmin } from "./shared/auth";
 import {
   functionsBaseUrl,
   stripeClient,
@@ -20,7 +20,7 @@ export const stripeCreateClubBillingPortal = onCall(
     const clubId = String(request.data?.clubId ?? "").trim();
     if (!clubId) throw new HttpsError("invalid-argument", "clubId is required");
 
-    await requireClubBoard(clubId, request.auth.uid);
+    await requireClubAdmin(clubId, request.auth.uid);
 
     const club = (
       await getFirestore().collection("clubs").doc(clubId).get()

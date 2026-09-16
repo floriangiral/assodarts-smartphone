@@ -2,6 +2,7 @@ import FirebaseAuth
 import FirebaseCore
 import FirebaseFirestore
 import FirebaseFunctions
+import FirebaseStorage
 import Foundation
 
 /// The project's Firebase handles, configured once at app launch from the
@@ -29,6 +30,7 @@ enum Backend {
     static var auth: Auth { Auth.auth() }
     static var firestore: Firestore { Firestore.firestore() }
     static var functions: Functions { Functions.functions() }
+    static var storage: Storage { Storage.storage() }
 
     /// False when the build carries no Firebase credentials. The app then
     /// stays on the login screen with an empty local database.

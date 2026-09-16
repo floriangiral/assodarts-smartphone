@@ -28,6 +28,28 @@ export async function requireClubBoard(
   }
 }
 
+/**
+ * Throws unless the caller is the active admin of the club. Used for operations
+ * that change ownership-level settings such as role assignment and billing.
+ */
+export async function requireClubAdmin(
+  clubId: string,
+  uid: string,
+): Promise<void> {
+  const snap = await getFirestore()
+    .collection("memberships")
+    .doc(`${clubId}_${uid}`)
+    .get();
+  const membership = snap.data();
+
+  if (!membership || membership.status !== "active" || membership.role !== "admin") {
+    throw new HttpsError(
+      "permission-denied",
+      "Only the club admin can do this",
+    );
+  }
+}
+
 export async function requirePlatformAdmin(uid: string): Promise<void> {
   const snap = await getFirestore()
     .collection("platform_admins")

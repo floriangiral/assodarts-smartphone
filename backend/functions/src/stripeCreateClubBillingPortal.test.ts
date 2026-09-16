@@ -1,9 +1,9 @@
-const mockRequireClubBoard = jest.fn();
+const mockRequireClubAdmin = jest.fn();
 const mockClubGet = jest.fn();
 const mockPortalCreate = jest.fn();
 
 jest.mock("./shared/auth", () => ({
-  requireClubBoard: mockRequireClubBoard,
+  requireClubAdmin: mockRequireClubAdmin,
 }));
 
 jest.mock("./shared/stripe", () => {
@@ -45,7 +45,7 @@ const handler = stripeCreateClubBillingPortal.run.bind(
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockRequireClubBoard.mockResolvedValue(undefined);
+  mockRequireClubAdmin.mockResolvedValue(undefined);
   mockClubGet.mockResolvedValue({
     data: () => ({ stripeCustomerId: "cus_1" }),
   });
@@ -66,7 +66,7 @@ describe("stripeCreateClubBillingPortal", () => {
   });
 
   it("rejects a caller who is not on the committee", async () => {
-    mockRequireClubBoard.mockRejectedValue(new Error("permission denied"));
+    mockRequireClubAdmin.mockRejectedValue(new Error("permission denied"));
 
     await expect(handler(makeRequest({ clubId: "c1" }, "u1"))).rejects.toThrow(
       "permission denied",

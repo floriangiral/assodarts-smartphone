@@ -1,5 +1,6 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { randomBytes } from "node:crypto";
 import { requireClubBoard } from "./shared/auth";
 
 const VALID_ROLES = ["admin", "board", "member"];
@@ -25,12 +26,22 @@ export const createInvitation = onCall(async (request) => {
 
   await requireClubBoard(clubId, request.auth.uid);
 
-  await getFirestore().collection("invitations").doc(`${clubId}_${email}`).set(
+  const db = getFirestore();
+  const inviteCode = randomBytes(12).toString("hex");
+  const baseUrl =
+    process.env.ASSODARTS_INVITE_BASE_URL ?? "https://assodarts.app/invite";
+  const inviteUrl = `${baseUrl}?club=${encodeURIComponent(
+    clubId,
+  )}&email=${encodeURIComponent(email)}&code=${inviteCode}`;
+
+  await db.collection("invitations").doc(`${clubId}_${email}`).set(
     {
       clubId,
       email,
       role,
       licenseNumber,
+      inviteCode,
+      inviteUrl,
       status: "pending",
       invitedByMemberId: request.auth.uid,
       createdAt: FieldValue.serverTimestamp(),
@@ -39,6 +50,25 @@ export const createInvitation = onCall(async (request) => {
     },
     { merge: true },
   );
+
+  await db.collection("mail").add({
+    to: [email],
+    message: {
+      subject: "Invitation Assodarts",
+      text:
+        "Votre club vous invite sur Assodarts. " +
+        "Creez votre compte avec cette adresse email pour rejoindre le club : " +
+        inviteUrl,
+      html:
+        "<p>Votre club vous invite sur Assodarts.</p>" +
+        "<p>Creez votre compte avec cette adresse email pour rejoindre le club.</p>" +
+        `<p><a href="${inviteUrl}">Rejoindre Assodarts</a></p>`,
+    },
+    createdAt: FieldValue.serverTimestamp(),
+    invitationId: `${clubId}_${email}`,
+  });
+
+  return { inviteCode, inviteUrl };
 });
 
 /** The board withdraws a pending invitation before it is accepted. */

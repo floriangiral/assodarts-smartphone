@@ -961,6 +961,22 @@
         }
       }
     },
+    "back_to_home": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retour à l'accueil"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back to home"
+          }
+        }
+      }
+    },
     "bank_card": {
       "localizations": {
         "fr": {
@@ -3953,6 +3969,54 @@
         }
       }
     },
+    "invitation_code": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Code d'invitation"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invitation code"
+          }
+        }
+      }
+    },
+    "invitation_link": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lien d'invitation"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invitation link"
+          }
+        }
+      }
+    },
+    "invitation_link_copied": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lien copié"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Link copied"
+          }
+        }
+      }
+    },
     "invite": {
       "localizations": {
         "fr": {
@@ -3965,6 +4029,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Invite"
+          }
+        }
+      }
+    },
+    "copy_invitation_link": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copier le lien"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy link"
           }
         }
       }
@@ -7601,6 +7681,38 @@
         }
       }
     },
+    "sending": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Envoi..."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sending..."
+          }
+        }
+      }
+    },
+    "share_invitation_link": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Partager le lien"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Share link"
+          }
+        }
+      }
+    },
     "send_newpaymentcallsheet %lld %@": {
       "localizations": {
         "fr": {
@@ -8374,13 +8486,29 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Le membre reçoit un email d'invitation avec un mot de passe provisoire."
+            "value": "L'invitation est enregistrée. La personne crée son compte avec cette adresse email pour rejoindre le club."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The member receives an invitation email with a temporary password."
+            "value": "The invitation is registered. The person creates an account with this email address to join the club."
+          }
+        }
+      }
+    },
+    "the_invited_person_can_scan_this_code_or_create_an_account": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La personne invitee peut scanner ce code ou creer un compte avec cette adresse email."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The invited person can scan this code or create an account with this email address."
           }
         }
       }
