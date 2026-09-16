@@ -63,11 +63,13 @@ extension AppStore {
     }
 
     /// Asks the server, only while nobody is signed in, whether the very first
-    /// platform administrator still has to be created. Any failure is treated
-    /// as "an admin exists" so a network glitch can never strand a normal user
-    /// on the bootstrap screen.
+    /// platform administrator still has to be created. The local confirmation
+    /// is only a hint: staging can be reset from Firebase, and then the app
+    /// must not stay stuck on the login screen with no admin account left.
+    /// Any failure is treated as "an admin exists" so a network glitch can
+    /// never strand a normal user on the bootstrap screen.
     func checkPlatformAdminBootstrap() async {
-        guard Backend.isConfigured, !hasConfirmedPlatformAdminExists else {
+        guard Backend.isConfigured else {
             needsPlatformAdminBootstrap = false
             return
         }
@@ -77,6 +79,7 @@ extension AppStore {
             if exists {
                 confirmPlatformAdminExists()
             } else {
+                hasConfirmedPlatformAdminExists = false
                 needsPlatformAdminBootstrap = true
             }
         } catch {
