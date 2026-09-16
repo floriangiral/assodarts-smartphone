@@ -673,6 +673,22 @@
         }
       }
     },
+    "analytics_help_improve_assodarts_without_names_or_email": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ces mesures nous aident à améliorer Assodarts sans envoyer de nom ni d'e-mail."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "These measurements help us improve Assodarts without sending names or email addresses."
+          }
+        }
+      }
+    },
     "app_language": {
       "localizations": {
         "fr": {
@@ -7661,6 +7677,54 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sign in"
+          }
+        }
+      }
+    },
+    "privacy_and_analytics": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confidentialité et mesures"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Privacy and analytics"
+          }
+        }
+      }
+    },
+    "privacy_policy": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Politique de confidentialité"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Privacy policy"
+          }
+        }
+      }
+    },
+    "share_usage_analytics": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Partager les mesures d'utilisation"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Share usage analytics"
           }
         }
       }

@@ -113,6 +113,7 @@ final class AppStore {
         db = Database()
         isLive = false
         NotificationService.clearScheduledReminders()
+        AnalyticsService.clearUserProperties()
         try? Backend.auth.signOut()
         save()
     }
@@ -390,7 +391,15 @@ final class AppStore {
     func addTournament(_ tournament: Tournament) {
         db.tournaments.append(tournament)
         save()
-        push { try await RemoteRepository.createTournament(tournament) }
+        push {
+            try await RemoteRepository.createTournament(tournament)
+        } onSuccess: {
+            AnalyticsService.logTournamentCreated(
+                clubId: tournament.clubId,
+                tournamentId: tournament.id,
+                markerCount: tournament.markerIds.count
+            )
+        }
     }
 
     func addEntry(_ entry: TournamentEntry, to tournamentId: UUID) {
