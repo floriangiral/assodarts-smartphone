@@ -10,41 +10,14 @@ import Foundation
 extension AppStore {
     // MARK: - Session
 
-    /// Restores a stored Firebase session at launch. Leaves the app on the
-    /// login screen with an empty database when nobody is signed in or the
-    /// session cannot be restored.
+    /// Starts every app launch signed out. Firebase Auth persists credentials
+    /// by default, so clear both the Firebase session and the local snapshot
+    /// before showing the authentication screen.
     func restoreSession() async {
-        guard Backend.isConfigured else {
-            resetToSignedOutState()
-            isRestoringSession = false
-            return
+        if Backend.isConfigured {
+            try? Backend.auth.signOut()
         }
-
-        guard let user = Backend.auth.currentUser else {
-            resetToSignedOutState()
-            await checkPlatformAdminBootstrap()
-            isRestoringSession = false
-            return
-        }
-
-        do {
-            isPlatformAdmin = await RemoteRepository.isPlatformAdmin(authUid: user.uid)
-            guard let userId = try await RemoteRepository.memberId(forAuthUid: user.uid) else {
-                if isPlatformAdmin {
-                    isLive = true
-                    await loadPlatformData()
-                } else {
-                    resetToSignedOutState()
-                }
-                isRestoringSession = false
-                return
-            }
-            _ = await loadRemote(userId: userId)
-            await loadPlatformData()
-        } catch {
-            print("Session restore failed: \(error)")
-            resetToSignedOutState()
-        }
+        resetToSignedOutState()
         isRestoringSession = false
     }
 
