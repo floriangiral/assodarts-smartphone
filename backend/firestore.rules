@@ -288,7 +288,7 @@ service cloud.firestore {
     }
 
     match /mail/{mailId} {
-      // Written by Cloud Functions for the Firebase Trigger Email extension.
+      // Only Cloud Functions using the Admin SDK may write transactional mail.
       allow read, write: if false;
     }
   }
