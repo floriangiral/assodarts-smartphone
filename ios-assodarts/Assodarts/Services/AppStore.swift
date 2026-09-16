@@ -4,6 +4,7 @@ import SwiftUI
 
 /// Single source of truth for the whole app: authentication, tenant-isolated
 /// reads and every mutation. Persisted locally between launches.
+@MainActor
 @Observable
 final class AppStore {
     // Bumpées en v2 pour jeter toute base locale persistée avant le nettoyage

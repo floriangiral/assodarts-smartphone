@@ -39,7 +39,7 @@ struct ContentView: View {
         // and a passing `.inactive` (control centre, system alert) is ignored.
         .onChange(of: scenePhase) { previous, phase in
             guard phase == .active, previous == .background, store.currentUser != nil else { return }
-            Task { await store.refresh() }
+            Task { @MainActor in await store.refresh() }
         }
     }
 }

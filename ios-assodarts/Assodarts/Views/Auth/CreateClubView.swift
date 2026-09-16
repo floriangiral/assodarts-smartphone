@@ -35,7 +35,7 @@ struct CreateClubView: View {
         guard isValid, let userId = store.currentUserId else { return }
         isSubmitting = true
         errorMessage = nil
-        Task {
+        Task { @MainActor in
             let result = await store.createClubFromOnboarding(name: trimmedName, userId: userId)
             if let result { errorMessage = result }
             isSubmitting = false

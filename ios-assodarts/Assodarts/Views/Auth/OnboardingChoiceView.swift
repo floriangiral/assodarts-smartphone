@@ -85,7 +85,7 @@ struct OnboardingChoiceView: View {
     private func refresh() {
         guard let userId = store.currentUserId else { return }
         isRefreshing = true
-        Task {
+        Task { @MainActor in
             _ = await store.loadRemote(userId: userId)
             isRefreshing = false
         }

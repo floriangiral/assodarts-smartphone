@@ -252,7 +252,7 @@ struct LoginView: View {
         errorMessage = nil
         infoMessage = nil
 
-        Task {
+        Task { @MainActor in
             let result: String?
             switch intent {
             case .signIn:
@@ -286,7 +286,7 @@ struct LoginView: View {
     private func resetPassword() {
         focusedField = nil
         isSubmitting = true
-        Task {
+        Task { @MainActor in
             let message = await store.sendPasswordReset(email: email)
             withAnimation(.easeInOut(duration: 0.2)) {
                 infoMessage = message
