@@ -353,26 +353,27 @@ enum RemoteRepository {
         let otherIds = Array(clubIds.subtracting([activeClubId]))
         guard !otherIds.isEmpty else { return result }
 
-        for chunk in stride(from: 0, to: otherIds.count, by: 30).map({ Array(otherIds[$0..<min($0 + 30, otherIds.count)]) }) {
-            let snap = try await db.collection("clubs")
-                .whereField(FieldPath.documentID(), in: chunk)
-                .getDocuments()
-            result.append(contentsOf: snap.documents.compactMap { doc in
-                (doc.data()["name"] as? String).map { AvailableClub(id: doc.documentID, name: $0) }
-            })
+        for clubId in otherIds {
+            let doc = try await db.collection("clubs").document(clubId).getDocument()
+            if let name = doc.data()?["name"] as? String {
+                result.append(AvailableClub(id: doc.documentID, name: name))
+            }
         }
         return result.sorted { $0.name < $1.name }
     }
 
-    /// Firestore's `in` operator caps at 30 values per query.
+    /// Use direct document reads so Firestore rules can evaluate each member's
+    /// `clubId`/`authUid` instead of rejecting an unconstrained document-id query.
     private static func loadMembers(ids: [String], in db: Firestore) async throws -> [RemoteMember] {
         guard !ids.isEmpty else { return [] }
+        var seen = Set<String>()
+        let uniqueIds = ids.filter { seen.insert($0).inserted }
         var results: [RemoteMember] = []
-        for chunk in stride(from: 0, to: ids.count, by: 30).map({ Array(ids[$0..<min($0 + 30, ids.count)]) }) {
-            let snap = try await db.collection("members")
-                .whereField(FieldPath.documentID(), in: chunk)
-                .getDocuments()
-            results.append(contentsOf: snap.documents.compactMap { try? $0.data(as: RemoteMember.self) })
+        for id in uniqueIds {
+            let doc = try await db.collection("members").document(id).getDocument()
+            if let member = try? doc.data(as: RemoteMember.self) {
+                results.append(member)
+            }
         }
         return results
     }
