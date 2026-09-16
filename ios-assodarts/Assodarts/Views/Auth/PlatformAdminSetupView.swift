@@ -171,7 +171,7 @@ struct PlatformAdminSetupView: View {
         isSubmitting = true
         errorMessage = nil
 
-        Task {
+        Task { @MainActor in
             await create(firstName: first, lastName: last, email: normalized)
             isSubmitting = false
         }

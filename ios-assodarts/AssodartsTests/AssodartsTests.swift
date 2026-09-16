@@ -52,6 +52,7 @@ struct AssodartsTests {
         #expect(!account.isIbanValid)
     }
 
+    @MainActor
     @Test func onboardingPreparationKeepsMemberIdAndClearsClubState() {
         let memberId = UUID()
         let staleClubId = UUID()
