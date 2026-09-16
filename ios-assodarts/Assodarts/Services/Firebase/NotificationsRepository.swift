@@ -148,7 +148,6 @@ enum NotificationsRepository {
         "android"
         #endif
     }
-
     private static var currentEnvironment: String {
         #if STAGING
         "staging"
