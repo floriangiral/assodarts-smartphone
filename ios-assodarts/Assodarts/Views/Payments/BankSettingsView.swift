@@ -172,9 +172,10 @@ struct BankSettingsView: View {
         }
 
         isVerifying = true
+        let remoteClubId = store.remoteClubId(for: club.id)
         Task {
             do {
-                let onboarding = try await StripeService.startOnboarding(clubId: club.id)
+                let onboarding = try await StripeService.startOnboarding(clubId: remoteClubId)
                 draft.stripeAccountId = onboarding.accountId
                 draft.stripeStatus = onboarding.status
                 stripeSheet = IdentifiableURL(url: onboarding.url)
@@ -191,9 +192,10 @@ struct BankSettingsView: View {
     private func refreshStripeStatus() {
         guard store.isLive, let club else { return }
         isVerifying = true
+        let remoteClubId = store.remoteClubId(for: club.id)
         Task {
             do {
-                let status = try await StripeService.refreshStatus(clubId: club.id)
+                let status = try await StripeService.refreshStatus(clubId: remoteClubId)
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
                     draft.stripeStatus = status
                 }

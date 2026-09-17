@@ -102,8 +102,9 @@ struct SubscriptionView: View {
     private func startCheckout(_ club: Club) {
         let tier = store.tier(for: club)
         let priceCents = store.annualPriceCents(for: club)
+        let remoteClubId = store.remoteClubId(for: club.id)
         run(
-            operation: { try await StripeService.startClubSubscriptionCheckout(clubId: club.id) },
+            operation: { try await StripeService.startClubSubscriptionCheckout(clubId: remoteClubId) },
             onSuccess: {
                 AnalyticsService.logClubSubscriptionCheckoutStarted(
                     club: club,
@@ -115,7 +116,8 @@ struct SubscriptionView: View {
     }
 
     private func openPortal(_ club: Club) {
-        run(operation: { try await StripeService.openBillingPortal(clubId: club.id) })
+        let remoteClubId = store.remoteClubId(for: club.id)
+        run(operation: { try await StripeService.openBillingPortal(clubId: remoteClubId) })
     }
 
     private func run(
