@@ -266,7 +266,9 @@ export const onMessageCreated = onDocumentCreated(
     const participantIds = (conversation.participantIds ?? []) as string[];
     const recipientIds =
       conversation.kind === "bureau" && participantIds.includes(senderId)
-        ? (await activeMemberships(conversation.clubId, ["admin", "board"])).docs
+        ? (
+            await activeMemberships(conversation.clubId, ["admin", "board"])
+          ).docs
             .map((doc) => doc.data().memberId as string)
             .filter((memberId) => memberId !== senderId)
         : participantIds.filter((memberId) => memberId !== senderId);

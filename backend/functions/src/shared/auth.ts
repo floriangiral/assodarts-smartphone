@@ -42,7 +42,11 @@ export async function requireClubAdmin(
     .get();
   const membership = snap.data();
 
-  if (!membership || membership.status !== "active" || membership.role !== "admin") {
+  if (
+    !membership ||
+    membership.status !== "active" ||
+    membership.role !== "admin"
+  ) {
     throw new HttpsError(
       "permission-denied",
       "Only the club admin can do this",
