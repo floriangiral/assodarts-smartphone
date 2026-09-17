@@ -12,7 +12,7 @@ firebase functions:secrets:set RESEND_API_KEY
 firebase functions:secrets:set DEFAULT_FROM_EMAIL
 ```
 
-For staging, set `DEFAULT_FROM_EMAIL` to the verified Resend sender `ne_pas_repondre@bougnatdarts.fr`. The `bougnatdarts.fr` domain must be verified in the Resend dashboard before sending.
+For staging, set `DEFAULT_FROM_EMAIL` to the verified Resend sender `ne_pas_repondre@assodarts.app`. The `assodarts.app` domain must be verified in the Resend dashboard before sending.
 
 ### Production
 
@@ -24,4 +24,4 @@ firebase functions:secrets:set RESEND_API_KEY
 firebase functions:secrets:set DEFAULT_FROM_EMAIL
 ```
 
-Use the verified `bougnatdarts.fr` sender for `DEFAULT_FROM_EMAIL` in production as well. Deploy the Functions after configuring the secrets so the trigger receives access to them.
+Use the verified `assodarts.app` sender for `DEFAULT_FROM_EMAIL` in production as well. Deploy the Functions after configuring the secrets so the trigger receives access to them.
