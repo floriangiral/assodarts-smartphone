@@ -265,8 +265,8 @@ struct BankSettingsView: View {
                     .keyboardField(.code, submit: .next)
                     .focused($focus, equals: .iban)
                     .foregroundStyle(Theme.ink)
-                    .padding(12)
-                    .background(Theme.canvas, in: .rect(cornerRadius: Theme.compactRadius))
+                    .assoFieldSurface(radius: Theme.compactRadius, padding: 12, minHeight: 48)
+                    .onTapGesture { focus = .iban }
                     .overlay {
                         RoundedRectangle(cornerRadius: Theme.compactRadius)
                             .stroke(ibanBorder, lineWidth: 1)
@@ -337,8 +337,8 @@ struct BankSettingsView: View {
                 .keyboardField(kind, submit: .next)
                 .focused($focus, equals: focusValue)
                 .foregroundStyle(Theme.ink)
-                .padding(12)
-                .background(Theme.canvas, in: .rect(cornerRadius: Theme.compactRadius))
+                .assoFieldSurface(radius: Theme.compactRadius, padding: 12, minHeight: 48)
+                .onTapGesture { focus = focusValue }
         }
     }
 
@@ -372,8 +372,8 @@ struct BankSettingsView: View {
                     .keyboardField(.freeText, submit: .return)
                     .focused($focus, equals: .transferNote)
                     .foregroundStyle(Theme.ink)
-                    .padding(12)
-                    .background(Theme.canvas, in: .rect(cornerRadius: Theme.compactRadius))
+                    .assoFieldSurface(radius: Theme.compactRadius, padding: 12, minHeight: 72)
+                    .onTapGesture { focus = .transferNote }
             }
 
             Divider().overlay(Theme.border)
@@ -401,8 +401,8 @@ struct BankSettingsView: View {
                     .keyboardField(.freeText, submit: .return)
                     .focused($focus, equals: .cashNote)
                     .foregroundStyle(Theme.ink)
-                    .padding(12)
-                    .background(Theme.canvas, in: .rect(cornerRadius: Theme.compactRadius))
+                    .assoFieldSurface(radius: Theme.compactRadius, padding: 12, minHeight: 72)
+                    .onTapGesture { focus = .cashNote }
             }
 
             if store.pendingValidationCount(of: club.id) > 0 {

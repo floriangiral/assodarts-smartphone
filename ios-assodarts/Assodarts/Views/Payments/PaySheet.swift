@@ -344,8 +344,8 @@ struct PaySheet: View {
             .keyboardField(.freeText, submit: .done)
             .focused($isEditingReference)
             .foregroundStyle(Theme.ink)
-            .padding(12)
-            .background(Theme.canvas, in: .rect(cornerRadius: Theme.compactRadius))
+            .assoFieldSurface(radius: Theme.compactRadius, padding: 12, minHeight: 64)
+            .onTapGesture { isEditingReference = true }
     }
 
     // MARK: - Call to action

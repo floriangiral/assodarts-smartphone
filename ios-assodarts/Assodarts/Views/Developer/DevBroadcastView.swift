@@ -52,16 +52,16 @@ struct DevBroadcastView: View {
                 .keyboardField(.freeText, submit: .next)
                 .focused($isEditing)
                 .foregroundStyle(Theme.ink)
-                .padding(12)
-                .background(Theme.canvas, in: .rect(cornerRadius: Theme.compactRadius))
+                .assoFieldSurface(radius: Theme.compactRadius, padding: 12, minHeight: 48)
+                .onTapGesture { isEditing = true }
 
             TextField(tr("your_message"), text: $message, axis: .vertical)
                 .lineLimit(4...8)
                 .keyboardField(.freeText, submit: .return)
                 .focused($isEditing)
                 .foregroundStyle(Theme.ink)
-                .padding(12)
-                .background(Theme.canvas, in: .rect(cornerRadius: Theme.compactRadius))
+                .assoFieldSurface(radius: Theme.compactRadius, padding: 12, minHeight: 112)
+                .onTapGesture { isEditing = true }
 
             Picker(tr("audience"), selection: $audience) {
                 ForEach(BroadcastAudience.allCases) { option in
