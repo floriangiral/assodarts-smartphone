@@ -36,9 +36,9 @@ enum StripeService {
 
     /// Creates (or resumes) the club's Stripe Connect account and returns the
     /// hosted onboarding URL.
-    static func startOnboarding(clubId: UUID) async throws -> Onboarding {
+    static func startOnboarding(clubId: String) async throws -> Onboarding {
         let result = try await Backend.functions.httpsCallable("stripeConnectOnboard")
-            .call(["clubId": clubId.uuidString])
+            .call(["clubId": clubId])
         let response = try decode(result.data, as: ConnectOnboardResponse.self)
         guard let url = URL(string: response.url) else {
             throw BackendError.message(tr("invalid_stripe_link_please_try_again"))
@@ -47,18 +47,18 @@ enum StripeService {
     }
 
     /// Re-reads the connected account after onboarding.
-    static func refreshStatus(clubId: UUID) async throws -> StripeAccountStatus {
+    static func refreshStatus(clubId: String) async throws -> StripeAccountStatus {
         let result = try await Backend.functions.httpsCallable("stripeConnectStatus")
-            .call(["clubId": clubId.uuidString])
+            .call(["clubId": clubId])
         let response = try decode(result.data, as: ConnectStatusResponse.self)
         return .fromRemote(response.status)
     }
 
     /// Opens a Stripe Checkout session for one payment line. Apple Pay and card
     /// are both offered on the hosted page.
-    static func createCheckout(itemId: UUID) async throws -> URL {
+    static func createCheckout(itemId: String) async throws -> URL {
         let result = try await Backend.functions.httpsCallable("stripeCreateCheckout")
-            .call(["itemId": itemId.uuidString])
+            .call(["itemId": itemId])
         let response = try decode(result.data, as: CheckoutResponse.self)
         guard let url = URL(string: response.url) else {
             throw BackendError.message(tr("payment_is_unavailable_right_now"))
@@ -68,10 +68,10 @@ enum StripeService {
 
     /// Opens Stripe Checkout for the club's own yearly Assodarts subscription.
     /// The price is decided server-side from the club's member count.
-    static func startClubSubscriptionCheckout(clubId: UUID) async throws -> URL {
+    static func startClubSubscriptionCheckout(clubId: String) async throws -> URL {
         let result = try await Backend.functions
             .httpsCallable("stripeCreateClubSubscriptionCheckout")
-            .call(["clubId": clubId.uuidString])
+            .call(["clubId": clubId])
         let response = try decode(result.data, as: CheckoutResponse.self)
         guard let url = URL(string: response.url) else {
             throw BackendError.message(tr("payment_is_unavailable_right_now"))
@@ -80,10 +80,10 @@ enum StripeService {
     }
 
     /// Opens Stripe's hosted billing portal to change card, read invoices or cancel.
-    static func openBillingPortal(clubId: UUID) async throws -> URL {
+    static func openBillingPortal(clubId: String) async throws -> URL {
         let result = try await Backend.functions
             .httpsCallable("stripeCreateClubBillingPortal")
-            .call(["clubId": clubId.uuidString])
+            .call(["clubId": clubId])
         let response = try decode(result.data, as: BillingPortalResponse.self)
         guard let url = URL(string: response.url) else {
             throw BackendError.message(tr("payment_is_unavailable_right_now"))

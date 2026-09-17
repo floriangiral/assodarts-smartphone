@@ -29,6 +29,7 @@ extension AppStore {
         notifications = []
         availableClubs = []
         activeClubRemoteId = nil
+        remoteIdsByLocalId = [:]
         isPlatformAdmin = false
         isLive = false
         AnalyticsService.clearUserProperties()
@@ -368,6 +369,7 @@ extension AppStore {
         currentUserId = snapshot.currentMemberId
         availableClubs = snapshot.availableClubs
         activeClubRemoteId = snapshot.activeClubRemoteId
+        remoteIdsByLocalId = snapshot.remoteIdsByLocalId
         let activeClubId = UUID(uuidString: snapshot.activeClubRemoteId)
         AnalyticsService.updateUserProperties(clubId: activeClubId, role: currentUser?.role)
     }
