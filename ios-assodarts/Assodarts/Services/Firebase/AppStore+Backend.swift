@@ -18,6 +18,7 @@ extension AppStore {
             try? Backend.auth.signOut()
         }
         resetToSignedOutState()
+        await checkPlatformAdminBootstrap()
         isRestoringSession = false
     }
 
@@ -31,6 +32,7 @@ extension AppStore {
         activeClubRemoteId = nil
         remoteIdsByLocalId = [:]
         isPlatformAdmin = false
+        needsPlatformAdminBootstrap = false
         isLive = false
         AnalyticsService.clearUserProperties()
         save()
