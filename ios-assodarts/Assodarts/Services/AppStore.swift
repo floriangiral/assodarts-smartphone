@@ -34,6 +34,8 @@ final class AppStore {
     var availableClubs: [RemoteRepository.AvailableClub] = []
     /// The real Firestore club id backing `currentClub`, needed to switch clubs.
     var activeClubRemoteId: String?
+    /// Firestore document ids for local UUIDs derived from remote string ids.
+    var remoteIdsByLocalId: [UUID: String] = [:]
     /// Set when accepting a pending invitation just joined a club other than
     /// the currently active one, so the UI can offer an immediate switch.
     var pendingClubSwitchOffer: RemoteRepository.AvailableClub?
@@ -102,6 +104,17 @@ final class AppStore {
 
     var canManageClub: Bool { currentUser?.role.canManageClub ?? false }
 
+    func remoteId(for localId: UUID) -> String {
+        remoteIdsByLocalId[localId] ?? localId.uuidString
+    }
+
+    func remoteClubId(for clubId: UUID) -> String {
+        if currentClub?.id == clubId, let activeClubRemoteId {
+            return activeClubRemoteId
+        }
+        return remoteId(for: clubId)
+    }
+
     func signOut() async {
         await unregisterPushToken()
         currentUserId = nil
@@ -109,6 +122,7 @@ final class AppStore {
         notifications = []
         availableClubs = []
         activeClubRemoteId = nil
+        remoteIdsByLocalId = [:]
         pendingClubSwitchOffer = nil
         showsPostCreationInviteOffer = false
         needsOnboardingChoice = false
@@ -146,6 +160,7 @@ final class AppStore {
         notifications = []
         availableClubs = []
         activeClubRemoteId = nil
+        remoteIdsByLocalId = [:]
         pendingClubSwitchOffer = nil
         needsOnboardingChoice = true
         isLive = true
@@ -293,24 +308,24 @@ final class AppStore {
 
     func markRead(_ conversationId: UUID, by memberId: UUID) {
         guard let index = db.conversations.firstIndex(where: { $0.id == conversationId }) else { return }
-        var changed = false
+        let unreadMessageIds = db.conversations[index].messages
+            .filter { !$0.readBy.contains(memberId) }
+            .map(\.id)
+        guard !unreadMessageIds.isEmpty else { return }
         for messageIndex in db.conversations[index].messages.indices
         where !db.conversations[index].messages[messageIndex].readBy.contains(memberId) {
             db.conversations[index].messages[messageIndex].readBy.append(memberId)
-            changed = true
         }
-        if changed {
-            let messageIds = db.conversations[index].messages
-                .filter { !$0.readBy.contains(memberId) }
-                .map(\.id)
-            save()
-            push {
-                try await RemoteRepository.markConversationRead(
-                    conversationId: conversationId,
-                    messageIds: messageIds,
-                    by: memberId
-                )
-            }
+        save()
+        let remoteConversationId = remoteId(for: conversationId)
+        let remoteMessageIds = unreadMessageIds.map { remoteId(for: $0) }
+        let remoteMemberId = remoteId(for: memberId)
+        push {
+            try await RemoteRepository.markConversationRead(
+                conversationId: remoteConversationId,
+                messageIds: remoteMessageIds,
+                by: remoteMemberId
+            )
         }
     }
 
@@ -322,7 +337,17 @@ final class AppStore {
         let message = Message(senderId: senderId, text: trimmed, readBy: [senderId], imageData: imageData)
         db.conversations[index].messages.append(message)
         save()
-        push { try await RemoteRepository.sendMessage(message, conversationId: conversationId) }
+        let remoteConversationId = remoteId(for: conversationId)
+        let remoteSenderId = remoteId(for: senderId)
+        let remoteReadBy = message.readBy.map { remoteId(for: $0) }
+        push {
+            try await RemoteRepository.sendMessage(
+                message,
+                conversationId: remoteConversationId,
+                senderId: remoteSenderId,
+                readBy: remoteReadBy
+            )
+        }
         return true
     }
 
@@ -336,7 +361,15 @@ final class AppStore {
         let conversation = Conversation(clubId: clubId, kind: .bureau, participantIds: [memberId])
         db.conversations.append(conversation)
         save()
-        push { try await RemoteRepository.createConversation(conversation) }
+        let remoteClubId = remoteClubId(for: clubId)
+        let remoteParticipantIds = [memberId: remoteId(for: memberId)]
+        push {
+            try await RemoteRepository.createConversation(
+                conversation,
+                clubId: remoteClubId,
+                participantIds: remoteParticipantIds
+            )
+        }
         return conversation
     }
 
@@ -350,7 +383,18 @@ final class AppStore {
         let conversation = Conversation(clubId: clubId, kind: .direct, participantIds: [a, b])
         db.conversations.append(conversation)
         save()
-        push { try await RemoteRepository.createConversation(conversation) }
+        let remoteClubId = remoteClubId(for: clubId)
+        let remoteParticipantIds = [
+            a: remoteId(for: a),
+            b: remoteId(for: b),
+        ]
+        push {
+            try await RemoteRepository.createConversation(
+                conversation,
+                clubId: remoteClubId,
+                participantIds: remoteParticipantIds
+            )
+        }
         return conversation
     }
 
@@ -366,13 +410,22 @@ final class AppStore {
         )
         db.announcements.insert(announcement, at: 0)
         save()
-        push { try await RemoteRepository.publishAnnouncement(announcement) }
+        let remoteClubId = remoteClubId(for: author.clubId)
+        let remoteAuthorId = remoteId(for: author.id)
+        push {
+            try await RemoteRepository.publishAnnouncement(
+                announcement,
+                clubId: remoteClubId,
+                authorId: remoteAuthorId
+            )
+        }
     }
 
     func deleteAnnouncement(_ id: UUID) {
         db.announcements.removeAll { $0.id == id }
         save()
-        push { try await RemoteRepository.deleteAnnouncement(id: id) }
+        let remoteAnnouncementId = remoteId(for: id)
+        push { try await RemoteRepository.deleteAnnouncement(id: remoteAnnouncementId) }
     }
 
     func setAttendance(_ going: Bool?, eventId: UUID, memberId: UUID) {
@@ -383,13 +436,24 @@ final class AppStore {
         if going == false { db.events[index].declinedIds.append(memberId) }
         save()
         let clubId = db.events[index].clubId
-        push { try await RemoteRepository.setEventAttendance(going, eventId: eventId, clubId: clubId, memberId: memberId) }
+        let remoteEventId = remoteId(for: eventId)
+        let remoteClubId = remoteClubId(for: clubId)
+        let remoteMemberId = remoteId(for: memberId)
+        push {
+            try await RemoteRepository.setEventAttendance(
+                going,
+                remoteEventId: remoteEventId,
+                clubId: remoteClubId,
+                memberId: remoteMemberId
+            )
+        }
     }
 
     func addEvent(_ event: ClubEvent) {
         db.events.append(event)
         save()
-        push { try await RemoteRepository.createEvent(event) }
+        let remoteClubId = remoteClubId(for: event.clubId)
+        push { try await RemoteRepository.createEvent(event, clubId: remoteClubId) }
     }
 
     func updateMember(_ member: Member) {
@@ -402,6 +466,8 @@ final class AppStore {
         let memberToSave = updated
         db.members[index] = memberToSave
         save()
+        let remoteMemberId = remoteId(for: memberToSave.id)
+        let remoteClubId = remoteClubId(for: memberToSave.clubId)
         push {
             if memberToSave.photoData != previous.photoData {
                 if let data = memberToSave.photoData {
@@ -413,7 +479,11 @@ final class AppStore {
                     try? await RemoteRepository.deleteProfilePhoto(path: path)
                 }
             }
-            try await RemoteRepository.updateMember(memberToSave)
+            try await RemoteRepository.updateMember(
+                memberToSave,
+                memberId: remoteMemberId,
+                clubId: remoteClubId
+            )
         }
     }
 
@@ -422,7 +492,7 @@ final class AppStore {
     func inviteMember(email: String, to clubId: UUID) async -> RemoteRepository.Invitation? {
         guard isLive else { return nil }
         do {
-            return try await RemoteRepository.inviteMember(clubId: clubId, email: email)
+            return try await RemoteRepository.inviteMember(clubId: remoteClubId(for: clubId), email: email)
         } catch {
             print("Invitation failed: \(error)")
             syncError = friendlyMessage(for: error)
@@ -433,8 +503,16 @@ final class AppStore {
     func addTournament(_ tournament: Tournament) {
         db.tournaments.append(tournament)
         save()
+        let remoteClubId = remoteClubId(for: tournament.clubId)
+        let remoteMarkerIds = Dictionary(
+            uniqueKeysWithValues: tournament.markerIds.map { ($0, remoteId(for: $0)) }
+        )
         push {
-            try await RemoteRepository.createTournament(tournament)
+            try await RemoteRepository.createTournament(
+                tournament,
+                clubId: remoteClubId,
+                markerIds: remoteMarkerIds
+            )
         } onSuccess: {
             AnalyticsService.logTournamentCreated(
                 clubId: tournament.clubId,
@@ -449,14 +527,25 @@ final class AppStore {
         db.tournaments[index].entries.append(entry)
         save()
         let clubId = db.tournaments[index].clubId
-        push { try await RemoteRepository.addTournamentEntry(entry, tournamentId: tournamentId, clubId: clubId) }
+        let remoteClubId = remoteClubId(for: clubId)
+        let remoteTournamentId = remoteId(for: tournamentId)
+        let remoteRecorderId = remoteId(for: entry.recordedById)
+        push {
+            try await RemoteRepository.addTournamentEntry(
+                entry,
+                tournamentId: remoteTournamentId,
+                clubId: remoteClubId,
+                recordedByMemberId: remoteRecorderId
+            )
+        }
     }
 
     func deleteEntry(_ entryId: UUID, from tournamentId: UUID) {
         guard let index = db.tournaments.firstIndex(where: { $0.id == tournamentId }) else { return }
         db.tournaments[index].entries.removeAll { $0.id == entryId }
         save()
-        push { try await RemoteRepository.deleteTournamentEntry(id: entryId) }
+        let remoteEntryId = remoteId(for: entryId)
+        push { try await RemoteRepository.deleteTournamentEntry(id: remoteEntryId) }
     }
 
     // MARK: - Club bank details
@@ -483,7 +572,9 @@ final class AppStore {
         db.clubs[index].bank = updated
         save()
         let saved = updated
-        push { try await RemoteRepository.upsertBankAccount(saved, clubId: clubId, by: memberId) }
+        let remoteClubId = remoteClubId(for: clubId)
+        let remoteMemberId = memberId.map { remoteId(for: $0) }
+        push { try await RemoteRepository.upsertBankAccount(saved, clubId: remoteClubId, by: remoteMemberId) }
     }
 
     /// Starts the online collection setup: the account goes to verification
@@ -497,7 +588,9 @@ final class AppStore {
         save()
         let saved = account
         let author = currentUserId
-        push { try await RemoteRepository.upsertBankAccount(saved, clubId: clubId, by: author) }
+        let remoteClubId = remoteClubId(for: clubId)
+        let remoteAuthorId = author.map { remoteId(for: $0) }
+        push { try await RemoteRepository.upsertBankAccount(saved, clubId: remoteClubId, by: remoteAuthorId) }
     }
 
     func completeOnlineCollection(for clubId: UUID) {
@@ -508,7 +601,9 @@ final class AppStore {
         save()
         let saved = account
         let author = currentUserId
-        push { try await RemoteRepository.upsertBankAccount(saved, clubId: clubId, by: author) }
+        let remoteClubId = remoteClubId(for: clubId)
+        let remoteAuthorId = author.map { remoteId(for: $0) }
+        push { try await RemoteRepository.upsertBankAccount(saved, clubId: remoteClubId, by: remoteAuthorId) }
     }
 
     func disableOnlineCollection(for clubId: UUID) {
@@ -520,7 +615,9 @@ final class AppStore {
         save()
         let saved = account
         let author = currentUserId
-        push { try await RemoteRepository.upsertBankAccount(saved, clubId: clubId, by: author) }
+        let remoteClubId = remoteClubId(for: clubId)
+        let remoteAuthorId = author.map { remoteId(for: $0) }
+        push { try await RemoteRepository.upsertBankAccount(saved, clubId: remoteClubId, by: remoteAuthorId) }
     }
 
     /// Methods a member of this club can actually use right now.
@@ -533,7 +630,18 @@ final class AppStore {
     func createPaymentCall(_ call: PaymentCall) {
         db.paymentCalls.insert(call, at: 0)
         save()
-        push { try await RemoteRepository.createPaymentCall(call) }
+        let remoteClubId = remoteClubId(for: call.clubId)
+        var remoteMemberIds: [UUID: String] = [call.createdById: remoteId(for: call.createdById)]
+        for item in call.items {
+            remoteMemberIds[item.memberId] = remoteId(for: item.memberId)
+        }
+        push {
+            try await RemoteRepository.createPaymentCall(
+                call,
+                clubId: remoteClubId,
+                memberIds: remoteMemberIds
+            )
+        }
     }
 
     private func itemIndexes(callId: UUID, memberId: UUID) -> (call: Int, item: Int)? {
@@ -552,7 +660,8 @@ final class AppStore {
         let itemId = db.paymentCalls[index.call].items[index.item].id
         let resolved = db.paymentCalls[index.call].items[index.item].method
         save()
-        push { try await RemoteRepository.markPaid(itemId: itemId, method: resolved) }
+        let remoteItemId = remoteId(for: itemId)
+        push { try await RemoteRepository.markPaid(itemId: remoteItemId, method: resolved) }
     }
 
     /// A member states he has sent a transfer or handed over cash. The line moves
@@ -571,7 +680,8 @@ final class AppStore {
         db.paymentCalls[index.call].items[index.item].reference = cleaned
         let itemId = db.paymentCalls[index.call].items[index.item].id
         save()
-        push { try await RemoteRepository.declarePayment(itemId: itemId, method: method, reference: cleaned) }
+        let remoteItemId = remoteId(for: itemId)
+        push { try await RemoteRepository.declarePayment(itemId: remoteItemId, method: method, reference: cleaned) }
     }
 
     /// The bureau confirms the money has been received.
@@ -583,7 +693,8 @@ final class AppStore {
         db.paymentCalls[index.call].items[index.item].validatedById = validatorId
         let itemId = db.paymentCalls[index.call].items[index.item].id
         save()
-        push { try await RemoteRepository.validatePayment(itemId: itemId) }
+        let remoteItemId = remoteId(for: itemId)
+        push { try await RemoteRepository.validatePayment(itemId: remoteItemId) }
     }
 
     /// The declaration is rejected, or cancelled by the member himself: the line
@@ -595,7 +706,8 @@ final class AppStore {
         db.paymentCalls[index.call].items[index.item].reference = nil
         let itemId = db.paymentCalls[index.call].items[index.item].id
         save()
-        push { try await RemoteRepository.cancelDeclaration(itemId: itemId) }
+        let remoteItemId = remoteId(for: itemId)
+        push { try await RemoteRepository.cancelDeclaration(itemId: remoteItemId) }
     }
 
     /// Everything the bureau of a club has to confirm, oldest declaration first.
@@ -625,7 +737,7 @@ final class AppStore {
             reminded.append(db.paymentCalls[callIndex].items[itemIndex].id)
         }
         save()
-        let ids = reminded
+        let ids = reminded.map { remoteId(for: $0) }
         push { try await RemoteRepository.remind(itemIds: ids) }
     }
 
@@ -661,10 +773,12 @@ final class AppStore {
     func loadPlatformData() async {
         guard isPlatformAdmin else { return }
         do {
-            async let clubs = RemoteRepository.loadPlatformClubs()
+            async let clubs = RemoteRepository.loadPlatformClubsWithRemoteIds()
             async let coupons = RemoteRepository.loadCoupons()
             async let announcements = RemoteRepository.loadPlatformAnnouncements()
-            platformClubsRemote = try await clubs
+            let platformClubs = try await clubs
+            platformClubsRemote = platformClubs.clubs
+            remoteIdsByLocalId.merge(platformClubs.remoteIdsByLocalId) { _, new in new }
             platformCoupons = try await coupons
             platformAnnouncementsRemote = try await announcements
         } catch {
@@ -732,7 +846,10 @@ final class AppStore {
 
     func createCoupon(_ coupon: Coupon) async {
         do {
-            try await RemoteRepository.createCoupon(coupon)
+            try await RemoteRepository.createCoupon(
+                coupon,
+                clubIds: coupon.clubIds.map { remoteId(for: $0) }
+            )
             await loadPlatformData()
         } catch {
             syncError = friendlyMessage(for: error)

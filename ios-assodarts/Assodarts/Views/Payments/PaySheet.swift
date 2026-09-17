@@ -443,9 +443,10 @@ struct PaySheet: View {
             return
         }
 
+        let remoteItemId = store.remoteId(for: item.id)
         Task {
             do {
-                let url = try await StripeService.createCheckout(itemId: item.id)
+                let url = try await StripeService.createCheckout(itemId: remoteItemId)
                 checkoutSheet = IdentifiableURL(url: url)
             } catch {
                 print("Checkout creation failed: \(error)")
