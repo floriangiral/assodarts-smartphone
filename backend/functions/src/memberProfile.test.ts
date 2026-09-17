@@ -32,7 +32,8 @@ jest.mock("firebase-admin/firestore", () => ({
     collection: (name: string) => ({
       doc: () => ({
         get: async () => {
-          if (name === "members") return { exists: true, data: () => mockMemberData };
+          if (name === "members")
+            return { exists: true, data: () => mockMemberData };
           if (name === "memberships")
             return { exists: true, data: () => mockMembershipData };
           throw new Error(`Unexpected collection ${name}`);
@@ -43,7 +44,9 @@ jest.mock("firebase-admin/firestore", () => ({
       set: (ref: unknown, data: unknown, options: unknown) => {
         if ((data as Record<string, unknown>).role !== undefined) {
           mockMembershipSet(ref, data, options);
-        } else if ((data as Record<string, unknown>).licenseNumber !== undefined) {
+        } else if (
+          (data as Record<string, unknown>).licenseNumber !== undefined
+        ) {
           mockMembershipSet(ref, data, options);
         } else if ((data as Record<string, unknown>).status !== undefined) {
           mockMembershipSet(ref, data, options);

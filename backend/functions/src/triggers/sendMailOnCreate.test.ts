@@ -14,7 +14,7 @@ jest.mock("firebase-functions/params", () => ({
     value: () =>
       name === "RESEND_API_KEY"
         ? "re_test_key"
-        : "ne_pas_repondre@bougnatdarts.fr",
+        : "ne_pas_repondre@assodarts.app",
   }),
 }));
 
@@ -75,7 +75,7 @@ describe("sendMailOnCreate", () => {
       to: ["alice@example.com"],
       cc: ["copy@example.com"],
       bcc: ["blind@example.com"],
-      from: "ne_pas_repondre@bougnatdarts.fr",
+      from: "ne_pas_repondre@assodarts.app",
       replyTo: "support@example.com",
       subject: "Bienvenue",
       text: "Bienvenue sur Assodarts.",
