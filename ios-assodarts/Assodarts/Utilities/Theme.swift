@@ -70,10 +70,40 @@ private struct CardModifier: ViewModifier {
     }
 }
 
+private struct FieldSurfaceModifier: ViewModifier {
+    let background: Color
+    let radius: CGFloat
+    let padding: CGFloat
+    let minHeight: CGFloat
+
+    func body(content: Content) -> some View {
+        content
+            .padding(padding)
+            .frame(maxWidth: .infinity, minHeight: minHeight, alignment: .leading)
+            .contentShape(Rectangle())
+            .background(background, in: .rect(cornerRadius: radius))
+    }
+}
+
 extension View {
     /// Wraps content in the app's standard elevated white card.
     func assoCard(padding: CGFloat = 16) -> some View {
         modifier(CardModifier(padding: padding))
+    }
+
+    /// Gives text inputs a consistent visual surface and generous tap target.
+    func assoFieldSurface(
+        background: Color = Theme.canvas,
+        radius: CGFloat = Theme.controlRadius,
+        padding: CGFloat = 14,
+        minHeight: CGFloat = 52
+    ) -> some View {
+        modifier(FieldSurfaceModifier(
+            background: background,
+            radius: radius,
+            padding: padding,
+            minHeight: minHeight
+        ))
     }
 
     /// Applies the app canvas background, ignoring safe areas.

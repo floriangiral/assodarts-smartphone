@@ -10,7 +10,9 @@ enum KeyboardKit {
     enum Field {
         case name
         case email
+        case loginEmail
         case password
+        case newPassword
         case phone
         case licence
         case code
@@ -49,9 +51,20 @@ private struct FieldTraits: ViewModifier {
                 .textContentType(.emailAddress)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
+        case .loginEmail:
+            content
+                .keyboardType(.emailAddress)
+                .textContentType(.username)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
         case .password:
             content
                 .textContentType(.password)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+        case .newPassword:
+            content
+                .textContentType(.newPassword)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
         case .phone:
