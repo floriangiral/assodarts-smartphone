@@ -61,6 +61,33 @@ Download each plist from Firebase Console > Project settings > General > Your
 apps. The iOS app bundle ID must be `com.assodarts.app` in both staging and
 production. The Firebase project and plist remain environment-specific.
 
+## Password autofill
+
+The app declares `webcredentials:assodarts.app` in
+`Assodarts/Assodarts.entitlements` so iOS password managers such as Bitwarden
+can associate saved logins with the native app. Keep the Apple Developer App ID
+and every provisioning profile used for distribution configured with the
+Associated Domains capability.
+
+The domain must also serve this file over HTTPS with `application/json`:
+
+```text
+https://assodarts.app/.well-known/apple-app-site-association
+```
+
+Replace `APPLE_TEAM_ID` with the real team id:
+
+```json
+{
+  "webcredentials": {
+    "apps": [
+      "APPLE_TEAM_ID.com.assodarts.app",
+      "APPLE_TEAM_ID.com.assodarts.app.staging"
+    ]
+  }
+}
+```
+
 ## Codemagic environment variables
 
 Create these in app.codemagic.io > Environment variables, group `staging`.

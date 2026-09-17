@@ -19,8 +19,8 @@ struct CreateClubView: View {
                 .keyboardField(.name, submit: .done)
                 .focused($isFocused)
                 .foregroundStyle(Theme.ink)
-                .padding(14)
-                .background(Theme.surface, in: .rect(cornerRadius: Theme.controlRadius))
+                .assoFieldSurface(background: Theme.surface)
+                .onTapGesture { isFocused = true }
             if let errorMessage {
                 Text(errorMessage).font(.subheadline).foregroundStyle(Theme.red)
             }

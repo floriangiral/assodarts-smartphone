@@ -45,7 +45,6 @@ struct PlatformAdminSetupView: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 8)
         }
-        .onTapGesture { focusedField = nil }
     }
 
     private var header: some View {
@@ -76,8 +75,8 @@ struct PlatformAdminSetupView: View {
                         .textContentType(.givenName)
                         .focused($focusedField, equals: .firstName)
                         .foregroundStyle(Theme.ink)
-                        .padding(14)
-                        .background(Theme.canvas, in: .rect(cornerRadius: Theme.controlRadius))
+                        .assoFieldSurface()
+                        .onTapGesture { focusedField = .firstName }
                 }
                 VStack(alignment: .leading, spacing: 8) {
                     SectionLabel(text: tr("last_name"))
@@ -85,31 +84,31 @@ struct PlatformAdminSetupView: View {
                         .textContentType(.familyName)
                         .focused($focusedField, equals: .lastName)
                         .foregroundStyle(Theme.ink)
-                        .padding(14)
-                        .background(Theme.canvas, in: .rect(cornerRadius: Theme.controlRadius))
+                        .assoFieldSurface()
+                        .onTapGesture { focusedField = .lastName }
                 }
             }
 
             VStack(alignment: .leading, spacing: 8) {
                 SectionLabel(text: tr("email_address"))
                 TextField(tr("name_club_com"), text: $email)
-                    .keyboardField(.email, submit: .next)
+                    .keyboardField(.loginEmail, submit: .next)
                     .focused($focusedField, equals: .email)
                     .onSubmit { focusedField = .password }
                     .foregroundStyle(Theme.ink)
-                    .padding(14)
-                    .background(Theme.canvas, in: .rect(cornerRadius: Theme.controlRadius))
+                    .assoFieldSurface()
+                    .onTapGesture { focusedField = .email }
             }
 
             VStack(alignment: .leading, spacing: 8) {
                 SectionLabel(text: tr("password"))
                 SecureField("••••••", text: $password)
-                    .keyboardField(.password, submit: .next)
+                    .keyboardField(.newPassword, submit: .next)
                     .focused($focusedField, equals: .password)
                     .onSubmit { focusedField = .confirmation }
                     .foregroundStyle(Theme.ink)
-                    .padding(14)
-                    .background(Theme.canvas, in: .rect(cornerRadius: Theme.controlRadius))
+                    .assoFieldSurface()
+                    .onTapGesture { focusedField = .password }
                 Text(tr("at_least_6_characters"))
                     .font(.caption)
                     .foregroundStyle(Theme.inkSecondary)
@@ -118,12 +117,12 @@ struct PlatformAdminSetupView: View {
             VStack(alignment: .leading, spacing: 8) {
                 SectionLabel(text: tr("confirm_the_password"))
                 SecureField("••••••", text: $confirmation)
-                    .keyboardField(.password, submit: .go)
+                    .keyboardField(.newPassword, submit: .go)
                     .focused($focusedField, equals: .confirmation)
                     .onSubmit(submit)
                     .foregroundStyle(Theme.ink)
-                    .padding(14)
-                    .background(Theme.canvas, in: .rect(cornerRadius: Theme.controlRadius))
+                    .assoFieldSurface()
+                    .onTapGesture { focusedField = .confirmation }
             }
 
             if let errorMessage {

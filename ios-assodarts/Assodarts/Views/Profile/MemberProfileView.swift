@@ -158,8 +158,8 @@ struct MemberProfileView: View {
                         .focused($isEditingLicence)
                         .monospacedDigit()
                         .foregroundStyle(Theme.ink)
-                        .padding(12)
-                        .background(Theme.canvas, in: .rect(cornerRadius: Theme.compactRadius))
+                        .assoFieldSurface(radius: Theme.compactRadius, padding: 12, minHeight: 48)
+                        .onTapGesture { isEditingLicence = true }
                         .onSubmit(saveLicence)
                     Button(tr("save_number"), action: saveLicence)
                         .font(.footnote.weight(.semibold))
