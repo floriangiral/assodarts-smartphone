@@ -55,7 +55,6 @@ struct LoginView: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 8)
         }
-        .onTapGesture { focusedField = nil }
         .onAppear {
             if let notice = store.authNotice {
                 infoMessage = notice
@@ -99,8 +98,8 @@ struct LoginView: View {
                             .textContentType(.givenName)
                             .focused($focusedField, equals: .firstName)
                             .foregroundStyle(Theme.ink)
-                            .padding(14)
-                            .background(Theme.canvas, in: .rect(cornerRadius: Theme.controlRadius))
+                            .assoFieldSurface()
+                            .onTapGesture { focusedField = .firstName }
                     }
                     VStack(alignment: .leading, spacing: 8) {
                         SectionLabel(text: tr("last_name"))
@@ -108,8 +107,8 @@ struct LoginView: View {
                             .textContentType(.familyName)
                             .focused($focusedField, equals: .lastName)
                             .foregroundStyle(Theme.ink)
-                            .padding(14)
-                            .background(Theme.canvas, in: .rect(cornerRadius: Theme.controlRadius))
+                            .assoFieldSurface()
+                            .onTapGesture { focusedField = .lastName }
                     }
                 }
                 .transition(.opacity.combined(with: .move(edge: .top)))
@@ -118,12 +117,12 @@ struct LoginView: View {
             VStack(alignment: .leading, spacing: 8) {
                 SectionLabel(text: tr("email_address"))
                 TextField(tr("name_club_com"), text: $email)
-                    .keyboardField(.email, submit: .next)
+                    .keyboardField(.loginEmail, submit: .next)
                     .focused($focusedField, equals: .email)
                     .onSubmit { focusedField = .password }
                     .foregroundStyle(Theme.ink)
-                    .padding(14)
-                    .background(Theme.canvas, in: .rect(cornerRadius: Theme.controlRadius))
+                    .assoFieldSurface()
+                    .onTapGesture { focusedField = .email }
             }
 
             if intent == .signUp {
@@ -134,8 +133,8 @@ struct LoginView: View {
                         .textContentType(.telephoneNumber)
                         .focused($focusedField, equals: .phone)
                         .foregroundStyle(Theme.ink)
-                        .padding(14)
-                        .background(Theme.canvas, in: .rect(cornerRadius: Theme.controlRadius))
+                        .assoFieldSurface()
+                        .onTapGesture { focusedField = .phone }
                 }
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
@@ -143,12 +142,12 @@ struct LoginView: View {
             VStack(alignment: .leading, spacing: 8) {
                 SectionLabel(text: tr("password"))
                 SecureField("••••••", text: $password)
-                    .keyboardField(.password, submit: .go)
+                    .keyboardField(intent == .signIn ? .password : .newPassword, submit: .go)
                     .focused($focusedField, equals: .password)
                     .onSubmit(submit)
                     .foregroundStyle(Theme.ink)
-                    .padding(14)
-                    .background(Theme.canvas, in: .rect(cornerRadius: Theme.controlRadius))
+                    .assoFieldSurface()
+                    .onTapGesture { focusedField = .password }
                 if intent == .signUp {
                     Text(tr("at_least_6_characters"))
                         .font(.caption)
