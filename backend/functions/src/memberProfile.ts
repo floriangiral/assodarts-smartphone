@@ -53,7 +53,10 @@ export const updateMemberProfile = onCall(async (request) => {
   const memberId = cleanString(request.data?.memberId);
   const clubId = cleanString(request.data?.clubId);
   if (!memberId || !clubId)
-    throw new HttpsError("invalid-argument", "memberId and clubId are required");
+    throw new HttpsError(
+      "invalid-argument",
+      "memberId and clubId are required",
+    );
 
   const db = getFirestore();
   const memberRef = db.collection("members").doc(memberId);
@@ -66,7 +69,9 @@ export const updateMemberProfile = onCall(async (request) => {
   if (!targetAuthUid)
     throw new HttpsError("failed-precondition", "Member is not linked to auth");
 
-  const membershipRef = db.collection("memberships").doc(`${clubId}_${targetAuthUid}`);
+  const membershipRef = db
+    .collection("memberships")
+    .doc(`${clubId}_${targetAuthUid}`);
   const membershipSnap = await membershipRef.get();
   const membership = membershipSnap.data();
   if (!membershipSnap.exists || membership?.memberId !== memberId) {
@@ -146,7 +151,8 @@ export const updateMemberProfile = onCall(async (request) => {
   }
 
   const batch = db.batch();
-  if (Object.keys(memberUpdate).length > 1) batch.set(memberRef, memberUpdate, { merge: true });
+  if (Object.keys(memberUpdate).length > 1)
+    batch.set(memberRef, memberUpdate, { merge: true });
   if (Object.keys(membershipUpdate).length > 0) {
     batch.set(
       membershipRef,
