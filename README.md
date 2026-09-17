@@ -198,9 +198,12 @@ The flow is intentionally server controlled: Checkout reloads the payment amount
 
 ## Seeder un club de test
 
-Le seeder staging crée ou réutilise quatre comptes, un club complet (annonce,
-événement, paiement, tournoi avec match joué et deux conversations), ainsi
-qu'un second club où le compte membre devient `board` pour tester le switch
+Le seeder staging crée ou réutilise quatre comptes de démonstration avec un mot
+de passe simple, dont le compte Apple Review, et crée un club complet
+(profils `admin`/`board`/`member`, annonces, événements
+avec réponses, appels à paiement dans plusieurs états, tournois, conversations,
+notifications, invitation, RIB, coupon et annonce plateforme), ainsi qu'un
+second club où le compte membre devient `board` pour tester le switch
 multi-club. Les entités de test utilisent des identifiants `seed__`
 déterministes : relancer la commande met à jour les mêmes documents sans les
 dupliquer.
@@ -214,10 +217,13 @@ node backend/scripts/seed-staging.js \
   --board-email bureau@assodarts.test \
   --member-email membre@assodarts.test \
   --apple-review-email apple-review@assodarts.app \
-  --platform-admin-email admin@assodarts.test
+  --platform-admin-email admin@assodarts.test \
+  --demo-password Demo1234!
 ```
 
-Le script utilise les identifiants Firebase Admin locaux (`GOOGLE_APPLICATION_CREDENTIALS` ou `applicationDefault()`). Pour créer également un compte Stripe Express de test, exportez `STRIPE_SECRET_KEY` avec une clé `sk_test_...`. Le compte reste volontairement `pending` : terminez une fois l'onboarding dans `BankSettingsView` pour déclencher la vérification Stripe. Sans cette variable, les données bancaires sont tout de même créées et le résumé final indique l'étape manuelle restante.
+Le script utilise les identifiants Firebase Admin locaux (`GOOGLE_APPLICATION_CREDENTIALS` ou `applicationDefault()`). Les comptes `admin@assodarts.test`, `bureau@assodarts.test`, `membre@assodarts.test` et `apple-review@assodarts.app` sont créés ou mis à jour avec `--demo-password`.
+
+Pour créer également un compte Stripe Express de test, exportez `STRIPE_SECRET_KEY` avec une clé `sk_test_...`. Le compte reste volontairement `pending` : terminez une fois l'onboarding dans `BankSettingsView` pour déclencher la vérification Stripe. Sans cette variable, les données bancaires sont tout de même créées et le résumé final indique l'étape manuelle restante.
 
 `--platform-admin-email` est optionnel et accorde directement l'accès à la
 console développeur (`platform_admins`) au compte indiqué — voir aussi
