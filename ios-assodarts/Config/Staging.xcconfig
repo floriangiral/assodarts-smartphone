@@ -4,4 +4,4 @@ INFOPLIST_KEY_CFBundleDisplayName = Assodarts Staging
 PRODUCT_BUNDLE_IDENTIFIER = com.assodarts.app.staging
 SWIFT_ACTIVE_COMPILATION_CONDITIONS = $(inherited) STAGING
 CODE_SIGN_ENTITLEMENTS = Assodarts/Assodarts.entitlements
-APS_ENVIRONMENT = development
+APS_ENVIRONMENT = production
