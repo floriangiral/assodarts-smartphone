@@ -1,6 +1,10 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
-import { requireClubAdmin, requireClubBoard } from "./shared/auth";
+import {
+  requireClubAdmin,
+  requireClubBoard,
+  requireNotPlatformAdmin,
+} from "./shared/auth";
 
 const VALID_ROLES = ["admin", "board", "member"];
 const PROFILE_FIELDS = [
@@ -146,6 +150,7 @@ export const updateMemberProfile = onCall(async (request) => {
     }
     if (role !== normalizedRole(membership.role)) {
       await requireClubAdmin(clubId, request.auth.uid);
+      await requireNotPlatformAdmin(targetAuthUid);
       membershipUpdate.role = role;
     }
   }
