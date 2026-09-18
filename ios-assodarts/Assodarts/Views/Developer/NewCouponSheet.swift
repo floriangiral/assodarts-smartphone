@@ -12,7 +12,12 @@ struct NewCouponSheet: View {
     @State private var selection: Set<UUID> = []
     @State private var search: String = ""
     @State private var autoRenew: Bool = false
-    @FocusState private var isEditing: Bool
+    @FocusState private var focusedField: Field?
+
+    private enum Field: Hashable {
+        case code
+        case search
+    }
 
     private var clubs: [Club] {
         let all = store.platformClubs.sorted { $0.name < $1.name }
@@ -48,7 +53,8 @@ struct NewCouponSheet: View {
                 Section(tr("code")) {
                     TextField(tr("e_g_autumn26"), text: $code)
                         .keyboardField(.code, submit: .done)
-                        .focused($isEditing)
+                        .focused($focusedField, equals: .code)
+                        .onSubmit { focusedField = nil }
                         .monospaced()
                         .foregroundStyle(Theme.ink)
                 }
@@ -94,7 +100,8 @@ struct NewCouponSheet: View {
                 Section {
                     TextField(tr("search_for_a_club"), text: $search)
                         .keyboardField(.freeText, submit: .search)
-                        .focused($isEditing)
+                        .focused($focusedField, equals: .search)
+                        .onSubmit { focusedField = nil }
                         .foregroundStyle(Theme.ink)
 
                     ForEach(clubs) { club in
@@ -135,7 +142,7 @@ struct NewCouponSheet: View {
             .scrollContentBackground(.hidden)
             .background(Theme.canvas)
             .keyboardDismissable()
-            .keyboardDoneBar(isVisible: isEditing) { isEditing = false }
+            .keyboardDoneBar(isVisible: focusedField != nil) { focusedField = nil }
             .navigationTitle(tr("new_coupon"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -152,6 +159,7 @@ struct NewCouponSheet: View {
     }
 
     private func create() {
+        focusedField = nil
         let coupon = Coupon(
             code: code.trimmingCharacters(in: .whitespaces).uppercased(),
             percent: roundedPercent,

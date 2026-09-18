@@ -99,7 +99,9 @@ function makeRequest(
 ): CallableRequest<Record<string, unknown>> {
   return {
     data,
-    auth: uid ? { uid, token: {} } : undefined,
+    auth: uid
+      ? { uid, token: { email: `${uid}@example.com` } }
+      : undefined,
   } as unknown as CallableRequest<Record<string, unknown>>;
 }
 
@@ -271,7 +273,7 @@ describe("platform admin bootstrap", () => {
 
     expect(mockAdminSet).toHaveBeenCalledWith(
       "platform_admins/first-uid",
-      { claimedAt: "SERVER_TIMESTAMP" },
+      { email: "first-uid@example.com", claimedAt: "SERVER_TIMESTAMP" },
       undefined,
     );
     expect(result).toEqual({ claimed: true });

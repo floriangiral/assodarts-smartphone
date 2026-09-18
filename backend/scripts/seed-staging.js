@@ -7,7 +7,7 @@
  *     --project-id assodarts-staging \
  *     --club-name "Saint-Flour Fléchettes" \
  *     --second-club-name "Clermont Darts Club" \
- *     --platform-admin-email admin@assodarts.test \
+ *     --platform-admin-email platform-admin@assodarts.test \
  *     --admin-email admin@assodarts.test \
  *     --board-email bureau@assodarts.test \
  *     --member-email membre@assodarts.test \

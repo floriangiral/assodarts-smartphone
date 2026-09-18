@@ -76,7 +76,6 @@ struct PlatformAdminSetupView: View {
                         .focused($focusedField, equals: .firstName)
                         .foregroundStyle(Theme.ink)
                         .assoFieldSurface()
-                        .onTapGesture { focusedField = .firstName }
                 }
                 VStack(alignment: .leading, spacing: 8) {
                     SectionLabel(text: tr("last_name"))
@@ -85,7 +84,6 @@ struct PlatformAdminSetupView: View {
                         .focused($focusedField, equals: .lastName)
                         .foregroundStyle(Theme.ink)
                         .assoFieldSurface()
-                        .onTapGesture { focusedField = .lastName }
                 }
             }
 
@@ -97,7 +95,6 @@ struct PlatformAdminSetupView: View {
                     .onSubmit { focusedField = .password }
                     .foregroundStyle(Theme.ink)
                     .assoFieldSurface()
-                    .onTapGesture { focusedField = .email }
             }
 
             VStack(alignment: .leading, spacing: 8) {
@@ -108,7 +105,6 @@ struct PlatformAdminSetupView: View {
                     .onSubmit { focusedField = .confirmation }
                     .foregroundStyle(Theme.ink)
                     .assoFieldSurface()
-                    .onTapGesture { focusedField = .password }
                 Text(tr("at_least_6_characters"))
                     .font(.caption)
                     .foregroundStyle(Theme.inkSecondary)
@@ -122,7 +118,6 @@ struct PlatformAdminSetupView: View {
                     .onSubmit(submit)
                     .foregroundStyle(Theme.ink)
                     .assoFieldSurface()
-                    .onTapGesture { focusedField = .confirmation }
             }
 
             if let errorMessage {

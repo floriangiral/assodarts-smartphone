@@ -9,7 +9,12 @@ struct NewTournamentSheet: View {
     @State private var date: Date = .now
     @State private var location: String = ""
     @State private var markerIds: Set<UUID> = []
-    @FocusState private var isEditing: Bool
+    @FocusState private var focusedField: Field?
+
+    private enum Field: Hashable {
+        case name
+        case location
+    }
 
     private var members: [Member] {
         guard let club = store.currentClub else { return [] }
@@ -27,12 +32,14 @@ struct NewTournamentSheet: View {
                 Section(tr("tournament")) {
                     TextField(tr("tournament_name"), text: $name)
                         .keyboardField(.freeText, submit: .next)
-                        .focused($isEditing)
+                        .focused($focusedField, equals: .name)
+                        .onSubmit { focusedField = .location }
                         .foregroundStyle(Theme.ink)
                     DatePicker(tr("date"), selection: $date, displayedComponents: .date)
                     TextField(tr("location"), text: $location)
                         .keyboardField(.freeText, submit: .done)
-                        .focused($isEditing)
+                        .focused($focusedField, equals: .location)
+                        .onSubmit { focusedField = nil }
                         .foregroundStyle(Theme.ink)
                 }
 
@@ -65,7 +72,7 @@ struct NewTournamentSheet: View {
             .scrollContentBackground(.hidden)
             .background(Theme.canvas)
             .keyboardDismissable()
-            .keyboardDoneBar(isVisible: isEditing) { isEditing = false }
+            .keyboardDoneBar(isVisible: focusedField != nil) { focusedField = nil }
             .navigationTitle(tr("new_tournament"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -82,6 +89,7 @@ struct NewTournamentSheet: View {
     }
 
     private func save() {
+        focusedField = nil
         guard let club = store.currentClub else { return }
         let tournament = Tournament(
             clubId: club.id,

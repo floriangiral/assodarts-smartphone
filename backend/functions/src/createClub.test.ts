@@ -18,6 +18,7 @@ const mockClubGet = jest.fn();
 const mockMembershipSet = jest.fn();
 const mockMemberSet = jest.fn();
 let createdClubId = "";
+let platformAdminExists = false;
 const mockRunTransaction = jest.fn(async (updateFn) =>
   updateFn({
     get: async (ref: { path?: string }) => {
@@ -44,6 +45,7 @@ jest.mock("firebase-admin/firestore", () => ({
     collection: (name: string) => ({
       doc: (id: string) => ({
         path: `${name}/${id}`,
+        get: async () => ({ exists: name === "platform_admins" && platformAdminExists }),
       }),
       where: () => ({
         limit: () => ({
@@ -91,5 +93,14 @@ describe("createClub", () => {
         displayName: "Demo Club",
       }),
     );
+  });
+
+  it("rejects a platform admin from creating a club", async () => {
+    platformAdminExists = true;
+
+    await expect(
+      wrapped(makeRequest({ name: "Platform Club" }, "u1")),
+    ).rejects.toThrow("Platform admin accounts cannot belong to a club");
+    expect(mockRunTransaction).not.toHaveBeenCalled();
   });
 });

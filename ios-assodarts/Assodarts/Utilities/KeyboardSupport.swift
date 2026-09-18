@@ -125,10 +125,8 @@ extension View {
         modifier(KeyboardDoneBar(isVisible: isVisible, dismiss: dismiss))
     }
 
-    /// Lets the user swipe the keyboard away and tap outside a field to close it.
+    /// Lets the user swipe the keyboard away while scrolling a form.
     func keyboardDismissable() -> some View {
-        self
-            .scrollDismissesKeyboard(.interactively)
-            .contentShape(.rect)
+        scrollDismissesKeyboard(.interactively)
     }
 }
