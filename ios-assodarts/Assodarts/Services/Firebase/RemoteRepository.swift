@@ -139,9 +139,14 @@ enum RemoteRepository {
             .getDocuments()
         let remoteCalls = callsSnap.documents.compactMap { try? $0.data(as: RemotePaymentCall.self) }
 
-        let itemsSnap = try await db.collection("payment_call_items")
+        let selectedMembership = mine.first { $0.clubId == clubId }
+        let canReadAllPaymentItems = selectedMembership.map { rank($0.role) > 0 } ?? false
+        var paymentItemsQuery: Query = db.collection("payment_call_items")
             .whereField("clubId", isEqualTo: clubId)
-            .getDocuments()
+        if !canReadAllPaymentItems {
+            paymentItemsQuery = paymentItemsQuery.whereField("memberId", isEqualTo: userId.uuidString)
+        }
+        let itemsSnap = try await paymentItemsQuery.getDocuments()
         let remoteItems = itemsSnap.documents.compactMap { try? $0.data(as: RemotePaymentItem.self) }
 
         let tournamentsSnap = try await db.collection("tournaments")
@@ -156,7 +161,6 @@ enum RemoteRepository {
             try? $0.data(as: RemoteTournamentEntry.self)
         }
 
-        let selectedMembership = mine.first { $0.clubId == clubId }
         let remoteConversations = try await loadConversations(
             clubId: clubId,
             memberId: userId.uuidString,
