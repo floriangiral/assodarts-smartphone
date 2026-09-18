@@ -10,7 +10,12 @@ struct NewMessageSheet: View {
     @State private var selectedId: UUID?
     @State private var search: String = ""
     @State private var draft: String = ""
-    @FocusState private var isEditing: Bool
+    @FocusState private var focusedField: Field?
+
+    private enum Field: Hashable {
+        case search
+        case draft
+    }
 
     enum Target: String, CaseIterable, Identifiable {
         case bureau
@@ -62,7 +67,8 @@ struct NewMessageSheet: View {
                         : tr("committee_member")) {
                         TextField(tr("search"), text: $search)
                             .keyboardField(.name, submit: .search)
-                            .focused($isEditing)
+                            .focused($focusedField, equals: .search)
+                            .onSubmit { focusedField = .draft }
                             .foregroundStyle(Theme.ink)
 
                         ForEach(candidates) { member in
@@ -96,7 +102,8 @@ struct NewMessageSheet: View {
                     TextField(tr("your_message"), text: $draft, axis: .vertical)
                         .lineLimit(4...10)
                         .keyboardField(.freeText, submit: .return)
-                        .focused($isEditing)
+                        .focused($focusedField, equals: .draft)
+                        .onSubmit { focusedField = nil }
                         .foregroundStyle(Theme.ink)
                 } header: {
                     Text(tr("your_message_newmessagesheet"))
@@ -107,7 +114,7 @@ struct NewMessageSheet: View {
             .scrollContentBackground(.hidden)
             .background(Theme.canvas)
             .keyboardDismissable()
-            .keyboardDoneBar(isVisible: isEditing) { isEditing = false }
+            .keyboardDoneBar(isVisible: focusedField != nil) { focusedField = nil }
             .navigationTitle(tr("new_message"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -124,6 +131,7 @@ struct NewMessageSheet: View {
     }
 
     private func send() {
+        focusedField = nil
         guard let user = store.currentUser else { return }
         let conversation: Conversation
         if !isBureauUser, target == .bureau {

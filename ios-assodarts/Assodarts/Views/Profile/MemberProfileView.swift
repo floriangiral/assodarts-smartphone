@@ -159,7 +159,6 @@ struct MemberProfileView: View {
                         .monospacedDigit()
                         .foregroundStyle(Theme.ink)
                         .assoFieldSurface(radius: Theme.compactRadius, padding: 12, minHeight: 48)
-                        .onTapGesture { isEditingLicence = true }
                         .onSubmit(saveLicence)
                     Button(tr("save_number"), action: saveLicence)
                         .font(.footnote.weight(.semibold))

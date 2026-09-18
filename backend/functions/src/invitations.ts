@@ -109,13 +109,20 @@ export const acceptInvitation = onCall(async (request) => {
   await requireNotPlatformAdmin(request.auth.uid);
 
   const db = getFirestore();
-  const pending = await db
-    .collection("invitations")
-    .where("email", "==", email.toLowerCase())
-    .where("status", "==", "pending")
-    .get();
+  const invitationSnapshots = await Promise.all(
+    ["pending", "accepted"].map((status) =>
+      db
+        .collection("invitations")
+        .where("email", "==", email.toLowerCase())
+        .where("status", "==", status)
+        .get(),
+    ),
+  );
+  const invitationDocs = invitationSnapshots.flatMap(
+    (snapshot) => snapshot.docs,
+  );
 
-  if (pending.empty) return { joinedClubId: null };
+  if (invitationDocs.length === 0) return { joinedClubId: null };
 
   const memberSnapshot = await db
     .collection("members")
@@ -129,26 +136,34 @@ export const acceptInvitation = onCall(async (request) => {
 
   let firstClubId: string | null = null;
 
-  for (const doc of pending.docs) {
+  for (const doc of invitationDocs) {
     const invitation = doc.data();
     const clubId = invitation.clubId as string;
     firstClubId ??= clubId;
-
-    await db
+    const previousAuthUid = invitation.acceptedByMemberId as string | undefined;
+    const membershipRef = db
       .collection("memberships")
-      .doc(`${clubId}_${request.auth.uid}`)
-      .set(
-        {
-          clubId,
-          memberId,
-          authUid: request.auth.uid,
-          role: invitation.role,
-          status: "active",
-          joinDate: FieldValue.serverTimestamp(),
-          licenseNumber: invitation.licenseNumber ?? null,
-        },
-        { merge: true },
-      );
+      .doc(`${clubId}_${request.auth.uid}`);
+
+    await membershipRef.set(
+      {
+        clubId,
+        memberId,
+        authUid: request.auth.uid,
+        role: invitation.role,
+        status: "active",
+        joinDate: FieldValue.serverTimestamp(),
+        licenseNumber: invitation.licenseNumber ?? null,
+      },
+      { merge: true },
+    );
+
+    if (previousAuthUid && previousAuthUid !== request.auth.uid) {
+      await db
+        .collection("memberships")
+        .doc(`${clubId}_${previousAuthUid}`)
+        .delete();
+    }
 
     await doc.ref.set(
       {
@@ -162,7 +177,10 @@ export const acceptInvitation = onCall(async (request) => {
 
   const existingClubId = member.data()?.clubId as string | null | undefined;
   if (!existingClubId) {
-    await member.ref.set({ clubId: firstClubId }, { merge: true });
+    await member.ref.set(
+      { clubId: firstClubId, defaultClubId: firstClubId },
+      { merge: true },
+    );
   }
 
   return { joinedClubId: firstClubId };

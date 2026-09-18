@@ -345,7 +345,6 @@ struct PaySheet: View {
             .focused($isEditingReference)
             .foregroundStyle(Theme.ink)
             .assoFieldSurface(radius: Theme.compactRadius, padding: 12, minHeight: 64)
-            .onTapGesture { isEditingReference = true }
     }
 
     // MARK: - Call to action

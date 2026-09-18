@@ -10,7 +10,13 @@ struct NewEventSheet: View {
     @State private var date: Date = Calendar.current.date(byAdding: .day, value: 7, to: .now) ?? .now
     @State private var location: String = ""
     @State private var details: String = ""
-    @FocusState private var isEditing: Bool
+    @FocusState private var focusedField: Field?
+
+    private enum Field: Hashable {
+        case title
+        case location
+        case details
+    }
 
     private var canSave: Bool {
         !title.trimmingCharacters(in: .whitespaces).isEmpty
@@ -23,7 +29,8 @@ struct NewEventSheet: View {
                 Section(tr("event")) {
                     TextField(tr("title"), text: $title)
                         .keyboardField(.freeText, submit: .next)
-                        .focused($isEditing)
+                        .focused($focusedField, equals: .title)
+                        .onSubmit { focusedField = .location }
                         .foregroundStyle(Theme.ink)
                     Picker(tr("type"), selection: $kind) {
                         ForEach(EventKind.allCases) { kind in
@@ -33,7 +40,8 @@ struct NewEventSheet: View {
                     DatePicker(tr("date_and_time"), selection: $date)
                     TextField(tr("location"), text: $location)
                         .keyboardField(.freeText, submit: .next)
-                        .focused($isEditing)
+                        .focused($focusedField, equals: .location)
+                        .onSubmit { focusedField = .details }
                         .foregroundStyle(Theme.ink)
                 }
 
@@ -41,14 +49,15 @@ struct NewEventSheet: View {
                     TextField(tr("practical_information"), text: $details, axis: .vertical)
                         .lineLimit(4...8)
                         .keyboardField(.freeText, submit: .return)
-                        .focused($isEditing)
+                        .focused($focusedField, equals: .details)
+                        .onSubmit { focusedField = nil }
                         .foregroundStyle(Theme.ink)
                 }
             }
             .scrollContentBackground(.hidden)
             .background(Theme.canvas)
             .keyboardDismissable()
-            .keyboardDoneBar(isVisible: isEditing) { isEditing = false }
+            .keyboardDoneBar(isVisible: focusedField != nil) { focusedField = nil }
             .navigationTitle(tr("new_event"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -65,6 +74,7 @@ struct NewEventSheet: View {
     }
 
     private func save() {
+        focusedField = nil
         guard let club = store.currentClub else { return }
         let event = ClubEvent(
             clubId: club.id,
