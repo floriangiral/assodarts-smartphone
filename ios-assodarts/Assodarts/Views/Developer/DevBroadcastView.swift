@@ -9,7 +9,12 @@ struct DevBroadcastView: View {
     @State private var message: String = ""
     @State private var audience: BroadcastAudience = .admins
     @State private var didPublish: Bool = false
-    @FocusState private var isEditing: Bool
+    @FocusState private var focusedField: Field?
+
+    private enum Field: Hashable {
+        case title
+        case message
+    }
 
     private var canPublish: Bool {
         !title.trimmingCharacters(in: .whitespaces).isEmpty
@@ -41,7 +46,7 @@ struct DevBroadcastView: View {
         }
         .assoCanvas()
         .keyboardDismissable()
-        .keyboardDoneBar(isVisible: isEditing) { isEditing = false }
+        .keyboardDoneBar(isVisible: focusedField != nil) { focusedField = nil }
         .toolbar(.hidden, for: .navigationBar)
     }
 
@@ -50,18 +55,18 @@ struct DevBroadcastView: View {
             TextField(tr("broadcast_title"), text: $title)
                 .font(.headline)
                 .keyboardField(.freeText, submit: .next)
-                .focused($isEditing)
+                .focused($focusedField, equals: .title)
+                .onSubmit { focusedField = .message }
                 .foregroundStyle(Theme.ink)
                 .assoFieldSurface(radius: Theme.compactRadius, padding: 12, minHeight: 48)
-                .onTapGesture { isEditing = true }
 
             TextField(tr("your_message"), text: $message, axis: .vertical)
                 .lineLimit(4...8)
                 .keyboardField(.freeText, submit: .return)
-                .focused($isEditing)
+                .focused($focusedField, equals: .message)
+                .onSubmit { focusedField = nil }
                 .foregroundStyle(Theme.ink)
                 .assoFieldSurface(radius: Theme.compactRadius, padding: 12, minHeight: 112)
-                .onTapGesture { isEditing = true }
 
             Picker(tr("audience"), selection: $audience) {
                 ForEach(BroadcastAudience.allCases) { option in

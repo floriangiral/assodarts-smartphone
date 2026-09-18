@@ -20,7 +20,6 @@ struct CreateClubView: View {
                 .focused($isFocused)
                 .foregroundStyle(Theme.ink)
                 .assoFieldSurface(background: Theme.surface)
-                .onTapGesture { isFocused = true }
             if let errorMessage {
                 Text(errorMessage).font(.subheadline).foregroundStyle(Theme.red)
             }

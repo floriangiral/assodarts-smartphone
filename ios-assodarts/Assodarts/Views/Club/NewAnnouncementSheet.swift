@@ -9,7 +9,12 @@ struct NewAnnouncementSheet: View {
     @State private var body_: String = ""
     @State private var isPinned: Bool = false
     @State private var notify: Bool = true
-    @FocusState private var isEditing: Bool
+    @FocusState private var focusedField: Field?
+
+    private enum Field: Hashable {
+        case title
+        case body
+    }
 
     private var canPublish: Bool {
         !title.trimmingCharacters(in: .whitespaces).isEmpty
@@ -22,12 +27,14 @@ struct NewAnnouncementSheet: View {
                 Section(tr("announcement")) {
                     TextField(tr("announcement_title"), text: $title)
                         .keyboardField(.freeText, submit: .next)
-                        .focused($isEditing)
+                        .focused($focusedField, equals: .title)
+                        .onSubmit { focusedField = .body }
                         .foregroundStyle(Theme.ink)
                     TextField(tr("your_message"), text: $body_, axis: .vertical)
                         .lineLimit(5...10)
                         .keyboardField(.freeText, submit: .return)
-                        .focused($isEditing)
+                        .focused($focusedField, equals: .body)
+                        .onSubmit { focusedField = nil }
                         .foregroundStyle(Theme.ink)
                 }
 
@@ -41,7 +48,7 @@ struct NewAnnouncementSheet: View {
             .scrollContentBackground(.hidden)
             .background(Theme.canvas)
             .keyboardDismissable()
-            .keyboardDoneBar(isVisible: isEditing) { isEditing = false }
+            .keyboardDoneBar(isVisible: focusedField != nil) { focusedField = nil }
             .navigationTitle(tr("new_announcement"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -58,6 +65,7 @@ struct NewAnnouncementSheet: View {
     }
 
     private func publish() {
+        focusedField = nil
         guard let user = store.currentUser else { return }
         store.publishAnnouncement(title: title, body: body_, pinned: isPinned, author: user)
         if notify {

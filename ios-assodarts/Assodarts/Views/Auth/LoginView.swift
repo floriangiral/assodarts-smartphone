@@ -99,7 +99,6 @@ struct LoginView: View {
                             .focused($focusedField, equals: .firstName)
                             .foregroundStyle(Theme.ink)
                             .assoFieldSurface()
-                            .onTapGesture { focusedField = .firstName }
                     }
                     VStack(alignment: .leading, spacing: 8) {
                         SectionLabel(text: tr("last_name"))
@@ -108,7 +107,6 @@ struct LoginView: View {
                             .focused($focusedField, equals: .lastName)
                             .foregroundStyle(Theme.ink)
                             .assoFieldSurface()
-                            .onTapGesture { focusedField = .lastName }
                     }
                 }
                 .transition(.opacity.combined(with: .move(edge: .top)))
@@ -122,7 +120,6 @@ struct LoginView: View {
                     .onSubmit { focusedField = .password }
                     .foregroundStyle(Theme.ink)
                     .assoFieldSurface()
-                    .onTapGesture { focusedField = .email }
             }
 
             if intent == .signUp {
@@ -134,7 +131,6 @@ struct LoginView: View {
                         .focused($focusedField, equals: .phone)
                         .foregroundStyle(Theme.ink)
                         .assoFieldSurface()
-                        .onTapGesture { focusedField = .phone }
                 }
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
@@ -147,7 +143,6 @@ struct LoginView: View {
                     .onSubmit(submit)
                     .foregroundStyle(Theme.ink)
                     .assoFieldSurface()
-                    .onTapGesture { focusedField = .password }
                 if intent == .signUp {
                     Text(tr("at_least_6_characters"))
                         .font(.caption)

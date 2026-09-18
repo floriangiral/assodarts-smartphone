@@ -15,7 +15,15 @@ struct NewEntrySheet: View {
     @State private var scoreA: Int = 0
     @State private var scoreB: Int = 0
     @State private var note: String = ""
-    @FocusState private var isEditing: Bool
+    @FocusState private var focusedField: Field?
+
+    private enum Field: Hashable {
+        case tableau
+        case tour
+        case playerA
+        case playerB
+        case note
+    }
 
     private var tournament: Tournament? {
         store.db.tournaments.first { $0.id == tournamentId }
@@ -33,14 +41,16 @@ struct NewEntrySheet: View {
                 Section {
                     TextField(tr("e_g_main_draw"), text: $tableau)
                         .keyboardField(.freeText, submit: .next)
-                        .focused($isEditing)
+                        .focused($focusedField, equals: .tableau)
+                        .onSubmit { focusedField = .tour }
                         .foregroundStyle(Theme.ink)
                     TextField(
                         tr("e_g_group_a_quarter_final_play_off"),
                         text: $tour
                     )
                     .keyboardField(.freeText, submit: .next)
-                    .focused($isEditing)
+                    .focused($focusedField, equals: .tour)
+                    .onSubmit { focusedField = .playerA }
                     .foregroundStyle(Theme.ink)
                 } header: {
                     Text(tr("where_are_we"))
@@ -60,12 +70,14 @@ struct NewEntrySheet: View {
                 Section(tr("match")) {
                     TextField(tr("player_or_team_a"), text: $playerA)
                         .keyboardField(.name, submit: .next)
-                        .focused($isEditing)
+                        .focused($focusedField, equals: .playerA)
+                        .onSubmit { focusedField = .playerB }
                         .foregroundStyle(Theme.ink)
                     Stepper(tr("score_a \(scoreA)"), value: $scoreA, in: 0...30)
                     TextField(tr("player_or_team_b"), text: $playerB)
                         .keyboardField(.name, submit: .next)
-                        .focused($isEditing)
+                        .focused($focusedField, equals: .playerB)
+                        .onSubmit { focusedField = .note }
                         .foregroundStyle(Theme.ink)
                     Stepper(tr("score_b \(scoreB)"), value: $scoreB, in: 0...30)
                 }
@@ -74,14 +86,15 @@ struct NewEntrySheet: View {
                     TextField(tr("match_details"), text: $note, axis: .vertical)
                         .lineLimit(3...6)
                         .keyboardField(.freeText, submit: .return)
-                        .focused($isEditing)
+                        .focused($focusedField, equals: .note)
+                        .onSubmit { focusedField = nil }
                         .foregroundStyle(Theme.ink)
                 }
             }
             .scrollContentBackground(.hidden)
             .background(Theme.canvas)
             .keyboardDismissable()
-            .keyboardDoneBar(isVisible: isEditing) { isEditing = false }
+            .keyboardDoneBar(isVisible: focusedField != nil) { focusedField = nil }
             .navigationTitle(tr("record_a_result"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -98,6 +111,7 @@ struct NewEntrySheet: View {
     }
 
     private func save() {
+        focusedField = nil
         guard let user = store.currentUser else { return }
         let entry = TournamentEntry(
             tableau: tableau.trimmingCharacters(in: .whitespaces),

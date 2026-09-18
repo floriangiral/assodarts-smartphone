@@ -266,7 +266,6 @@ struct BankSettingsView: View {
                     .focused($focus, equals: .iban)
                     .foregroundStyle(Theme.ink)
                     .assoFieldSurface(radius: Theme.compactRadius, padding: 12, minHeight: 48)
-                    .onTapGesture { focus = .iban }
                     .overlay {
                         RoundedRectangle(cornerRadius: Theme.compactRadius)
                             .stroke(ibanBorder, lineWidth: 1)
@@ -338,7 +337,6 @@ struct BankSettingsView: View {
                 .focused($focus, equals: focusValue)
                 .foregroundStyle(Theme.ink)
                 .assoFieldSurface(radius: Theme.compactRadius, padding: 12, minHeight: 48)
-                .onTapGesture { focus = focusValue }
         }
     }
 
@@ -373,7 +371,6 @@ struct BankSettingsView: View {
                     .focused($focus, equals: .transferNote)
                     .foregroundStyle(Theme.ink)
                     .assoFieldSurface(radius: Theme.compactRadius, padding: 12, minHeight: 72)
-                    .onTapGesture { focus = .transferNote }
             }
 
             Divider().overlay(Theme.border)
@@ -402,7 +399,6 @@ struct BankSettingsView: View {
                     .focused($focus, equals: .cashNote)
                     .foregroundStyle(Theme.ink)
                     .assoFieldSurface(radius: Theme.compactRadius, padding: 12, minHeight: 72)
-                    .onTapGesture { focus = .cashNote }
             }
 
             if store.pendingValidationCount(of: club.id) > 0 {
