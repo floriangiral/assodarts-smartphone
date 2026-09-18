@@ -1,6 +1,7 @@
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
 import { randomUUID } from "node:crypto";
+import { requireNotPlatformAdmin } from "./shared/auth";
 
 export const createClub = onCall(async (request) => {
   if (!request.auth) {
@@ -17,6 +18,7 @@ export const createClub = onCall(async (request) => {
 
   const db = getFirestore();
   const uid = request.auth.uid;
+  await requireNotPlatformAdmin(uid);
 
   const memberQuery = await db
     .collection("members")

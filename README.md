@@ -217,7 +217,7 @@ node backend/scripts/seed-staging.js \
   --board-email bureau@assodarts.test \
   --member-email membre@assodarts.test \
   --apple-review-email apple-review@assodarts.app \
-  --platform-admin-email admin@assodarts.test \
+  --platform-admin-email platform-admin@assodarts.test \
   --demo-password Demo1234!
 ```
 

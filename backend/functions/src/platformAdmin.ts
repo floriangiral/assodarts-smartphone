@@ -55,6 +55,12 @@ export const platformAdminExists = onCall(async () => {
  */
 export const claimPlatformAdmin = onCall(async (request) => {
   const uid = requireAuth(request);
+  const email = String(request.auth?.token.email ?? "")
+    .trim()
+    .toLowerCase();
+  if (!email.includes("@")) {
+    throw new HttpsError("invalid-argument", "A valid email is required");
+  }
   const db = getFirestore();
 
   await db.runTransaction(async (transaction) => {
@@ -66,6 +72,7 @@ export const claimPlatformAdmin = onCall(async (request) => {
     }
 
     transaction.set(db.collection("platform_admins").doc(uid), {
+      email,
       claimedAt: FieldValue.serverTimestamp(),
     });
   });

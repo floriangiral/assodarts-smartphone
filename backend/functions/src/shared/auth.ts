@@ -63,3 +63,30 @@ export async function requirePlatformAdmin(uid: string): Promise<void> {
     throw new HttpsError("permission-denied", "Platform admin access required");
   }
 }
+
+export async function requireNotPlatformAdmin(uid: string): Promise<void> {
+  const snap = await getFirestore()
+    .collection("platform_admins")
+    .doc(uid)
+    .get();
+  if (snap.exists) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Platform admin accounts cannot belong to a club",
+    );
+  }
+}
+
+export async function requireEmailNotPlatformAdmin(email: string): Promise<void> {
+  const snapshot = await getFirestore()
+    .collection("platform_admins")
+    .where("email", "==", email.trim().toLowerCase())
+    .limit(1)
+    .get();
+  if (!snapshot.empty) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Platform admin accounts cannot belong to a club",
+    );
+  }
+}

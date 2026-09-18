@@ -5,6 +5,7 @@ const testEnv = functionsTest();
 
 const mockRequireClubBoard = jest.fn();
 const mockRequireClubAdmin = jest.fn();
+const mockRequireNotPlatformAdmin = jest.fn();
 const mockMemberSet = jest.fn();
 const mockMembershipSet = jest.fn();
 const mockBatchCommit = jest.fn();
@@ -25,6 +26,7 @@ function makeRequest(
 jest.mock("./shared/auth", () => ({
   requireClubBoard: mockRequireClubBoard,
   requireClubAdmin: mockRequireClubAdmin,
+  requireNotPlatformAdmin: mockRequireNotPlatformAdmin,
 }));
 
 jest.mock("firebase-admin/firestore", () => ({
@@ -83,6 +85,7 @@ describe("updateMemberProfile", () => {
     };
     mockRequireClubBoard.mockResolvedValue(undefined);
     mockRequireClubAdmin.mockResolvedValue(undefined);
+    mockRequireNotPlatformAdmin.mockResolvedValue(undefined);
     mockBatchCommit.mockResolvedValue(undefined);
   });
 
@@ -143,5 +146,19 @@ describe("updateMemberProfile", () => {
       expect.objectContaining({ role: "board" }),
       { merge: true },
     );
+    expect(mockRequireNotPlatformAdmin).toHaveBeenCalledWith("self");
+  });
+
+  it("rejects assigning a platform admin to a club role", async () => {
+    mockRequireNotPlatformAdmin.mockRejectedValue(
+      new Error("Platform admin accounts cannot belong to a club"),
+    );
+
+    await expect(
+      wrapped(
+        makeRequest({ memberId: "m1", clubId: "c1", role: "board" }),
+      ),
+    ).rejects.toThrow("Platform admin accounts cannot belong to a club");
+    expect(mockMembershipSet).not.toHaveBeenCalled();
   });
 });

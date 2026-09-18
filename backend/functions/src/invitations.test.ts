@@ -18,6 +18,7 @@ const mockMembershipGet = jest.fn();
 const mockInvitationSet = jest.fn();
 const mockInvitationDelete = jest.fn();
 const mockMailAdd = jest.fn();
+const mockPlatformAdminEmailGet = jest.fn();
 
 jest.mock("firebase-admin/firestore", () => ({
   getFirestore: () => ({
@@ -33,6 +34,13 @@ jest.mock("firebase-admin/firestore", () => ({
       if (name === "mail") {
         return { add: mockMailAdd };
       }
+      if (name === "platform_admins") {
+        return {
+          where: () => ({
+            limit: () => ({ get: mockPlatformAdminEmailGet }),
+          }),
+        };
+      }
       throw new Error(`Unexpected collection ${name}`);
     },
   }),
@@ -45,6 +53,11 @@ afterAll(() => testEnv.cleanup());
 
 describe("createInvitation", () => {
   const wrapped = testEnv.wrap(createInvitation);
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockPlatformAdminEmailGet.mockResolvedValue({ empty: true });
+  });
 
   it("rejects unauthenticated calls", async () => {
     await expect(
@@ -105,6 +118,23 @@ describe("createInvitation", () => {
       inviteCode: expect.any(String),
       inviteUrl: expect.stringContaining("email=a%40b.com"),
     });
+  });
+
+  it("rejects the platform admin email", async () => {
+    mockMembershipGet.mockResolvedValue({
+      data: () => ({ status: "active", role: "board" }),
+    });
+    mockPlatformAdminEmailGet.mockResolvedValue({ empty: false });
+
+    await expect(
+      wrapped(
+        makeRequest(
+          { clubId: "c1", email: "platform-admin@assodarts.test" },
+          "u1",
+        ),
+      ),
+    ).rejects.toThrow("Platform admin accounts cannot belong to a club");
+    expect(mockInvitationSet).not.toHaveBeenCalled();
   });
 });
 
