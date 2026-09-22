@@ -15,6 +15,7 @@ export {
   validatePayment,
   cancelPaymentDeclaration,
 } from "./paymentActions";
+export { createPaymentCall } from "./paymentCalls";
 export {
   onPaymentItemWritten,
   onAnnouncementCreated,
@@ -29,6 +30,7 @@ export {
   revokeInvitation,
   acceptInvitation,
 } from "./invitations";
+export { clubRoster } from "./clubRoster";
 export { createClub } from "./createClub";
 export { updateMemberProfile } from "./memberProfile";
 export { sendMailOnCreate } from "./triggers/sendMailOnCreate";
