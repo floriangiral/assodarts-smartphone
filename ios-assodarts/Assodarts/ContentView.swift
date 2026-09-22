@@ -18,6 +18,7 @@ struct ContentView: View {
                     .transition(.opacity)
             } else if store.currentUser != nil {
                 ClubTabView()
+                    .id(store.currentUserId)
                     .transition(.opacity)
             } else if store.needsOnboardingChoice {
                 OnboardingChoiceView()
