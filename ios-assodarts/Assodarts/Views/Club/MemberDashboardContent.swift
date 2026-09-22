@@ -37,8 +37,6 @@ struct MemberDashboardContent: View {
                 .assoCard()
             }
 
-            seasonCard
-
             if !latestAnnouncements.isEmpty {
                 announcementsCard
             }
@@ -59,7 +57,8 @@ struct MemberDashboardContent: View {
                 .font(.caption.weight(.bold))
                 .foregroundStyle(Theme.orange)
                 Spacer()
-                StatusChip(state: store.membershipState(for: user.id))
+                let chip = feeChip
+                StatusChip(text: chip.text, tint: chip.tint, background: chip.background)
             }
 
             if user.isLicensed, !user.licenceNumber.isEmpty {
@@ -80,6 +79,25 @@ struct MemberDashboardContent: View {
             }
         }
         .assoCard()
+    }
+
+    private var feeChip: (text: String, tint: Color, background: Color) {
+        let fees = store.payments(for: user.id).filter { $0.call.category == .cotisation }
+        guard !fees.isEmpty else {
+            return (tr("fee_not_requested"), Theme.inkSecondary, Theme.canvas)
+        }
+
+        let state = store.membershipState(for: user.id)
+        switch state {
+        case .paid:
+            return (tr("fee_up_to_date"), state.tint, state.background)
+        case .awaitingValidation:
+            return (tr("fee_to_confirm"), state.tint, state.background)
+        case .pending:
+            return (tr("fee_to_pay"), state.tint, state.background)
+        case .late:
+            return (tr("fee_overdue"), state.tint, state.background)
+        }
     }
 
     private var paymentCard: some View {
@@ -142,21 +160,6 @@ struct MemberDashboardContent: View {
             .assoCard()
         }
         .buttonStyle(.plain)
-    }
-
-    private var seasonCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SectionLabel(text: tr("my_season"))
-            HStack(spacing: 12) {
-                MetricTile(value: "\(user.eventsAttended)", label: tr("events"))
-                MetricTile(value: "\(user.tournamentsPlayed)", label: tr("tournaments"))
-                MetricTile(
-                    value: user.average.formatted(.number.locale(Fmt.locale).precision(.fractionLength(1))),
-                    label: tr("average"),
-                    tint: Theme.navy
-                )
-            }
-        }
     }
 
     private var announcementsCard: some View {

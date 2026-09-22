@@ -121,14 +121,6 @@ struct ClubTabView: View {
                 Text(tr("you_just_joined_switch_to_this_club_now \(club.name)"))
             }
         }
-        .sheet(isPresented: Binding(
-            get: { store.showsPostCreationInviteOffer },
-            set: { store.showsPostCreationInviteOffer = $0 }
-        )) {
-            // Reuses InviteMemberSheet as-is: its own Cancel button doubles as
-            // "Skip", never blocking access to the freshly created club.
-            InviteMemberSheet()
-        }
     }
 }
 

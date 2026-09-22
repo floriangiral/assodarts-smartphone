@@ -81,6 +81,30 @@ service cloud.firestore {
             || (conversation.kind == 'bureau' && isBoard(conversation.clubId)));
     }
 
+    function conversationCreateIsValid(conversation) {
+      return conversation.keys().hasOnly(['clubId', 'kind', 'participantIds'])
+        && conversation.clubId is string
+        && conversation.kind in ['bureau', 'direct']
+        && conversation.participantIds is list
+        && (
+          (conversation.kind == 'bureau'
+            && conversation.participantIds.size() == 1
+            && conversation.participantIds[0] == currentMemberId(conversation.clubId))
+          || (conversation.kind == 'direct'
+            && conversation.participantIds.size() == 2
+            && conversation.participantIds.hasAny([currentMemberId(conversation.clubId)]))
+        );
+    }
+
+    function messageCreateIsValid(conversation, message) {
+      return message.keys().hasOnly(['senderId', 'text', 'sentAt', 'readBy'])
+        && message.senderId == currentMemberId(conversation.clubId)
+        && message.text is string
+        && message.readBy is list
+        && message.readBy.size() == 1
+        && message.readBy[0] == currentMemberId(conversation.clubId);
+    }
+
     function isTournamentMarker(clubId, tournamentId) {
       return isActiveMember(clubId)
         && get(/databases/$(database)/documents/tournaments/$(tournamentId))
@@ -239,16 +263,18 @@ service cloud.firestore {
     match /conversations/{conversationId} {
       allow read: if canAccessConversation(resource.data);
       allow create: if isActiveMember(request.resource.data.clubId)
-        && request.resource.data.participantIds.hasAny([membership(request.resource.data.clubId).memberId]);
+        && conversationCreateIsValid(request.resource.data);
       allow update, delete: if false;
 
       match /messages/{messageId} {
         allow read: if canAccessConversation(get(/databases/$(database)/documents/conversations/$(conversationId)).data);
         allow create: if canAccessConversation(get(/databases/$(database)/documents/conversations/$(conversationId)).data)
-          && request.resource.data.senderId == membership(get(/databases/$(database)/documents/conversations/$(conversationId)).data.clubId).memberId;
+          && messageCreateIsValid(get(/databases/$(database)/documents/conversations/$(conversationId)).data, request.resource.data);
         allow update: if canAccessConversation(get(/databases/$(database)/documents/conversations/$(conversationId)).data)
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy'])
-          && request.resource.data.readBy.hasAll([membership(get(/databases/$(database)/documents/conversations/$(conversationId)).data.clubId).memberId]);
+          && request.resource.data.readBy.hasAll(resource.data.readBy)
+          && request.resource.data.readBy.hasAll([membership(get(/databases/$(database)/documents/conversations/$(conversationId)).data.clubId).memberId])
+          && request.resource.data.readBy.size() <= resource.data.readBy.size() + 1;
         allow delete: if false;
       }
     }

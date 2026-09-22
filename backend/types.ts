@@ -75,6 +75,7 @@ export interface EventDoc {
   startsAt: FirebaseFirestore.Timestamp;
   location: string | null;
   category: string;
+  createdByMemberId: string | null;
 }
 
 export interface EventRegistrationDoc {

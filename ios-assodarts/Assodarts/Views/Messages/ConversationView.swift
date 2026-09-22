@@ -18,7 +18,9 @@ struct ConversationView: View {
 
     var body: some View {
         Group {
-            if let conversation, let user = store.currentUser {
+            if let conversation,
+               let user = store.currentUser,
+               store.canAccessConversation(conversation, as: user) {
                 ScrollViewReader { proxy in
                     ScrollView {
                         LazyVStack(spacing: 10) {
@@ -158,7 +160,10 @@ struct ConversationView: View {
     }
 
     private var canSend: Bool {
-        !draft.trimmingCharacters(in: .whitespaces).isEmpty || attachment != nil
+        guard let conversation,
+              let user = store.currentUser,
+              store.canAccessConversation(conversation, as: user) else { return false }
+        return !draft.trimmingCharacters(in: .whitespaces).isEmpty || attachment != nil
     }
 
     private func send(from user: Member) {

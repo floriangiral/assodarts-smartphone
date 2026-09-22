@@ -67,7 +67,7 @@ struct NewAnnouncementSheet: View {
     private func publish() {
         focusedField = nil
         guard let user = store.currentUser else { return }
-        store.publishAnnouncement(title: title, body: body_, pinned: isPinned, author: user)
+        store.publishAnnouncement(title: title, body: body_, pinned: isPinned, notify: notify, author: user)
         if notify {
             NotificationService.notify(
                 title: store.currentClub?.name ?? tr("your_club"),

@@ -16,9 +16,13 @@ struct PrimaryButton: View {
                 }
                 Text(title)
                     .font(.headline)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 52)
+            .frame(minHeight: 52)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
             .foregroundStyle(.white)
             .background(isEnabled ? Theme.navy : Theme.navy.opacity(0.35))
             .clipShape(.rect(cornerRadius: Theme.buttonRadius))
@@ -43,10 +47,14 @@ struct SecondaryButton: View {
                         .font(.subheadline.weight(.semibold))
                 }
                 Text(title)
-                    .font(.headline)
+                    .font(.subheadline.weight(.semibold))
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 50)
+            .frame(minHeight: 50)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
             .foregroundStyle(tint)
             .background(Theme.surface)
             .clipShape(.rect(cornerRadius: Theme.buttonRadius))

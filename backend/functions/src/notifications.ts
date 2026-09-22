@@ -106,6 +106,15 @@ async function activeMemberships(clubId: string, roles?: string[]) {
   return query.get();
 }
 
+async function activeMemberIds(clubId: string, roles?: string[]): Promise<Set<string>> {
+  const memberships = await activeMemberships(clubId, roles);
+  return new Set(
+    memberships.docs
+      .map((doc) => doc.data().memberId as unknown)
+      .filter((memberId): memberId is string => typeof memberId === "string"),
+  );
+}
+
 async function activePlatformMemberships(audience: string) {
   let query = getFirestore()
     .collection("memberships")
@@ -127,6 +136,18 @@ function textPreview(text: string): string {
   return trimmed.length <= 140 ? trimmed : `${trimmed.slice(0, 137)}...`;
 }
 
+async function notifyActiveClubMember(
+  memberId: string,
+  clubId: string,
+  kind: NotificationKind,
+  title: string,
+  body: string,
+  payload: NotificationPayload,
+): Promise<void> {
+  if (!(await activeMemberIds(clubId)).has(memberId)) return;
+  await notifyMember(memberId, clubId, kind, title, body, payload);
+}
+
 /** A member declared a payment (notify the board), or the board validated one (notify the member). */
 export const onPaymentItemWritten = onDocumentWritten(
   { document: "payment_call_items/{itemId}", region: "europe-west9" },
@@ -145,7 +166,7 @@ export const onPaymentItemWritten = onDocumentWritten(
     const amountCents = call?.amountCents as number | undefined;
 
     if (!before && call?.notify !== false) {
-      await notifyMember(
+      await notifyActiveClubMember(
         after.memberId,
         after.clubId,
         "payment_due",
@@ -165,21 +186,23 @@ export const onPaymentItemWritten = onDocumentWritten(
       const memberName = await memberDisplayName(after.memberId);
       const board = await activeMemberships(after.clubId, ["admin", "board"]);
       await Promise.all(
-        board.docs.map((doc) =>
-          notifyMember(
-            doc.data().memberId,
-            after.clubId,
-            "payment_to_confirm",
-            "Paiement déclaré",
-            "Un membre a déclaré un paiement à valider.",
-            { itemId: event.params.itemId, label, amountCents, memberName },
+        board.docs
+          .filter((doc) => doc.data().memberId !== after.memberId)
+          .map((doc) =>
+            notifyMember(
+              doc.data().memberId,
+              after.clubId,
+              "payment_to_confirm",
+              "Paiement déclaré",
+              "Un membre a déclaré un paiement à valider.",
+              { itemId: event.params.itemId, label, amountCents, memberName },
+            ),
           ),
-        ),
       );
     }
 
     if (after.isPaid && !before?.isPaid) {
-      await notifyMember(
+      await notifyActiveClubMember(
         after.memberId,
         after.clubId,
         "payment_confirmed",
@@ -196,23 +219,25 @@ export const onAnnouncementCreated = onDocumentCreated(
   { document: "announcements/{announcementId}", region: "europe-west9" },
   async (event) => {
     const announcement = event.data?.data();
-    if (!announcement?.publishedAt) return;
+    if (!announcement?.publishedAt || announcement.notify === false) return;
 
     const members = await activeMemberships(announcement.clubId);
     await Promise.all(
-      members.docs.map((doc) =>
-        notifyMember(
-          doc.data().memberId,
-          announcement.clubId,
-          "announcement",
-          announcement.title,
-          announcement.body,
-          {
-            announcementId: event.params.announcementId,
-            label: announcement.title,
-          },
+      members.docs
+        .filter((doc) => doc.data().memberId !== announcement.createdByMemberId)
+        .map((doc) =>
+          notifyMember(
+            doc.data().memberId,
+            announcement.clubId,
+            "announcement",
+            announcement.title,
+            announcement.body,
+            {
+              announcementId: event.params.announcementId,
+              label: announcement.title,
+            },
+          ),
         ),
-      ),
     );
   },
 );
@@ -226,20 +251,22 @@ export const onEventCreated = onDocumentCreated(
 
     const members = await activeMemberships(clubEvent.clubId);
     await Promise.all(
-      members.docs.map((doc) =>
-        notifyMember(
-          doc.data().memberId,
-          clubEvent.clubId,
-          "event",
-          clubEvent.title,
-          clubEvent.location ?? "",
-          {
-            eventId: event.params.eventId,
-            label: clubEvent.title,
-            startsAt: clubEvent.startsAt?.toDate?.().toISOString?.(),
-          },
+      members.docs
+        .filter((doc) => doc.data().memberId !== clubEvent.createdByMemberId)
+        .map((doc) =>
+          notifyMember(
+            doc.data().memberId,
+            clubEvent.clubId,
+            "event",
+            clubEvent.title,
+            clubEvent.location ?? "",
+            {
+              eventId: event.params.eventId,
+              label: clubEvent.title,
+              startsAt: clubEvent.startsAt?.toDate?.().toISOString?.(),
+            },
+          ),
         ),
-      ),
     );
   },
 );
@@ -263,15 +290,45 @@ export const onMessageCreated = onDocumentCreated(
 
     const senderId = message.senderId as string;
     const senderName = (await memberDisplayName(senderId)) ?? "Un membre";
-    const participantIds = (conversation.participantIds ?? []) as string[];
-    const recipientIds =
-      conversation.kind === "bureau" && participantIds.includes(senderId)
-        ? (
-            await activeMemberships(conversation.clubId, ["admin", "board"])
-          ).docs
-            .map((doc) => doc.data().memberId as string)
-            .filter((memberId) => memberId !== senderId)
-        : participantIds.filter((memberId) => memberId !== senderId);
+    const participantIds = Array.from(
+      new Set(
+        ((conversation.participantIds ?? []) as unknown[]).filter(
+          (memberId): memberId is string => typeof memberId === "string",
+        ),
+      ),
+    );
+    const activeMembers = await activeMemberIds(conversation.clubId);
+    const senderIsActive = activeMembers.has(senderId);
+    if (!senderIsActive) return;
+
+    let recipientIds: string[] = [];
+    if (conversation.kind === "direct") {
+      if (participantIds.length !== 2 || !participantIds.includes(senderId)) {
+        return;
+      }
+      recipientIds = participantIds.filter((memberId) => memberId !== senderId);
+    } else if (conversation.kind === "bureau") {
+      if (participantIds.length !== 1) return;
+      const boardIds = await activeMemberIds(conversation.clubId, [
+        "admin",
+        "board",
+      ]);
+      if (participantIds.includes(senderId)) {
+        recipientIds = Array.from(boardIds).filter(
+          (memberId) => memberId !== senderId,
+        );
+      } else if (boardIds.has(senderId)) {
+        recipientIds = participantIds;
+      } else {
+        return;
+      }
+    } else {
+      return;
+    }
+
+    recipientIds = Array.from(new Set(recipientIds)).filter(
+      (memberId) => memberId !== senderId && activeMembers.has(memberId),
+    );
 
     await Promise.all(
       recipientIds.map((memberId) =>
@@ -309,19 +366,21 @@ export const onTournamentEntryCreated = onDocumentCreated(
     const members = await activeMemberships(entry.clubId);
 
     await Promise.all(
-      members.docs.map((doc) =>
-        notifyMember(
-          doc.data().memberId,
-          entry.clubId,
-          "tournament",
-          "Résultat de tournoi",
-          body,
-          {
-            tournamentId: entry.tournamentId,
-            label,
-          },
+      members.docs
+        .filter((doc) => doc.data().memberId !== entry.recordedByMemberId)
+        .map((doc) =>
+          notifyMember(
+            doc.data().memberId,
+            entry.clubId,
+            "tournament",
+            "Résultat de tournoi",
+            body,
+            {
+              tournamentId: entry.tournamentId,
+              label,
+            },
+          ),
         ),
-      ),
     );
   },
 );
@@ -340,20 +399,26 @@ export const onPlatformAnnouncementCreated = onDocumentCreated(
     // This simple fan-out is sufficient at the current scale; revisit it once
     // a broadcast can reach more than a few hundred recipients.
     await Promise.all(
-      memberships.docs.map((doc) => {
-        const membership = doc.data();
-        return notifyMember(
-          membership.memberId,
-          membership.clubId,
-          "platform_announcement",
-          announcement.title,
-          announcement.body,
-          {
-            announcementId: event.params.announcementId,
-            label: announcement.title,
-          },
-        );
-      }),
+      memberships.docs
+        .filter((doc) => {
+          // publishedBy is the auth uid of the platform admin who broadcast it.
+          const authUid = doc.data().authUid;
+          return !announcement.publishedBy || authUid !== announcement.publishedBy;
+        })
+        .map((doc) => {
+          const membership = doc.data();
+          return notifyMember(
+            membership.memberId,
+            membership.clubId,
+            "platform_announcement",
+            announcement.title,
+            announcement.body,
+            {
+              announcementId: event.params.announcementId,
+              label: announcement.title,
+            },
+          );
+        }),
     );
   },
 );

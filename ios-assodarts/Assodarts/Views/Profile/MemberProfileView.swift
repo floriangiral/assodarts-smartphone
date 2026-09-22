@@ -8,11 +8,12 @@ struct MemberProfileView: View {
     @Environment(AppStore.self) private var store
 
     @State private var licenceDraft: String = ""
-    @State private var isLicensedDraft: Bool = false
     @State private var roleDraft: Role = .membre
     @State private var didLoad: Bool = false
     @State private var showsDeactivateAlert: Bool = false
     @State private var reminderSent: Bool = false
+    @State private var licenceWasSaved: Bool = false
+    @State private var roleWasSaved: Bool = false
     @State private var openedConversationId: UUID?
     @FocusState private var isEditingLicence: Bool
 
@@ -92,7 +93,8 @@ struct MemberProfileView: View {
 
             HStack(spacing: 8) {
                 RoleBadge(role: member.role)
-                StatusChip(state: store.membershipState(for: member.id))
+                let chip = feeChip(for: member)
+                StatusChip(text: chip.text, tint: chip.tint, background: chip.background)
                 if !member.isActive {
                     StatusChip(text: tr("deactivated"), tint: Theme.red, background: Theme.redTint)
                 }
@@ -136,43 +138,90 @@ struct MemberProfileView: View {
         VStack(alignment: .leading, spacing: 12) {
             SectionLabel(text: tr("licence"))
 
-            Picker(tr("status"), selection: $isLicensedDraft) {
-                Text(tr("licensed")).tag(true)
-                Text(tr("standard")).tag(false)
-            }
-            .pickerStyle(.segmented)
-            .onChange(of: isLicensedDraft) { _, newValue in
-                guard var updated = self.member else { return }
-                updated.isLicensed = newValue
-                if !newValue { updated.licenceNumber = "" ; licenceDraft = "" }
-                store.updateMember(updated)
+            HStack {
+                Text(tr("status"))
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.inkSecondary)
+                Spacer()
+                StatusChip(
+                    text: normalizedLicenceDraft.isEmpty ? tr("without_license") : tr("licensed"),
+                    tint: normalizedLicenceDraft.isEmpty ? Theme.inkSecondary : Theme.green,
+                    background: normalizedLicenceDraft.isEmpty ? Theme.canvas : Theme.greenTint
+                )
             }
 
-            if isLicensedDraft {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(tr("licence_number"))
-                        .font(.caption)
-                        .foregroundStyle(Theme.inkSecondary)
-                    TextField("07 84 000 000", text: $licenceDraft)
-                        .keyboardField(.licence, submit: .done)
-                        .focused($isEditingLicence)
-                        .monospacedDigit()
-                        .foregroundStyle(Theme.ink)
-                        .assoFieldSurface(radius: Theme.compactRadius, padding: 12, minHeight: 48)
-                        .onSubmit(saveLicence)
-                    Button(tr("save_number"), action: saveLicence)
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(Theme.navy)
-                }
-                Label(
-                    tr("editable_by_the_committee_only"),
-                    systemImage: "lock.fill"
-                )
+            VStack(alignment: .leading, spacing: 6) {
+                Text(tr("licence_number"))
                     .font(.caption)
-                    .foregroundStyle(Theme.orange)
+                    .foregroundStyle(Theme.inkSecondary)
+                TextField("07 84 000 000", text: $licenceDraft)
+                    .keyboardField(.licence, submit: .done)
+                    .focused($isEditingLicence)
+                    .monospacedDigit()
+                    .foregroundStyle(Theme.ink)
+                    .assoFieldSurface(radius: Theme.compactRadius, padding: 12, minHeight: 48)
+                    .onSubmit(saveLicence)
+                    .onChange(of: licenceDraft) { _, _ in
+                        licenceWasSaved = false
+                    }
             }
+
+            if licenceHasChanges(comparedTo: member) {
+                PrimaryButton(
+                    title: tr("save_number"),
+                    symbol: "checkmark",
+                    action: saveLicence
+                )
+            } else if licenceWasSaved {
+                Label(tr("licence_saved"), systemImage: "checkmark.circle.fill")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Theme.green)
+            }
+
+            if member.isLicensed || !normalizedLicenceDraft.isEmpty {
+                Button(role: .destructive) {
+                    licenceDraft = ""
+                    saveLicence()
+                } label: {
+                    Label(tr("remove_licence"), systemImage: "xmark.circle")
+                        .font(.footnote.weight(.semibold))
+                }
+            }
+
+            Label(
+                tr("editable_by_the_committee_only"),
+                systemImage: "lock.fill"
+            )
+                .font(.caption)
+                .foregroundStyle(Theme.orange)
         }
         .assoCard()
+    }
+
+    private var normalizedLicenceDraft: String {
+        licenceDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func licenceHasChanges(comparedTo member: Member) -> Bool {
+        normalizedLicenceDraft != member.licenceNumber.trimmingCharacters(in: .whitespacesAndNewlines)
+            || (normalizedLicenceDraft.isEmpty && member.isLicensed)
+            || (!normalizedLicenceDraft.isEmpty && !member.isLicensed)
+    }
+
+    private func saveLicence() {
+        guard var member, licenceHasChanges(comparedTo: member) else {
+            isEditingLicence = false
+            return
+        }
+        let normalized = normalizedLicenceDraft
+        member.licenceNumber = normalized
+        member.isLicensed = !normalized.isEmpty
+        licenceDraft = normalized
+        store.updateMember(member)
+        isEditingLicence = false
+        withAnimation {
+            licenceWasSaved = true
+        }
     }
 
     private func roleSection(_ member: Member) -> some View {
@@ -186,10 +235,17 @@ struct MemberProfileView: View {
                     }
                 }
                 .pickerStyle(.segmented)
-                .onChange(of: roleDraft) { _, newValue in
-                    guard var updated = self.member else { return }
-                    updated.role = newValue
-                    store.updateMember(updated)
+
+                if roleDraft != member.role {
+                    PrimaryButton(
+                        title: tr("save_role"),
+                        symbol: "checkmark",
+                        action: saveRole
+                    )
+                } else if roleWasSaved {
+                    Label(tr("role_saved"), systemImage: "checkmark.circle.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Theme.green)
                 }
             } else {
                 HStack {
@@ -311,8 +367,27 @@ struct MemberProfileView: View {
 
     private func openConversation(with member: Member) {
         guard let me = store.currentUser else { return }
-        let conversation = store.directConversation(between: me.id, and: member.id, clubId: member.clubId)
+        guard let conversation = store.directConversation(between: me.id, and: member.id, clubId: me.clubId) else { return }
         openedConversationId = conversation.id
+    }
+
+    private func feeChip(for member: Member) -> (text: String, tint: Color, background: Color) {
+        let fees = store.payments(for: member.id).filter { $0.call.category == .cotisation }
+        guard !fees.isEmpty else {
+            return (tr("fee_not_requested"), Theme.inkSecondary, Theme.canvas)
+        }
+
+        let state = store.membershipState(for: member.id)
+        switch state {
+        case .paid:
+            return (tr("fee_up_to_date"), state.tint, state.background)
+        case .awaitingValidation:
+            return (tr("fee_to_confirm"), state.tint, state.background)
+        case .pending:
+            return (tr("fee_to_pay"), state.tint, state.background)
+        case .late:
+            return (tr("fee_overdue"), state.tint, state.background)
+        }
     }
 
     private func subtitle(for entry: (call: PaymentCall, item: PaymentItem)) -> String {
@@ -328,15 +403,14 @@ struct MemberProfileView: View {
     private func load() {
         guard !didLoad, let member else { return }
         licenceDraft = member.licenceNumber
-        isLicensedDraft = member.isLicensed
         roleDraft = member.role
         didLoad = true
     }
 
-    private func saveLicence() {
-        guard var member else { return }
-        member.licenceNumber = licenceDraft.trimmingCharacters(in: .whitespaces)
-        member.isLicensed = true
+    private func saveRole() {
+        guard var member, roleDraft != member.role else { return }
+        member.role = roleDraft
         store.updateMember(member)
+        withAnimation { roleWasSaved = true }
     }
 }

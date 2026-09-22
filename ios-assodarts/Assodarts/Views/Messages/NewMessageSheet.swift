@@ -133,7 +133,7 @@ struct NewMessageSheet: View {
     private func send() {
         focusedField = nil
         guard let user = store.currentUser else { return }
-        let conversation: Conversation
+        let conversation: Conversation?
         if !isBureauUser, target == .bureau {
             conversation = store.bureauChannel(for: user.id, clubId: user.clubId)
         } else if let selectedId {
@@ -141,7 +141,8 @@ struct NewMessageSheet: View {
         } else {
             return
         }
-        store.send(text: draft, in: conversation.id, from: user.id)
+        guard let conversation,
+              store.send(text: draft, in: conversation.id, from: user.id) else { return }
         NotificationService.notify(
             title: tr("message_sent"),
             body: tr("your_message_has_been_delivered")

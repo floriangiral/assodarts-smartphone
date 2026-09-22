@@ -17,4 +17,15 @@ describe("firestore.rules", () => {
       "match /club_bank_accounts/{clubId} {\n      allow read: if isActiveMember(clubId);\n      allow write: if isBoard(clubId);",
     );
   });
+
+  it("strictly validates conversation and message writes", () => {
+    expect(rules).toContain("function conversationCreateIsValid");
+    expect(rules).toContain("conversation.participantIds.size() == 1");
+    expect(rules).toContain("conversation.participantIds.size() == 2");
+    expect(rules).toContain("function messageCreateIsValid");
+    expect(rules).toContain("message.readBy.size() == 1");
+    expect(rules).toContain(
+      "request.resource.data.readBy.size() <= resource.data.readBy.size() + 1",
+    );
+  });
 });

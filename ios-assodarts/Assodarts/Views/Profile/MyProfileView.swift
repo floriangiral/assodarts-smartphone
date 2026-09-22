@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The signed-in member's own profile: identity, licence, season and payments.
+/// The signed-in member's own profile: identity, licence, payments and settings.
 struct MyProfileView: View {
     @Environment(AppStore.self) private var store
     @Environment(Localization.self) private var localization
@@ -19,7 +19,6 @@ struct MyProfileView: View {
                 VStack(spacing: 16) {
                     identityCard(user, club: club)
                     licenceCard(user)
-                    seasonCard(user)
                     paymentsCard
                     notificationsCard(user)
                     languageCard
@@ -164,21 +163,6 @@ struct MyProfileView: View {
             }
         }
         .assoCard()
-    }
-
-    private func seasonCard(_ user: Member) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SectionLabel(text: tr("my_season"))
-            HStack(spacing: 12) {
-                MetricTile(value: "\(user.eventsAttended)", label: tr("events"))
-                MetricTile(value: "\(user.tournamentsPlayed)", label: tr("tournaments"))
-                MetricTile(
-                    value: user.average.formatted(.number.locale(Fmt.locale).precision(.fractionLength(1))),
-                    label: tr("average"),
-                    tint: Theme.navy
-                )
-            }
-        }
     }
 
     private var paymentsCard: some View {

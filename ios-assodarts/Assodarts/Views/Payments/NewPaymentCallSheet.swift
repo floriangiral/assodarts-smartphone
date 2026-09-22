@@ -13,6 +13,8 @@ struct NewPaymentCallSheet: View {
     @State private var selection: Set<UUID> = []
     @State private var search: String = ""
     @State private var notify: Bool = true
+    @State private var isSending: Bool = false
+    @State private var errorMessage: String?
     @FocusState private var focusedField: Field?
 
     private enum Field: Hashable {
@@ -176,6 +178,11 @@ struct NewPaymentCallSheet: View {
                 }
 
                 Section {
+                    if let errorMessage {
+                        Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
+                            .font(.footnote)
+                            .foregroundStyle(Theme.red)
+                    }
                     Toggle(tr("notify_by_push_and_email"), isOn: $notify)
                 } footer: {
                     Text(tr("each_recipient_will_find_the_request_under_my_payments_a"))
@@ -194,13 +201,16 @@ struct NewPaymentCallSheet: View {
             }
             .safeAreaInset(edge: .bottom) {
                 PrimaryButton(
-                    title: canSend
+                    title: isSending
+                        ? tr("sending")
+                        : canSend
                         ? tr("send_newpaymentcallsheet \(Fmt.count(recipients.count, key: .members)) \(Fmt.money(totalCents))")
                         : tr("send_request"),
                     symbol: "paperplane.fill",
-                    isEnabled: canSend,
-                    action: send
-                )
+                    isEnabled: canSend && !isSending
+                ) {
+                    Task { await send() }
+                }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 12)
                 .background(.bar)
@@ -210,7 +220,13 @@ struct NewPaymentCallSheet: View {
 
     private var lateMemberIds: [UUID] {
         guard let club = store.currentClub else { return [] }
-        return store.members(of: club.id).filter { !store.isUpToDate($0.id) }.map(\.id)
+        return store.members(of: club.id).filter(hasChasableMembershipFee).map(\.id)
+    }
+
+    private func hasChasableMembershipFee(_ member: Member) -> Bool {
+        store.payments(for: member.id)
+            .filter { $0.call.category == .cotisation }
+            .contains { !$0.item.isPaid && $0.item.declaredAt == nil }
     }
 
     private func selectLateMembers() {
@@ -238,8 +254,10 @@ struct NewPaymentCallSheet: View {
         }
     }
 
-    private func send() {
-        guard let club = store.currentClub, let user = store.currentUser else { return }
+    private func send() async {
+        guard !isSending, let club = store.currentClub, let user = store.currentUser else { return }
+        isSending = true
+        errorMessage = nil
         let reference = "\(category.label.prefix(3).uppercased())-\(Calendar.current.component(.year, from: .now))-"
             + String(format: "%04d", Int.random(in: 1...9999))
         let call = PaymentCall(
@@ -253,13 +271,19 @@ struct NewPaymentCallSheet: View {
             notify: notify,
             items: recipients.map { PaymentItem(memberId: $0) }
         )
-        store.createPaymentCall(call)
-        if notify {
-            NotificationService.notify(
-                title: tr("new_payment_request"),
-                body: tr("due_by \(call.label) \(Fmt.money(call.amountCents)) \(Fmt.shortDate(call.dueDate))")
-            )
+        do {
+            try await store.createPaymentCall(call)
+            if notify {
+                NotificationService.notify(
+                    title: tr("new_payment_request"),
+                    body: tr("due_by \(call.label) \(Fmt.money(call.amountCents)) \(Fmt.shortDate(call.dueDate))")
+                )
+            }
+            dismiss()
+        } catch {
+            errorMessage = friendlyMessage(for: error)
+            store.syncError = errorMessage
+            isSending = false
         }
-        dismiss()
     }
 }

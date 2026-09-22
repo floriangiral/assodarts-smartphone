@@ -481,6 +481,22 @@
         }
       }
     },
+    "active_members": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actifs"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Active"
+          }
+        }
+      }
+    },
     "all_plans": {
       "localizations": {
         "fr": {
@@ -3121,6 +3137,86 @@
         }
       }
     },
+    "fee_not_requested": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cotisation non créée"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No fee request"
+          }
+        }
+      }
+    },
+    "fee_overdue": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cotisation en retard"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fee overdue"
+          }
+        }
+      }
+    },
+    "fee_to_chase": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cotisation"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fee due"
+          }
+        }
+      }
+    },
+    "fee_to_confirm": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cotisation à valider"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fee to confirm"
+          }
+        }
+      }
+    },
+    "fee_to_pay": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cotisation à régler"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fee to pay"
+          }
+        }
+      }
+    },
     "fee_up_to_date": {
       "localizations": {
         "fr": {
@@ -4269,6 +4365,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Licence number"
+          }
+        }
+      }
+    },
+    "licence_saved": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Licence enregistrée"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Licence saved"
           }
         }
       }
@@ -5990,13 +6102,13 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ en retard"
+            "value": "%lld en retard"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ overdue"
+            "value": "%lld overdue"
           }
         }
       }
@@ -6086,13 +6198,13 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ payés"
+            "value": "%lld payés"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ paid"
+            "value": "%lld paid"
           }
         }
       }
@@ -6518,13 +6630,13 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ en attente"
+            "value": "%lld en attente"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ pending"
+            "value": "%lld pending"
           }
         }
       }
@@ -7265,6 +7377,22 @@
         }
       }
     },
+    "remove_licence": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retirer la licence"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove licence"
+          }
+        }
+      }
+    },
     "renewals": {
       "localizations": {
         "fr": {
@@ -7286,13 +7414,13 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ renouvellements · %lld premiers abonnements"
+            "value": "%lld renouvellements · %lld premiers abonnements"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ renewals · %lld first subscriptions"
+            "value": "%lld renewals · %lld first subscriptions"
           }
         }
       }
@@ -7425,6 +7553,22 @@
         }
       }
     },
+    "role_saved": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rôle enregistré"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Role saved"
+          }
+        }
+      }
+    },
     "saint_priest_team_2": {
       "localizations": {
         "fr": {
@@ -7453,6 +7597,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Save"
+          }
+        }
+      }
+    },
+    "save_role": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enregistrer le rôle"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save role"
           }
         }
       }
@@ -7494,13 +7654,13 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Score A · %@"
+            "value": "Score A · %lld"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Score A · %@"
+            "value": "Score A · %lld"
           }
         }
       }
@@ -7510,13 +7670,13 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Score B · %@"
+            "value": "Score B · %lld"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Score B · %@"
+            "value": "Score B · %lld"
           }
         }
       }
@@ -7713,18 +7873,18 @@
         }
       }
     },
-    "send_newpaymentcallsheet %lld %@": {
+    "send_newpaymentcallsheet %@ %@": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Envoyer · %lld · %@"
+            "value": "Envoyer · %@ · %@"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Send · %lld · %@"
+            "value": "Send · %@ · %@"
           }
         }
       }
@@ -7990,13 +8150,13 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Membre simple"
+            "value": "Non licencié"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Standard"
+            "value": "Not licensed"
           }
         }
       }
@@ -8006,13 +8166,13 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Membre simple"
+            "value": "Non licencié"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Standard member"
+            "value": "Not licensed"
           }
         }
       }
@@ -8694,13 +8854,13 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "+%@ ce mois"
+            "value": "+%lld ce mois"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "+%@ this month"
+            "value": "+%lld this month"
           }
         }
       }
@@ -9389,6 +9549,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "/ year"
+          }
+        }
+      }
+    },
+    "without_license": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Non licencié"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not licensed"
           }
         }
       }

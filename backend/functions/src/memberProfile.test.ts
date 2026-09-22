@@ -131,6 +131,25 @@ describe("updateMemberProfile", () => {
     );
   });
 
+  it("lets the board clear a licence number", async () => {
+    mockMembershipData.licenseNumber = "FFD-42";
+
+    await wrapped(
+      makeRequest({
+        memberId: "m1",
+        clubId: "c1",
+        licenseNumber: null,
+      }),
+    );
+
+    expect(mockRequireClubBoard).toHaveBeenCalledWith("c1", "caller");
+    expect(mockMembershipSet).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ licenseNumber: null }),
+      { merge: true },
+    );
+  });
+
   it("requires admin rights when role changes", async () => {
     await wrapped(
       makeRequest({
