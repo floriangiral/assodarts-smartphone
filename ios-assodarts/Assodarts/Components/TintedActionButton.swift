@@ -16,11 +16,15 @@ struct ActionButtonLabel: View {
                 Image(systemName: symbol)
             }
             Text(title)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
         }
         .font(font)
         .foregroundStyle(foreground)
         .frame(maxWidth: .infinity)
-        .frame(height: height)
+        .frame(minHeight: height)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
         .background(background, in: .rect(cornerRadius: radius))
     }
 }
