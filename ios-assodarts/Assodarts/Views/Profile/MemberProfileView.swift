@@ -35,8 +35,11 @@ struct MemberProfileView: View {
                 VStack(spacing: 16) {
                     identityCard(member)
 
-                    if canManage {
+                    if canManage, member.contributionStatus == "player" {
                         licenceSection(member)
+                        roleSection(member)
+                    } else if canManage {
+                        memberStatusSection(member)
                         roleSection(member)
                     } else {
                         readOnlyLicence(member)
@@ -130,6 +133,16 @@ struct MemberProfileView: View {
                     .monospacedDigit()
                     .foregroundStyle(Theme.inkSecondary)
             }
+        }
+        .assoCard()
+    }
+
+    private func memberStatusSection(_ member: Member) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SectionLabel(text: tr("seasonal_status"))
+            Text(member.contributionStatus == "member" ? tr("member_contribution") : tr("no_contribution_status"))
+                .font(.headline)
+                .foregroundStyle(Theme.ink)
         }
         .assoCard()
     }

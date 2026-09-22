@@ -106,7 +106,10 @@ async function activeMemberships(clubId: string, roles?: string[]) {
   return query.get();
 }
 
-async function activeMemberIds(clubId: string, roles?: string[]): Promise<Set<string>> {
+async function activeMemberIds(
+  clubId: string,
+  roles?: string[],
+): Promise<Set<string>> {
   const memberships = await activeMemberships(clubId, roles);
   return new Set(
     memberships.docs
@@ -146,6 +149,48 @@ async function notifyActiveClubMember(
 ): Promise<void> {
   if (!(await activeMemberIds(clubId)).has(memberId)) return;
   await notifyMember(memberId, clubId, kind, title, body, payload);
+}
+
+async function markContributionPaid(
+  data: Record<string, unknown>,
+): Promise<void> {
+  const seasonId =
+    typeof data.contributionSeasonId === "string"
+      ? data.contributionSeasonId
+      : "";
+  const option =
+    typeof data.contributionOption === "string" ? data.contributionOption : "";
+  const clubId = typeof data.clubId === "string" ? data.clubId : "";
+  const memberId = typeof data.memberId === "string" ? data.memberId : "";
+  if (!seasonId || !option || !clubId || !memberId) return;
+  const db = getFirestore();
+  await db
+    .collection("clubs")
+    .doc(clubId)
+    .collection("contribution_seasons")
+    .doc(seasonId)
+    .collection("choices")
+    .doc(memberId)
+    .set(
+      { status: "paid", paidAt: FieldValue.serverTimestamp() },
+      { merge: true },
+    );
+  const memberships = await db
+    .collection("memberships")
+    .where("clubId", "==", clubId)
+    .where("memberId", "==", memberId)
+    .limit(1)
+    .get();
+  const membership = memberships.docs[0];
+  if (membership) {
+    await membership.ref.set(
+      {
+        contributionSeasonId: seasonId,
+        contributionStatus: option === "player_license" ? "player" : "member",
+      },
+      { merge: true },
+    );
+  }
 }
 
 /** A member declared a payment (notify the board), or the board validated one (notify the member). */
@@ -202,6 +247,7 @@ export const onPaymentItemWritten = onDocumentWritten(
     }
 
     if (after.isPaid && !before?.isPaid) {
+      await markContributionPaid(after as Record<string, unknown>);
       await notifyActiveClubMember(
         after.memberId,
         after.clubId,
@@ -403,7 +449,9 @@ export const onPlatformAnnouncementCreated = onDocumentCreated(
         .filter((doc) => {
           // publishedBy is the auth uid of the platform admin who broadcast it.
           const authUid = doc.data().authUid;
-          return !announcement.publishedBy || authUid !== announcement.publishedBy;
+          return (
+            !announcement.publishedBy || authUid !== announcement.publishedBy
+          );
         })
         .map((doc) => {
           const membership = doc.data();

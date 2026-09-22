@@ -33,12 +33,43 @@ async function requirePaymentOwner(
     await getFirestore().collection("memberships").doc(`${clubId}_${uid}`).get()
   ).data();
 
-  if (
-    !membership ||
-    membership.status !== "active" ||
-    membership.memberId !== memberId
-  ) {
+  if (membership?.status !== "active" || membership.memberId !== memberId) {
     throw new HttpsError("permission-denied", "This payment is not yours");
+  }
+}
+
+async function markContributionPaid(data: DocumentData): Promise<void> {
+  const seasonId = String(data.contributionSeasonId ?? "").trim();
+  const memberId = String(data.memberId ?? "").trim();
+  const option = String(data.contributionOption ?? "").trim();
+  const clubId = String(data.clubId ?? "").trim();
+  if (!seasonId || !memberId || !clubId || !option) return;
+  await getFirestore()
+    .collection("clubs")
+    .doc(clubId)
+    .collection("contribution_seasons")
+    .doc(seasonId)
+    .collection("choices")
+    .doc(memberId)
+    .set(
+      { status: "paid", paidAt: FieldValue.serverTimestamp() },
+      { merge: true },
+    );
+  const memberships = await getFirestore()
+    .collection("memberships")
+    .where("clubId", "==", clubId)
+    .where("memberId", "==", memberId)
+    .limit(1)
+    .get();
+  const membership = memberships.docs[0];
+  if (membership) {
+    await membership.ref.set(
+      {
+        contributionSeasonId: seasonId,
+        contributionStatus: option === "player_license" ? "player" : "member",
+      },
+      { merge: true },
+    );
   }
 }
 
@@ -93,6 +124,7 @@ export const validatePayment = onCall(async (request) => {
     },
     { merge: true },
   );
+  await markContributionPaid(data);
 });
 
 /** The member withdraws their declaration, or the board rejects it. */

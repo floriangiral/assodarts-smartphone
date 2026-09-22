@@ -9,6 +9,7 @@ type MembershipData = {
   status?: unknown;
   joinDate?: unknown;
   licenseNumber?: unknown;
+  contributionStatus?: unknown;
 };
 
 type MemberData = {
@@ -126,6 +127,7 @@ function mapRosterMember(
     membershipStatus: cleanString(membership.status, "inactive"),
     joinedAtMillis,
     licenseNumber: optionalString(membership.licenseNumber),
+    seasonStatus: cleanString(membership.contributionStatus, "none"),
   };
 }
 

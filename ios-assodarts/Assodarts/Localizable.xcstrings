@@ -10488,6 +10488,114 @@
           }
         }
       }
+    },
+    "member_contribution": {
+      "localizations": {
+        "fr": { "stringUnit": { "state": "translated", "value": "Cotisation membre" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Member contribution" } }
+      }
+    },
+    "member_contribution_detail": {
+      "localizations": {
+        "fr": { "stringUnit": { "state": "translated", "value": "Adhésion au club sans licence joueur" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Club membership without a player licence" } }
+      }
+    },
+    "player_license_contribution": {
+      "localizations": {
+        "fr": { "stringUnit": { "state": "translated", "value": "Licence joueur" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Player licence" } }
+      }
+    },
+    "player_license_contribution_detail": {
+      "localizations": {
+        "fr": { "stringUnit": { "state": "translated", "value": "Adhésion au club avec licence joueur" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Club membership with a player licence" } }
+      }
+    },
+    "choose_your_contribution_option": {
+      "localizations": {
+        "fr": { "stringUnit": { "state": "translated", "value": "Choisissez votre cotisation pour la saison" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Choose your contribution for the season" } }
+      }
+    },
+    "contribution_choice_pending": {
+      "localizations": {
+        "fr": { "stringUnit": { "state": "translated", "value": "Choix enregistré, paiement en attente" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Choice saved, payment pending" } }
+      }
+    },
+    "contribution_paid": {
+      "localizations": {
+        "fr": { "stringUnit": { "state": "translated", "value": "Cotisation validée" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Contribution validated" } }
+      }
+    },
+    "contribution_not_available": {
+      "localizations": {
+        "fr": { "stringUnit": { "state": "translated", "value": "Aucune cotisation saisonnière disponible" } },
+        "en": { "stringUnit": { "state": "translated", "value": "No seasonal contribution is available" } }
+      }
+    },
+    "contribution_season_default": {
+      "localizations": {
+        "fr": { "stringUnit": { "state": "translated", "value": "Cotisations saison 2026-2027" } },
+        "en": { "stringUnit": { "state": "translated", "value": "2026-2027 seasonal contributions" } }
+      }
+    },
+    "seasonal_contributions": {
+      "localizations": {
+        "fr": { "stringUnit": { "state": "translated", "value": "Cotisations saisonnières" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Seasonal contributions" } }
+      }
+    },
+    "season_label": {
+      "localizations": {
+        "fr": { "stringUnit": { "state": "translated", "value": "Libellé de la saison" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Season label" } }
+      }
+    },
+    "season_id": {
+      "localizations": {
+        "fr": { "stringUnit": { "state": "translated", "value": "Identifiant de saison" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Season ID" } }
+      }
+    },
+    "contribution_amounts": {
+      "localizations": {
+        "fr": { "stringUnit": { "state": "translated", "value": "Montants" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Amounts" } }
+      }
+    },
+    "save_draft": {
+      "localizations": {
+        "fr": { "stringUnit": { "state": "translated", "value": "Enregistrer le brouillon" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Save draft" } }
+      }
+    },
+    "publish_contribution": {
+      "localizations": {
+        "fr": { "stringUnit": { "state": "translated", "value": "Publier les cotisations" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Publish contributions" } }
+      }
+    },
+    "published_contribution_cannot_be_edited": {
+      "localizations": {
+        "fr": { "stringUnit": { "state": "translated", "value": "Une saison publiée ne peut plus être modifiée." } },
+        "en": { "stringUnit": { "state": "translated", "value": "A published season cannot be edited." } }
+      }
+    },
+    "seasonal_status": {
+      "localizations": {
+        "fr": { "stringUnit": { "state": "translated", "value": "Statut de la saison" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Season status" } }
+      }
+    },
+    "no_contribution_status": {
+      "localizations": {
+        "fr": { "stringUnit": { "state": "translated", "value": "Aucune cotisation validée" } },
+        "en": { "stringUnit": { "state": "translated", "value": "No contribution validated" } }
+      }
     }
   },
   "version": "1.0"

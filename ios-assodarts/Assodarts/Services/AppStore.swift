@@ -30,6 +30,7 @@ final class AppStore {
     var isRestoringSession: Bool = true
     /// The signed-in member's notification inbox, filled by the server.
     var notifications: [AppNotification] = []
+    var currentContributionSeason: ContributionSeason?
     /// Every club the signed-in member belongs to (live data only).
     var availableClubs: [RemoteRepository.AvailableClub] = []
     /// The real Firestore club id backing `currentClub`, needed to switch clubs.
@@ -117,6 +118,7 @@ final class AppStore {
         currentUserId = nil
         syncError = nil
         notifications = []
+        currentContributionSeason = nil
         availableClubs = []
         activeClubRemoteId = nil
         remoteIdsByLocalId = [:]

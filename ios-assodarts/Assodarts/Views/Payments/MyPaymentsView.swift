@@ -4,6 +4,8 @@ import SwiftUI
 struct MyPaymentsView: View {
     @Environment(AppStore.self) private var store
     @State private var payingCallId: UUID?
+    @State private var contributionError: String?
+    @State private var isChoosingContribution = false
 
     private var payments: [(call: PaymentCall, item: PaymentItem)] {
         guard let user = store.currentUser else { return [] }
@@ -34,6 +36,8 @@ struct MyPaymentsView: View {
         ScrollView {
             VStack(spacing: 18) {
                 summaryCard
+
+                contributionCard
 
                 if !due.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
@@ -113,6 +117,80 @@ struct MyPaymentsView: View {
             }
         }
         .assoCard(padding: 20)
+    }
+
+    @ViewBuilder
+    private var contributionCard: some View {
+        if let season = store.currentContributionSeason {
+            VStack(alignment: .leading, spacing: 12) {
+                Label(season.label, systemImage: "person.text.rectangle")
+                    .font(.headline)
+                    .foregroundStyle(Theme.ink)
+
+                if let selectedOption = season.selectedOption {
+                    Label(
+                        season.selectedStatus == "paid"
+                            ? tr("contribution_paid")
+                            : tr("contribution_choice_pending"),
+                        systemImage: season.selectedStatus == "paid" ? "checkmark.seal.fill" : "clock"
+                    )
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(season.selectedStatus == "paid" ? Theme.green : Theme.navy)
+                    Text(selectedOption.title)
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.inkSecondary)
+                } else {
+                    Text(tr("choose_your_contribution_option"))
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.inkSecondary)
+
+                    contributionOptionButton(.memberFee, amountCents: season.memberAmountCents)
+                    contributionOptionButton(.playerLicense, amountCents: season.playerAmountCents)
+                }
+
+                if let contributionError {
+                    Text(contributionError)
+                        .font(.footnote)
+                        .foregroundStyle(Theme.red)
+                }
+            }
+            .assoCard(padding: 18)
+        }
+    }
+
+    private func contributionOptionButton(
+        _ option: ContributionOption,
+        amountCents: Int
+    ) -> some View {
+        Button {
+            isChoosingContribution = true
+            contributionError = nil
+            Task { @MainActor in
+                let message = await store.chooseContribution(option)
+                contributionError = message
+                isChoosingContribution = false
+            }
+        } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(option.title)
+                        .font(.subheadline.weight(.semibold))
+                    Text(option.detail)
+                        .font(.caption)
+                        .foregroundStyle(Theme.inkSecondary)
+                }
+                Spacer()
+                Text(Fmt.money(amountCents))
+                    .font(.subheadline.weight(.bold))
+                    .monospacedDigit()
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+            }
+            .foregroundStyle(Theme.ink)
+            .padding(12)
+            .background(Theme.navyTint, in: .rect(cornerRadius: Theme.controlRadius))
+        }
+        .disabled(isChoosingContribution)
     }
 
     private var methodsFooter: some View {

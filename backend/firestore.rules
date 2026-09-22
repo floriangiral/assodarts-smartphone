@@ -177,6 +177,16 @@ service cloud.firestore {
       // Admin SDK, which bypasses these rules; an expired club can no longer
       // edit its own settings from the app.
       allow write: if canWriteClubContent(clubId);
+
+      match /contribution_seasons/{seasonId} {
+        allow read: if isActiveMember(clubId) || isPlatformAdmin();
+        allow write: if false;
+
+        match /choices/{memberId} {
+          allow read: if isOwnMember(clubId, memberId) || isBoard(clubId) || isPlatformAdmin();
+          allow write: if false;
+        }
+      }
     }
 
     match /platform_admins/{uid} {

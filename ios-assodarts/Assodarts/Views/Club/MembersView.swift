@@ -8,6 +8,7 @@ struct MembersView: View {
     @State private var filter: MemberFilter = .active
     @State private var showsInvite: Bool = false
     @State private var showsPaymentCall: Bool = false
+    @State private var showsContributionSeason: Bool = false
 
     enum MemberFilter: String, CaseIterable, Identifiable {
         case active
@@ -84,6 +85,9 @@ struct MembersView: View {
                         SecondaryButton(title: tr("payment"), symbol: "eurosign.circle") {
                             showsPaymentCall = true
                         }
+                        SecondaryButton(title: tr("seasonal_contributions"), symbol: "person.text.rectangle") {
+                            showsContributionSeason = true
+                        }
                     }
                 }
 
@@ -118,6 +122,9 @@ struct MembersView: View {
         .sheet(isPresented: $showsPaymentCall) {
             NewPaymentCallSheet()
         }
+        .sheet(isPresented: $showsContributionSeason) {
+            ContributionSeasonSheet()
+        }
         .clubDestinations()
     }
 }
@@ -141,12 +148,14 @@ struct MemberRow: View {
                     }
                 }
                 HStack(spacing: 6) {
-                    Image(systemName: member.isLicensed ? "checkmark.seal.fill" : "person.crop.circle")
+                    Image(systemName: member.contributionStatus == "player" ? "checkmark.seal.fill" : "person.crop.circle")
                         .font(.caption2)
-                        .foregroundStyle(member.isLicensed ? Theme.orange : Theme.inkSecondary)
-                    Text(member.isLicensed
-                        ? tr("licensed_membersview \(member.licenceNumber)")
-                        : tr("without_license"))
+                        .foregroundStyle(member.contributionStatus == "player" ? Theme.orange : Theme.inkSecondary)
+                    Text(member.contributionStatus == "player"
+                        ? (member.licenceNumber.isEmpty
+                            ? tr("licensed")
+                            : tr("licensed_membersview \(member.licenceNumber)"))
+                        : tr("member_contribution"))
                         .font(.caption)
                         .foregroundStyle(Theme.inkSecondary)
                         .lineLimit(1)

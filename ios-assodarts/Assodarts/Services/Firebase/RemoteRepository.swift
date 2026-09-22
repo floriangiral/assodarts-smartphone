@@ -55,6 +55,7 @@ enum RemoteRepository {
         var availableClubs: [AvailableClub]
         /// Reverse lookup for local UUIDs derived from non-UUID Firestore ids.
         var remoteIdsByLocalId: [UUID: String]
+        var contributionSeason: ContributionSeason?
     }
 
     // MARK: - Loading
@@ -138,6 +139,11 @@ enum RemoteRepository {
         async let tournamentEntriesSnap = db.collection("tournament_entries")
             .whereField("clubId", isEqualTo: clubId)
             .getDocuments()
+        async let contributionSeasonDoc = db.collection("clubs").document(clubId)
+            .collection("contribution_seasons").document("current").getDocument()
+        async let contributionChoiceDoc = db.collection("clubs").document(clubId)
+            .collection("contribution_seasons").document("current")
+            .collection("choices").document(userId.uuidString).getDocument()
         async let conversationsTask = loadConversations(
             clubId: clubId,
             memberId: userId.uuidString,
@@ -166,6 +172,10 @@ enum RemoteRepository {
         let remoteTournamentEntries = (try await tournamentEntriesSnap).documents.compactMap {
             try? $0.data(as: RemoteTournamentEntry.self)
         }
+        let contributionSeason = makeContributionSeason(
+            season: try? (await contributionSeasonDoc).data(as: RemoteContributionSeason.self),
+            choice: try? (await contributionChoiceDoc).data(as: RemoteContributionChoice.self)
+        )
         let remoteConversations = try await conversationsTask
 
         // One conversation's messages don't depend on another's, so fetch them
@@ -275,7 +285,8 @@ enum RemoteRepository {
                 phone: remote.phone ?? "",
                 birthDate: remote.birthDate,
                 role: .fromRemote(remote.role),
-                isLicensed: !(remote.licenseNumber ?? "").isEmpty,
+                isLicensed: remote.seasonStatus == "player" || !(remote.licenseNumber ?? "").isEmpty,
+                contributionStatus: remote.seasonStatus ?? "none",
                 licenceNumber: remote.licenseNumber ?? "",
                 joinedAt: remote.joinedAt,
                 isActive: remote.membershipStatus == "active" && remote.profileStatus != "deleted",
@@ -421,7 +432,24 @@ enum RemoteRepository {
             activeClubId: clubUUID,
             activeClubRemoteId: clubId,
             availableClubs: availableClubs,
-            remoteIdsByLocalId: remoteIdsByLocalId
+            remoteIdsByLocalId: remoteIdsByLocalId,
+            contributionSeason: contributionSeason
+        )
+    }
+
+    private static func makeContributionSeason(
+        season: RemoteContributionSeason?,
+        choice: RemoteContributionChoice?
+    ) -> ContributionSeason? {
+        guard let season, season.status == "published" else { return nil }
+        return ContributionSeason(
+            id: season.seasonId,
+            label: season.label,
+            memberAmountCents: season.memberAmountCents,
+            playerAmountCents: season.playerAmountCents,
+            status: season.status,
+            selectedOption: choice.flatMap { ContributionOption(rawValue: $0.option) },
+            selectedStatus: choice?.status
         )
     }
 
@@ -617,6 +645,41 @@ enum RemoteRepository {
             "createdAtMillis": call.createdAt.timeIntervalSince1970 * 1_000,
             "notify": call.notify,
             "items": items,
+        ])
+    }
+
+    static func chooseContribution(
+        clubId: String,
+        seasonId: String,
+        option: ContributionOption
+    ) async throws {
+        _ = try await Backend.functions.httpsCallable("chooseContribution").call([
+            "clubId": clubId,
+            "seasonId": seasonId,
+            "option": option.rawValue,
+        ])
+    }
+
+    static func saveContributionSeason(
+        clubId: String,
+        seasonId: String,
+        label: String,
+        memberAmountCents: Int,
+        playerAmountCents: Int
+    ) async throws {
+        _ = try await Backend.functions.httpsCallable("saveContributionSeason").call([
+            "clubId": clubId,
+            "seasonId": seasonId,
+            "label": label,
+            "memberAmountCents": memberAmountCents,
+            "playerAmountCents": playerAmountCents,
+        ])
+    }
+
+    static func publishContributionSeason(clubId: String, seasonId: String) async throws {
+        _ = try await Backend.functions.httpsCallable("publishContributionSeason").call([
+            "clubId": clubId,
+            "seasonId": seasonId,
         ])
     }
 

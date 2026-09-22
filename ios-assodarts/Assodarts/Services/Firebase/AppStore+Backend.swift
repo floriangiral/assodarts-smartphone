@@ -56,6 +56,7 @@ extension AppStore {
         db = Database()
         currentUserId = nil
         notifications = []
+        currentContributionSeason = nil
         availableClubs = []
         activeClubRemoteId = nil
         remoteIdsByLocalId = [:]
@@ -300,6 +301,53 @@ extension AppStore {
         }
     }
 
+    func chooseContribution(_ option: ContributionOption) async -> String? {
+        guard let userId = currentUserId,
+              let season = currentContributionSeason,
+              let clubId = activeClubRemoteId else { return tr("contribution_not_available") }
+        do {
+            try await RemoteRepository.chooseContribution(clubId: clubId, seasonId: season.id, option: option)
+            let snapshot = try await loadSnapshotAcceptingInvitations(for: userId)
+            applySnapshot(snapshot)
+            save()
+            return nil
+        } catch {
+            return friendlyMessage(for: error)
+        }
+    }
+
+    func saveContributionSeason(
+        seasonId: String,
+        label: String,
+        memberAmountCents: Int,
+        playerAmountCents: Int
+    ) async -> String? {
+        guard let clubId = activeClubRemoteId else { return tr("contribution_not_available") }
+        do {
+            try await RemoteRepository.saveContributionSeason(
+                clubId: clubId,
+                seasonId: seasonId,
+                label: label,
+                memberAmountCents: memberAmountCents,
+                playerAmountCents: playerAmountCents
+            )
+            return nil
+        } catch {
+            return friendlyMessage(for: error)
+        }
+    }
+
+    func publishContributionSeason(seasonId: String) async -> String? {
+        guard let clubId = activeClubRemoteId else { return tr("contribution_not_available") }
+        do {
+            try await RemoteRepository.publishContributionSeason(clubId: clubId, seasonId: seasonId)
+            await refresh()
+            return nil
+        } catch {
+            return friendlyMessage(for: error)
+        }
+    }
+
     /// Loads the club snapshot, first accepting any pending invitation for
     /// this member's email — this both lands a first-time sign-in straight
     /// into their club, and lets an already-onboarded member pick up a later
@@ -398,6 +446,7 @@ extension AppStore {
         availableClubs = snapshot.availableClubs
         activeClubRemoteId = snapshot.activeClubRemoteId
         remoteIdsByLocalId = snapshot.remoteIdsByLocalId
+        currentContributionSeason = snapshot.contributionSeason
         let activeClubId = UUID(uuidString: snapshot.activeClubRemoteId)
         AnalyticsService.updateUserProperties(clubId: activeClubId, role: currentUser?.role)
     }

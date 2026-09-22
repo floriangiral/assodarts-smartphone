@@ -13,6 +13,7 @@ struct Member: Identifiable, Codable, Sendable, Hashable {
     var birthDate: Date?
     var role: Role
     var isLicensed: Bool
+    var contributionStatus: String?
     var licenceNumber: String
     var joinedAt: Date
     var isActive: Bool
@@ -49,6 +50,7 @@ struct Member: Identifiable, Codable, Sendable, Hashable {
         birthDate: Date? = nil,
         role: Role = .membre,
         isLicensed: Bool = false,
+        contributionStatus: String? = nil,
         licenceNumber: String = "",
         joinedAt: Date = .now,
         isActive: Bool = true,
@@ -72,6 +74,7 @@ struct Member: Identifiable, Codable, Sendable, Hashable {
         self.birthDate = birthDate
         self.role = role
         self.isLicensed = isLicensed
+        self.contributionStatus = contributionStatus
         self.licenceNumber = licenceNumber
         self.joinedAt = joinedAt
         self.isActive = isActive

@@ -17,6 +17,12 @@ export {
 } from "./paymentActions";
 export { createPaymentCall } from "./paymentCalls";
 export {
+  saveContributionSeason,
+  publishContributionSeason,
+  chooseContribution,
+  updateContributionLicenseNumber,
+} from "./contributions";
+export {
   onPaymentItemWritten,
   onAnnouncementCreated,
   onEventCreated,

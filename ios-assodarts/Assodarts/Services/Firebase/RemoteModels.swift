@@ -49,6 +49,7 @@ struct RemoteMembership: Codable {
     let status: String
     let joinDate: Date
     let licenseNumber: String?
+    let seasonStatus: String?
 }
 
 struct RemoteMember: Codable {
@@ -177,6 +178,20 @@ struct RemotePaymentItem: Codable {
     let reference: String?
     let validatedByMemberId: String?
     let remindedAt: Date?
+}
+
+struct RemoteContributionSeason: Codable {
+    @DocumentID var id: String?
+    let seasonId: String
+    let label: String
+    let memberAmountCents: Int
+    let playerAmountCents: Int
+    let status: String
+}
+
+struct RemoteContributionChoice: Codable {
+    let option: String
+    let status: String
 }
 
 struct RemoteTournament: Codable {
