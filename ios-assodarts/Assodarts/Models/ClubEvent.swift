@@ -47,6 +47,7 @@ struct ClubEvent: Identifiable, Codable, Sendable, Hashable {
     var date: Date
     var location: String
     var details: String
+    var authorId: UUID
     var attendeeIds: [UUID] = []
     var declinedIds: [UUID] = []
 

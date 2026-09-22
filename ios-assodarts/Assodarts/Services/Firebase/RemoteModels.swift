@@ -69,6 +69,42 @@ struct RemoteMember: Codable {
     let status: String
 }
 
+struct RemoteRosterResponse: Decodable {
+    let members: [RemoteRosterMember]
+    let memberCount: Int?
+    let duplicateMemberIds: [String]?
+}
+
+struct RemoteRosterMember: Decodable {
+    let id: String
+    let authUid: String
+    let clubId: String?
+    let defaultClubId: String?
+    let firstName: String
+    let lastName: String
+    let email: String
+    let phone: String?
+    let birthDateMillis: Double?
+    let photoPath: String?
+    let notifyAnnouncements: Bool?
+    let notifyEvents: Bool?
+    let notifyPayments: Bool?
+    let notifyTournaments: Bool?
+    let profileStatus: String
+    let role: String
+    let membershipStatus: String
+    let joinedAtMillis: Double
+    let licenseNumber: String?
+
+    var birthDate: Date? {
+        birthDateMillis.map { Date(timeIntervalSince1970: $0 / 1_000) }
+    }
+
+    var joinedAt: Date {
+        Date(timeIntervalSince1970: joinedAtMillis / 1_000)
+    }
+}
+
 struct RemoteBankAccount: Codable {
     @DocumentID var id: String?
     let clubId: String
@@ -105,6 +141,7 @@ struct RemoteEvent: Codable {
     let startsAt: Date
     let location: String?
     let category: String
+    let createdByMemberId: String?
 }
 
 struct RemoteEventRegistration: Codable {
@@ -225,6 +262,7 @@ nonisolated struct AnnouncementInsert: Encodable, Sendable {
     let isPinned: Bool
     let publishedAt: Date
     let visibility: String
+    let notify: Bool
     let createdAt: Date
 }
 
@@ -246,6 +284,7 @@ nonisolated struct EventInsert: Encodable, Sendable {
     let startsAt: Date
     let location: String
     let category: String
+    let createdByMemberId: String
 }
 
 nonisolated struct EventRegistrationInsert: Encodable, Sendable {

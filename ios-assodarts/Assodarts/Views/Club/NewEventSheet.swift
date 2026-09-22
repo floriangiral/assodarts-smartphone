@@ -75,14 +75,15 @@ struct NewEventSheet: View {
 
     private func save() {
         focusedField = nil
-        guard let club = store.currentClub else { return }
+        guard let club = store.currentClub, let user = store.currentUser else { return }
         let event = ClubEvent(
             clubId: club.id,
             title: title.trimmingCharacters(in: .whitespaces),
             kind: kind,
             date: date,
             location: location.trimmingCharacters(in: .whitespaces),
-            details: details.trimmingCharacters(in: .whitespaces)
+            details: details.trimmingCharacters(in: .whitespaces),
+            authorId: user.id
         )
         store.addEvent(event)
         NotificationService.notify(title: tr("new_event"), body: event.title)
