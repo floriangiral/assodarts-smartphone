@@ -197,7 +197,6 @@ extension AppStore {
 
                 let message = await loadRemote(userId: userId)
                 if message == nil {
-                    showsPostCreationInviteOffer = true
                     AnalyticsService.logSignUp(method: "club_creator")
                     AnalyticsService.logClubCreated(clubId: clubId, source: "sign_up")
                 }
@@ -219,7 +218,6 @@ extension AppStore {
             let clubId = try await RemoteRepository.createClub(name: name)
             let message = await loadRemote(userId: userId)
             if message == nil {
-                showsPostCreationInviteOffer = true
                 AnalyticsService.logClubCreated(clubId: clubId, source: "onboarding")
             }
             return message

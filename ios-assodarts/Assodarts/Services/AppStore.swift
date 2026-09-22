@@ -39,9 +39,6 @@ final class AppStore {
     /// Set when accepting a pending invitation just joined a club other than
     /// the currently active one, so the UI can offer an immediate switch.
     var pendingClubSwitchOffer: RemoteRepository.AvailableClub?
-    /// Set right after a member creates their own club, so the app can offer
-    /// inviting board members before landing on the normal dashboard.
-    var showsPostCreationInviteOffer: Bool = false
     var needsOnboardingChoice: Bool = false
     var isPlatformAdmin: Bool = false
     /// True when the platform has no administrator yet and the very first one
@@ -124,7 +121,6 @@ final class AppStore {
         activeClubRemoteId = nil
         remoteIdsByLocalId = [:]
         pendingClubSwitchOffer = nil
-        showsPostCreationInviteOffer = false
         needsOnboardingChoice = false
         isPlatformAdmin = false
         platformClubsRemote = []
@@ -250,12 +246,14 @@ final class AppStore {
     /// channel of the club when he belongs to the bureau.
     func conversations(for user: Member) -> [Conversation] {
         db.conversations
-            .filter { conversation in
-                guard conversation.clubId == user.clubId else { return false }
-                if conversation.participantIds.contains(user.id) { return true }
-                return conversation.kind == .bureau && user.role.canManageClub
-            }
+            .filter { canAccessConversation($0, as: user) && conversationParticipantsAreValid($0) }
             .sorted { $0.updatedAt > $1.updatedAt }
+    }
+
+    func canAccessConversation(_ conversation: Conversation, as user: Member) -> Bool {
+        guard user.isActive, conversation.clubId == user.clubId else { return false }
+        if conversation.participantIds.contains(user.id) { return true }
+        return conversation.kind == .bureau && user.role.canManageClub
     }
 
     func unreadCount(for user: Member) -> Int {
@@ -307,7 +305,10 @@ final class AppStore {
     }
 
     func markRead(_ conversationId: UUID, by memberId: UUID) {
-        guard let index = db.conversations.firstIndex(where: { $0.id == conversationId }) else { return }
+        guard let user = member(memberId),
+              let index = db.conversations.firstIndex(where: { $0.id == conversationId }),
+              canAccessConversation(db.conversations[index], as: user),
+              conversationParticipantsAreValid(db.conversations[index]) else { return }
         let unreadMessageIds = db.conversations[index].messages
             .filter { !$0.readBy.contains(memberId) }
             .map(\.id)
@@ -333,7 +334,10 @@ final class AppStore {
     func send(text: String, imageData: Data? = nil, in conversationId: UUID, from senderId: UUID) -> Bool {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty || imageData != nil,
-              let index = db.conversations.firstIndex(where: { $0.id == conversationId }) else { return false }
+              let sender = member(senderId),
+              let index = db.conversations.firstIndex(where: { $0.id == conversationId }),
+              canAccessConversation(db.conversations[index], as: sender),
+              conversationParticipantsAreValid(db.conversations[index]) else { return false }
         let message = Message(senderId: senderId, text: trimmed, readBy: [senderId], imageData: imageData)
         db.conversations[index].messages.append(message)
         save()
@@ -352,7 +356,10 @@ final class AppStore {
     }
 
     /// Finds (or opens) the bureau channel of a member.
-    func bureauChannel(for memberId: UUID, clubId: UUID) -> Conversation {
+    func bureauChannel(for memberId: UUID, clubId: UUID) -> Conversation? {
+        guard let member = member(memberId),
+              member.clubId == clubId,
+              member.isActive else { return nil }
         if let existing = db.conversations.first(where: {
             $0.clubId == clubId && $0.kind == .bureau && $0.participantIds == [memberId]
         }) {
@@ -374,7 +381,14 @@ final class AppStore {
     }
 
     /// Finds (or opens) a one-to-one thread between two people of the same club.
-    func directConversation(between a: UUID, and b: UUID, clubId: UUID) -> Conversation {
+    func directConversation(between a: UUID, and b: UUID, clubId: UUID) -> Conversation? {
+        guard a != b,
+              let first = member(a),
+              let second = member(b),
+              first.clubId == clubId,
+              second.clubId == clubId,
+              first.isActive,
+              second.isActive else { return nil }
         if let existing = db.conversations.first(where: {
             $0.clubId == clubId && $0.kind == .direct && Set($0.participantIds) == Set([a, b])
         }) {
@@ -398,9 +412,27 @@ final class AppStore {
         return conversation
     }
 
+    private func conversationParticipantsAreValid(_ conversation: Conversation) -> Bool {
+        switch conversation.kind {
+        case .bureau:
+            guard conversation.participantIds.count == 1,
+                  let memberId = conversation.participantIds.first,
+                  let participant = member(memberId) else { return false }
+            return participant.clubId == conversation.clubId && participant.isActive
+        case .direct:
+            let uniqueParticipants = Set(conversation.participantIds)
+            guard conversation.participantIds.count == 2,
+                  uniqueParticipants.count == 2 else { return false }
+            return uniqueParticipants.allSatisfy { memberId in
+                guard let participant = member(memberId) else { return false }
+                return participant.clubId == conversation.clubId && participant.isActive
+            }
+        }
+    }
+
     // MARK: - Club mutations
 
-    func publishAnnouncement(title: String, body: String, pinned: Bool, author: Member) {
+    func publishAnnouncement(title: String, body: String, pinned: Bool, notify: Bool = true, author: Member) {
         let announcement = Announcement(
             clubId: author.clubId,
             title: title.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -416,7 +448,8 @@ final class AppStore {
             try await RemoteRepository.publishAnnouncement(
                 announcement,
                 clubId: remoteClubId,
-                authorId: remoteAuthorId
+                authorId: remoteAuthorId,
+                notify: notify
             )
         }
     }
@@ -453,7 +486,8 @@ final class AppStore {
         db.events.append(event)
         save()
         let remoteClubId = remoteClubId(for: event.clubId)
-        push { try await RemoteRepository.createEvent(event, clubId: remoteClubId) }
+        let remoteAuthorId = remoteId(for: event.authorId)
+        push { try await RemoteRepository.createEvent(event, clubId: remoteClubId, authorId: remoteAuthorId) }
     }
 
     func updateMember(_ member: Member) {
@@ -627,21 +661,23 @@ final class AppStore {
 
     // MARK: - Payments
 
-    func createPaymentCall(_ call: PaymentCall) {
-        db.paymentCalls.insert(call, at: 0)
-        save()
-        let remoteClubId = remoteClubId(for: call.clubId)
-        var remoteMemberIds: [UUID: String] = [call.createdById: remoteId(for: call.createdById)]
-        for item in call.items {
-            remoteMemberIds[item.memberId] = remoteId(for: item.memberId)
-        }
-        push {
+    func createPaymentCall(_ call: PaymentCall) async throws {
+        if isLive {
+            let remoteClubId = remoteClubId(for: call.clubId)
+            var remoteMemberIds: [UUID: String] = [call.createdById: remoteId(for: call.createdById)]
+            for item in call.items {
+                remoteMemberIds[item.memberId] = remoteId(for: item.memberId)
+            }
             try await RemoteRepository.createPaymentCall(
                 call,
                 clubId: remoteClubId,
                 memberIds: remoteMemberIds
             )
         }
+
+        db.paymentCalls.removeAll { $0.id == call.id }
+        db.paymentCalls.insert(call, at: 0)
+        save()
     }
 
     private func itemIndexes(callId: UUID, memberId: UUID) -> (call: Int, item: Int)? {
