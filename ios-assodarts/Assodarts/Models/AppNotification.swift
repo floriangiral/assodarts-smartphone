@@ -65,7 +65,7 @@ nonisolated enum NotificationKind: String, Codable, Sendable {
 
 /// Extra data carried by a notification. Every field is optional because the
 /// payload shape depends on the kind.
-nonisolated struct NotificationPayload: Codable, Sendable, Hashable {
+nonisolated struct NotificationPayload: Sendable, Hashable {
     var callId: UUID?
     var itemId: UUID?
     var announcementId: UUID?
@@ -97,7 +97,7 @@ nonisolated struct NotificationPayload: Codable, Sendable, Hashable {
 }
 
 /// One entry of a member's notification inbox.
-nonisolated struct AppNotification: Identifiable, Codable, Sendable, Hashable {
+nonisolated struct AppNotification: Identifiable, Sendable, Hashable {
     let id: UUID
     let firestoreId: String?
     let clubId: UUID

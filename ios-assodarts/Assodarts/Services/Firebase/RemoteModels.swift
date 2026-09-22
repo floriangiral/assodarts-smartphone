@@ -96,6 +96,7 @@ struct RemoteRosterMember: Decodable {
     let membershipStatus: String
     let joinedAtMillis: Double
     let licenseNumber: String?
+    let seasonStatus: String?
 
     var birthDate: Date? {
         birthDateMillis.map { Date(timeIntervalSince1970: $0 / 1_000) }
@@ -219,14 +220,14 @@ struct RemoteTournamentEntry: Codable {
     let recordedAt: Date
 }
 
-struct RemoteConversation: Codable {
+nonisolated struct RemoteConversation: Codable, Sendable {
     @DocumentID var id: String?
     let clubId: String
     let kind: String
     let participantIds: [String]
 }
 
-struct RemoteMessage: Codable {
+nonisolated struct RemoteMessage: Codable, Sendable {
     @DocumentID var id: String?
     let senderId: String
     let text: String
