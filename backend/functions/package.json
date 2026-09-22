@@ -25,7 +25,7 @@
     "eslint": "^10.10.0",
     "firebase-functions-test": "^3.5.0",
     "jest": "^30.5.1",
-    "prettier": "^3.9.6",
+    "prettier": "^3.9.8",
     "ts-jest": "^29.4.12",
     "typescript": "^5.9.3"
   },
