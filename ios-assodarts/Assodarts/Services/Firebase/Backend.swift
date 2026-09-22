@@ -11,12 +11,13 @@ enum Backend {
     /// Configures Firebase. Safe to call once; `AssodartsApp` does this at
     /// launch before any screen touches `Backend`.
     static func configure() {
-        guard isConfigured, FirebaseApp.app() == nil else { return }
+        guard FirebaseApp.app() == nil else { return }
         if let plistPath = Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist"),
            let options = FirebaseOptions(contentsOfFile: plistPath) {
             FirebaseApp.configure(options: options)
             return
         }
+        guard hasFallbackConfiguration else { return }
         let options = FirebaseOptions(
             googleAppID: Config.FIREBASE_APP_ID,
             gcmSenderID: Config.FIREBASE_GCM_SENDER_ID
@@ -35,6 +36,10 @@ enum Backend {
     /// False when the build carries no Firebase credentials. The app then
     /// stays on the login screen with an empty local database.
     static var isConfigured: Bool {
+        FirebaseApp.app() != nil || hasFallbackConfiguration
+    }
+
+    private static var hasFallbackConfiguration: Bool {
         !Config.FIREBASE_API_KEY.isEmpty
             && !Config.FIREBASE_APP_ID.isEmpty
             && !Config.FIREBASE_PROJECT_ID.isEmpty
