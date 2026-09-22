@@ -111,12 +111,13 @@ enum RemoteRepository {
         if !canReadAllPaymentItems {
             paymentItemsQuery = paymentItemsQuery.whereField("memberId", isEqualTo: userId.uuidString)
         }
+        let paymentItemsQueryForLoad = paymentItemsQuery
 
         // Every read below only depends on `clubId`, so fire them all off at
         // once instead of a dozen sequential Firestore round-trips — this is
         // what used to make sign-in feel slow to land on the club's home page.
         async let remoteClubDoc = db.collection("clubs").document(clubId).getDocument()
-        async let roster = loadClubRoster(clubId: clubId)
+        async let rosterTask = loadClubRoster(clubId: clubId)
         async let bankAccountDoc = db.collection("club_bank_accounts").document(clubId).getDocument()
         async let announcementsSnap = db.collection("announcements")
             .whereField("clubId", isEqualTo: clubId)
@@ -130,14 +131,14 @@ enum RemoteRepository {
         async let callsSnap = db.collection("payment_calls")
             .whereField("clubId", isEqualTo: clubId)
             .getDocuments()
-        async let itemsSnap = paymentItemsQuery.getDocuments()
+        async let itemsSnap = paymentItemsQueryForLoad.getDocuments()
         async let tournamentsSnap = db.collection("tournaments")
             .whereField("clubId", isEqualTo: clubId)
             .getDocuments()
         async let tournamentEntriesSnap = db.collection("tournament_entries")
             .whereField("clubId", isEqualTo: clubId)
             .getDocuments()
-        async let remoteConversations = loadConversations(
+        async let conversationsTask = loadConversations(
             clubId: clubId,
             memberId: userId.uuidString,
             canReadBureauInbox: canReadAllPaymentItems,
@@ -147,7 +148,7 @@ enum RemoteRepository {
         guard let remoteClub = try? (await remoteClubDoc).data(as: RemoteClub.self) else {
             throw BackendError.noMembership
         }
-        let roster = try await roster
+        let roster = try await rosterTask
         let memberIds = roster.members.map(\.id)
         let bankAccount = try? (await bankAccountDoc).data(as: RemoteBankAccount.self)
         let remoteAnnouncements = (try await announcementsSnap).documents.compactMap {
@@ -165,7 +166,7 @@ enum RemoteRepository {
         let remoteTournamentEntries = (try await tournamentEntriesSnap).documents.compactMap {
             try? $0.data(as: RemoteTournamentEntry.self)
         }
-        let remoteConversations = try await remoteConversations
+        let remoteConversations = try await conversationsTask
 
         // One conversation's messages don't depend on another's, so fetch them
         // concurrently rather than one Firestore round-trip at a time.
