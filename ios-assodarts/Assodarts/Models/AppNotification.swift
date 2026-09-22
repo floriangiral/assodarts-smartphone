@@ -99,6 +99,7 @@ nonisolated struct NotificationPayload: Codable, Sendable, Hashable {
 /// One entry of a member's notification inbox.
 nonisolated struct AppNotification: Identifiable, Codable, Sendable, Hashable {
     let id: UUID
+    let firestoreId: String?
     let clubId: UUID
     let memberId: UUID
     let kind: NotificationKind

@@ -100,6 +100,55 @@ function prefersRosterMember(
     : current;
 }
 
+function mapRosterMember(
+  memberId: string,
+  membership: MembershipData,
+  member: MemberData,
+): Record<string, unknown> {
+  const joinedAtMillis = timestampMillis(membership.joinDate) ?? Date.now();
+  return {
+    id: memberId,
+    authUid: cleanString(member.authUid, cleanString(membership.authUid)),
+    clubId: optionalString(member.clubId),
+    defaultClubId: optionalString(member.defaultClubId),
+    firstName: cleanString(member.firstName),
+    lastName: cleanString(member.lastName),
+    email: cleanString(member.email).toLowerCase(),
+    phone: optionalString(member.phone),
+    birthDateMillis: timestampMillis(member.birthDate),
+    photoPath: optionalString(member.photoPath),
+    notifyAnnouncements: optionalBool(member.notifyAnnouncements ?? true, true),
+    notifyEvents: optionalBool(member.notifyEvents ?? true, true),
+    notifyPayments: optionalBool(member.notifyPayments ?? true, true),
+    notifyTournaments: optionalBool(member.notifyTournaments ?? false, false),
+    profileStatus: cleanString(member.status, "active"),
+    role: cleanString(membership.role, "member"),
+    membershipStatus: cleanString(membership.status, "inactive"),
+    joinedAtMillis,
+    licenseNumber: optionalString(membership.licenseNumber),
+  };
+}
+
+function deduplicateRosterMembers(
+  members: Map<string, Record<string, unknown>>,
+): { members: Record<string, unknown>[]; duplicateMemberIds: string[] } {
+  const byIdentity = new Map<string, Record<string, unknown>>();
+  const duplicateMemberIds: string[] = [];
+  for (const member of members.values()) {
+    const email = cleanString(member.email).toLowerCase();
+    const memberId = cleanString(member.id);
+    const dedupeKey = email ? `email:${email}` : `id:${memberId}`;
+    const existing = byIdentity.get(dedupeKey);
+    if (existing) {
+      duplicateMemberIds.push(memberId);
+      byIdentity.set(dedupeKey, prefersRosterMember(existing, member));
+      continue;
+    }
+    byIdentity.set(dedupeKey, member);
+  }
+  return { members: Array.from(byIdentity.values()), duplicateMemberIds };
+}
+
 /**
  * Returns the full club roster through the Admin SDK. Client-side Firestore
  * reads cannot reliably build this list because member profile visibility is
@@ -122,8 +171,11 @@ export const clubRoster = onCall(async (request) => {
     .doc(`${clubId}_${request.auth.uid}`)
     .get();
   const caller = callerMembership.data();
-  if (!caller || caller.status !== "active") {
-    throw new HttpsError("permission-denied", "Active club membership required");
+  if (caller?.status !== "active") {
+    throw new HttpsError(
+      "permission-denied",
+      "Active club membership required",
+    );
   }
 
   const membershipsSnap = await db
@@ -150,46 +202,14 @@ export const clubRoster = onCall(async (request) => {
     const member = memberSnap.data() as MemberData | undefined;
     if (!member) continue;
 
-    const joinedAtMillis = timestampMillis(membership.joinDate) ?? Date.now();
-    const birthDateMillis = timestampMillis(member.birthDate);
-    byId.set(memberId, {
-      id: memberId,
-      authUid: cleanString(member.authUid, cleanString(membership.authUid)),
-      clubId: optionalString(member.clubId),
-      defaultClubId: optionalString(member.defaultClubId),
-      firstName: cleanString(member.firstName),
-      lastName: cleanString(member.lastName),
-      email: cleanString(member.email).toLowerCase(),
-      phone: optionalString(member.phone),
-      birthDateMillis,
-      photoPath: optionalString(member.photoPath),
-      notifyAnnouncements: optionalBool(member.notifyAnnouncements, true),
-      notifyEvents: optionalBool(member.notifyEvents, true),
-      notifyPayments: optionalBool(member.notifyPayments, true),
-      notifyTournaments: optionalBool(member.notifyTournaments, false),
-      profileStatus: cleanString(member.status, "active"),
-      role: cleanString(membership.role, "member"),
-      membershipStatus: cleanString(membership.status, "inactive"),
-      joinedAtMillis,
-      licenseNumber: optionalString(membership.licenseNumber),
-    });
+    byId.set(memberId, mapRosterMember(memberId, membership, member));
   }
 
-  const byIdentity = new Map<string, Record<string, unknown>>();
-  for (const member of byId.values()) {
-    const email = cleanString(member.email).toLowerCase();
-    const memberId = cleanString(member.id);
-    const dedupeKey = email ? `email:${email}` : `id:${memberId}`;
-    const existing = byIdentity.get(dedupeKey);
-    if (existing) {
-      duplicateMemberIds.push(memberId);
-      byIdentity.set(dedupeKey, prefersRosterMember(existing, member));
-    } else {
-      byIdentity.set(dedupeKey, member);
-    }
-  }
+  const deduplicated = deduplicateRosterMembers(byId);
+  duplicateMemberIds.push(...deduplicated.duplicateMemberIds);
 
-  const members = Array.from(byIdentity.values()).sort((lhs, rhs) =>
+  const members = [...deduplicated.members];
+  members.sort((lhs, rhs) =>
     `${cleanString(lhs.lastName)} ${cleanString(lhs.firstName)}`.localeCompare(
       `${cleanString(rhs.lastName)} ${cleanString(rhs.firstName)}`,
       "fr",
@@ -201,7 +221,8 @@ export const clubRoster = onCall(async (request) => {
     members,
     memberCount: members.filter(
       (member) =>
-        member.membershipStatus === "active" && member.profileStatus !== "deleted",
+        member.membershipStatus === "active" &&
+        member.profileStatus !== "deleted",
     ).length,
     duplicateMemberIds,
   };

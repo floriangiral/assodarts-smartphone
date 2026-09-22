@@ -56,17 +56,17 @@ struct NotificationsView: View {
             }
             .buttonStyle(.plain)
             .simultaneousGesture(TapGesture().onEnded {
-                store.markNotificationRead(item.id)
+                store.markNotificationRead(item)
             })
-            .swipeActionsCompat { store.deleteNotification(item.id) }
+            .swipeActionsCompat { store.deleteNotification(item) }
         } else {
             Button {
-                store.markNotificationRead(item.id)
+                store.markNotificationRead(item)
             } label: {
                 card
             }
             .buttonStyle(.plain)
-            .swipeActionsCompat { store.deleteNotification(item.id) }
+            .swipeActionsCompat { store.deleteNotification(item) }
         }
     }
 

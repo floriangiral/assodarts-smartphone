@@ -419,25 +419,25 @@ extension AppStore {
 
     /// Marks the whole inbox as read, optimistically.
     func markAllNotificationsRead() {
-        let unread = notifications.filter(\.isUnread).map(\.id)
-        guard !unread.isEmpty, let userId = currentUserId else { return }
+        let unread = notifications.filter(\.isUnread)
+        guard !unread.isEmpty else { return }
         for index in notifications.indices where notifications[index].isUnread {
             notifications[index].readAt = .now
         }
-        push { try await NotificationsRepository.markAllRead(memberId: userId) }
+        push { try await NotificationsRepository.markRead(unread) }
     }
 
-    func markNotificationRead(_ id: UUID) {
-        guard let index = notifications.firstIndex(where: { $0.id == id }), notifications[index].isUnread else {
+    func markNotificationRead(_ notification: AppNotification) {
+        guard let index = notifications.firstIndex(where: { $0.id == notification.id }), notifications[index].isUnread else {
             return
         }
         notifications[index].readAt = .now
-        push { try await NotificationsRepository.markRead(ids: [id]) }
+        push { try await NotificationsRepository.markRead([notification]) }
     }
 
-    func deleteNotification(_ id: UUID) {
-        notifications.removeAll { $0.id == id }
-        push { try await NotificationsRepository.delete(id: id) }
+    func deleteNotification(_ notification: AppNotification) {
+        notifications.removeAll { $0.id == notification.id }
+        push { try await NotificationsRepository.delete(notification) }
     }
 
     /// Stores the FCM token for this device so real push can be switched on

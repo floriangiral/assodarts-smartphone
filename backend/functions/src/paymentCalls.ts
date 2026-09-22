@@ -1,7 +1,12 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
 
-const VALID_CATEGORIES = ["cotisation", "tenue", "deplacement", "autre"];
+const VALID_CATEGORIES = new Set([
+  "cotisation",
+  "tenue",
+  "deplacement",
+  "autre",
+]);
 
 type PaymentCallItemInput = {
   id?: unknown;
@@ -40,7 +45,7 @@ export const createPaymentCall = onCall(async (request) => {
       "callId, clubId and title are required",
     );
   }
-  if (!VALID_CATEGORIES.includes(category)) {
+  if (!VALID_CATEGORIES.has(category)) {
     throw new HttpsError("invalid-argument", "Invalid payment category");
   }
   if (!Number.isInteger(amountCents) || amountCents <= 0) {
@@ -60,8 +65,7 @@ export const createPaymentCall = onCall(async (request) => {
     .get();
   const callerMembership = callerMembershipSnap.data();
   if (
-    !callerMembership ||
-    callerMembership.status !== "active" ||
+    callerMembership?.status !== "active" ||
     !["admin", "board"].includes(callerMembership.role)
   ) {
     throw new HttpsError(

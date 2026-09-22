@@ -23,12 +23,21 @@ function parseClubIds(value: unknown): string[] {
 }
 
 function parseExpiry(value: unknown): Date {
-  const date =
-    value instanceof Date
-      ? value
-      : value && typeof (value as { toDate?: unknown }).toDate === "function"
-        ? (value as { toDate: () => Date }).toDate()
-        : new Date(String(value ?? ""));
+  let date: Date;
+  if (value instanceof Date) {
+    date = value;
+  } else if (
+    typeof value === "object" &&
+    value !== null &&
+    "toDate" in value &&
+    typeof (value as { toDate?: unknown }).toDate === "function"
+  ) {
+    date = (value as { toDate: () => Date }).toDate();
+  } else if (typeof value === "string" || typeof value === "number") {
+    date = new Date(value);
+  } else {
+    date = new Date(Number.NaN);
+  }
   if (Number.isNaN(date.getTime())) {
     throw new HttpsError("invalid-argument", "expiresAt must be a valid date");
   }

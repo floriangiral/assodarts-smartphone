@@ -66,6 +66,7 @@ enum NotificationsRepository {
         let payload = remote.payload
         return AppNotification(
             id: remoteId(remote.id),
+            firestoreId: remote.id,
             clubId: remoteId(remote.clubId),
             memberId: remoteId(remote.memberId),
             kind: NotificationKind(rawValue: remote.kind) ?? .unknown,
@@ -90,11 +91,12 @@ enum NotificationsRepository {
         )
     }
 
-    static func markRead(ids: [UUID]) async throws {
-        guard !ids.isEmpty else { return }
+    static func markRead(_ notifications: [AppNotification]) async throws {
+        guard !notifications.isEmpty else { return }
         let batch = Backend.firestore.batch()
-        for id in ids {
-            let ref = Backend.firestore.collection("notifications").document(id.uuidString)
+        for notification in notifications {
+            let documentId = notification.firestoreId ?? notification.id.uuidString
+            let ref = Backend.firestore.collection("notifications").document(documentId)
             batch.updateData(["readAt": FieldValue.serverTimestamp()], forDocument: ref)
         }
         try await batch.commit()
@@ -114,8 +116,9 @@ enum NotificationsRepository {
         try await batch.commit()
     }
 
-    static func delete(id: UUID) async throws {
-        try await Backend.firestore.collection("notifications").document(id.uuidString).delete()
+    static func delete(_ notification: AppNotification) async throws {
+        let documentId = notification.firestoreId ?? notification.id.uuidString
+        try await Backend.firestore.collection("notifications").document(documentId).delete()
     }
 
     /// Stores the FCM device token so the club can push to this phone.
