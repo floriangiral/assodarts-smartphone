@@ -38,17 +38,25 @@ struct LoginView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 24) {
-                header
-                form
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(spacing: 24) {
+                    header
+                    form
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 24)
+                .padding(.bottom, 40)
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 24)
-            .padding(.bottom, 40)
+            .keyboardDismissable()
+            .keyboardDoneBar(isVisible: focusedField != nil) { focusedField = nil }
+            .onChange(of: focusedField) { _, newValue in
+                guard let newValue else { return }
+                withAnimation {
+                    proxy.scrollTo(newValue, anchor: .center)
+                }
+            }
         }
-        .keyboardDismissable()
-        .keyboardDoneBar(isVisible: focusedField != nil) { focusedField = nil }
         .assoCanvas()
         .overlay(alignment: .topTrailing) {
             LanguageMenu()
@@ -100,6 +108,7 @@ struct LoginView: View {
                             .foregroundStyle(Theme.ink)
                             .assoFieldSurface()
                     }
+                    .id(Field.firstName)
                     VStack(alignment: .leading, spacing: 8) {
                         SectionLabel(text: tr("last_name"))
                         TextField(tr("smith"), text: $lastName)
@@ -108,6 +117,7 @@ struct LoginView: View {
                             .foregroundStyle(Theme.ink)
                             .assoFieldSurface()
                     }
+                    .id(Field.lastName)
                 }
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
@@ -121,6 +131,7 @@ struct LoginView: View {
                     .foregroundStyle(Theme.ink)
                     .assoFieldSurface()
             }
+            .id(Field.email)
 
             if intent == .signUp {
                 VStack(alignment: .leading, spacing: 8) {
@@ -132,6 +143,7 @@ struct LoginView: View {
                         .foregroundStyle(Theme.ink)
                         .assoFieldSurface()
                 }
+                .id(Field.phone)
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
 
@@ -149,6 +161,7 @@ struct LoginView: View {
                         .foregroundStyle(Theme.inkSecondary)
                 }
             }
+            .id(Field.password)
 
             if let errorMessage {
                 Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
