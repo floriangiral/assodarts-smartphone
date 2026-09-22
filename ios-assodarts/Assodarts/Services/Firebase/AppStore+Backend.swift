@@ -527,7 +527,8 @@ extension AppStore {
     /// change the server rejected.
     func push(
         _ operation: @escaping @Sendable () async throws -> Void,
-        onSuccess: (@MainActor @Sendable () -> Void)? = nil
+        onSuccess: (@MainActor @Sendable () -> Void)? = nil,
+        onFailure: (@MainActor @Sendable (String) -> Void)? = nil
     ) {
         guard isLive else { return }
         Task { @MainActor in
@@ -537,6 +538,7 @@ extension AppStore {
             } catch {
                 print("Backend write failed: \(error)")
                 syncError = friendlyMessage(for: error)
+                onFailure?(syncError ?? tr("something_went_wrong_please_try_again_in_a_moment"))
                 await refresh()
             }
         }

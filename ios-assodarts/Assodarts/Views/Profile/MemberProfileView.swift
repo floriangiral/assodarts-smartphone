@@ -14,6 +14,8 @@ struct MemberProfileView: View {
     @State private var reminderSent: Bool = false
     @State private var licenceWasSaved: Bool = false
     @State private var roleWasSaved: Bool = false
+    @State private var roleSaveError: String?
+    @State private var isSavingRole: Bool = false
     @State private var openedConversationId: UUID?
     @FocusState private var isEditingLicence: Bool
 
@@ -251,8 +253,9 @@ struct MemberProfileView: View {
 
                 if roleDraft != member.role {
                     PrimaryButton(
-                        title: tr("save_role"),
+                        title: isSavingRole ? tr("saving") : tr("save_role"),
                         symbol: "checkmark",
+                        isEnabled: !isSavingRole,
                         action: saveRole
                     )
                 } else if roleWasSaved {
@@ -260,6 +263,11 @@ struct MemberProfileView: View {
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(Theme.green)
                 }
+                    if let roleSaveError {
+                        Label(roleSaveError, systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundStyle(Theme.red)
+                    }
             } else {
                 HStack {
                     Text(tr("role"))
@@ -423,7 +431,19 @@ struct MemberProfileView: View {
     private func saveRole() {
         guard var member, roleDraft != member.role else { return }
         member.role = roleDraft
-        store.updateMember(member)
-        withAnimation { roleWasSaved = true }
+        roleWasSaved = false
+        roleSaveError = nil
+        isSavingRole = true
+        store.updateMember(
+            member,
+            onSuccess: { @MainActor in
+                isSavingRole = false
+                withAnimation { roleWasSaved = true }
+            },
+            onFailure: { @MainActor message in
+                isSavingRole = false
+                roleSaveError = message
+            }
+        )
     }
 }

@@ -492,7 +492,11 @@ final class AppStore {
         push { try await RemoteRepository.createEvent(event, clubId: remoteClubId, authorId: remoteAuthorId) }
     }
 
-    func updateMember(_ member: Member) {
+    func updateMember(
+        _ member: Member,
+        onSuccess: (@MainActor @Sendable () -> Void)? = nil,
+        onFailure: (@MainActor @Sendable (String) -> Void)? = nil
+    ) {
         guard let index = db.members.firstIndex(where: { $0.id == member.id }) else { return }
         let previous = db.members[index]
         var updated = member
@@ -504,7 +508,7 @@ final class AppStore {
         save()
         let remoteMemberId = remoteId(for: memberToSave.id)
         let remoteClubId = remoteClubId(for: memberToSave.clubId)
-        push {
+        push({
             if memberToSave.photoData != previous.photoData {
                 if let data = memberToSave.photoData {
                     _ = try await RemoteRepository.uploadProfilePhoto(
@@ -520,7 +524,7 @@ final class AppStore {
                 memberId: remoteMemberId,
                 clubId: remoteClubId
             )
-        }
+        }, onSuccess: onSuccess, onFailure: onFailure)
     }
 
     /// Sends an invitation. The member appears in the directory only once they
