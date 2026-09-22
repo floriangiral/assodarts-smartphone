@@ -177,11 +177,11 @@ async function markContributionPaid(
     );
   const memberships = await db
     .collection("memberships")
-    .where("clubId", "==", clubId)
     .where("memberId", "==", memberId)
-    .limit(1)
     .get();
-  const membership = memberships.docs[0];
+  const membership = memberships.docs.find(
+    (doc) => doc.data().clubId === clubId,
+  );
   if (membership) {
     await membership.ref.set(
       {
