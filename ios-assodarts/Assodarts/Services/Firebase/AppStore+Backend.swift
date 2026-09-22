@@ -10,15 +10,43 @@ import Foundation
 extension AppStore {
     // MARK: - Session
 
-    /// Starts every app launch signed out. Firebase Auth persists credentials
-    /// by default, so clear both the Firebase session and the local snapshot
-    /// before showing the authentication screen.
+    /// Restores the persisted Firebase session and reloads the remote snapshot.
+    /// Invalid or incomplete sessions are cleared before showing authentication.
     func restoreSession() async {
-        if Backend.isConfigured {
-            try? Backend.auth.signOut()
+        guard Backend.isConfigured, let authUser = Backend.auth.currentUser else {
+            resetToSignedOutState()
+            await checkPlatformAdminBootstrap()
+            isRestoringSession = false
+            return
         }
-        resetToSignedOutState()
-        await checkPlatformAdminBootstrap()
+
+        isPlatformAdmin = await RemoteRepository.isPlatformAdmin(authUid: authUser.uid)
+        var restored = false
+        if isPlatformAdmin {
+            isLive = true
+            await loadPlatformData()
+            restored = true
+        } else if let userId = currentUserId {
+            restored = await loadRemote(userId: userId) == nil
+        }
+
+        if !restored {
+            let recoveredUserId: UUID?
+            do {
+                recoveredUserId = try await RemoteRepository.memberId(forAuthUid: authUser.uid)
+            } catch {
+                recoveredUserId = nil
+            }
+            if let recoveredUserId {
+                restored = await loadRemote(userId: recoveredUserId) == nil
+            }
+        }
+
+        if !restored {
+            try? Backend.auth.signOut()
+            resetToSignedOutState()
+            await checkPlatformAdminBootstrap()
+        }
         isRestoringSession = false
     }
 
