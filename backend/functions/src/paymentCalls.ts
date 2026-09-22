@@ -35,7 +35,10 @@ export const createPaymentCall = onCall(async (request) => {
   const rawItems = request.data?.items;
 
   if (!callId || !clubId || !title) {
-    throw new HttpsError("invalid-argument", "callId, clubId and title are required");
+    throw new HttpsError(
+      "invalid-argument",
+      "callId, clubId and title are required",
+    );
   }
   if (!VALID_CATEGORIES.includes(category)) {
     throw new HttpsError("invalid-argument", "Invalid payment category");
@@ -44,7 +47,10 @@ export const createPaymentCall = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "amountCents must be positive");
   }
   if (!Array.isArray(rawItems) || rawItems.length === 0) {
-    throw new HttpsError("invalid-argument", "At least one recipient is required");
+    throw new HttpsError(
+      "invalid-argument",
+      "At least one recipient is required",
+    );
   }
 
   const db = getFirestore();
@@ -80,12 +86,21 @@ export const createPaymentCall = onCall(async (request) => {
     memberId: cleanString(item.memberId),
   }));
   if (items.some((item) => !item.id || !item.memberId)) {
-    throw new HttpsError("invalid-argument", "Every payment line needs an id and memberId");
+    throw new HttpsError(
+      "invalid-argument",
+      "Every payment line needs an id and memberId",
+    );
   }
 
   const dedupedItems = Array.from(
     new Map(items.map((item) => [item.memberId, item])).values(),
-  );
+  ).filter((item) => item.memberId !== callerMembership.memberId);
+  if (dedupedItems.length === 0) {
+    throw new HttpsError(
+      "invalid-argument",
+      "At least one recipient other than the caller is required",
+    );
+  }
   const invalidMemberIds = dedupedItems
     .map((item) => item.memberId)
     .filter((memberId) => !activeMemberIds.has(memberId));
@@ -106,7 +121,10 @@ export const createPaymentCall = onCall(async (request) => {
     currency: "eur",
     dueDate: millisToTimestamp(request.data?.dueDateMillis, "dueDateMillis"),
     createdByMemberId: callerMembership.memberId,
-    createdAt: millisToTimestamp(request.data?.createdAtMillis, "createdAtMillis"),
+    createdAt: millisToTimestamp(
+      request.data?.createdAtMillis,
+      "createdAtMillis",
+    ),
     notify,
     updatedAt: FieldValue.serverTimestamp(),
   });

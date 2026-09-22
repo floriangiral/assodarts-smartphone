@@ -122,7 +122,9 @@ describe("createPaymentCall", () => {
       data: () => ({ status: "active", role: "member", memberId: "member-1" }),
     });
 
-    await expect(wrapped(makeRequest(validPayload(), "member-auth"))).rejects.toThrow();
+    await expect(
+      wrapped(makeRequest(validPayload(), "member-auth")),
+    ).rejects.toThrow();
     expect(mockBatchCommit).not.toHaveBeenCalled();
   });
 
@@ -150,6 +152,29 @@ describe("createPaymentCall", () => {
     expect(mockBatchSet).toHaveBeenCalledTimes(2);
     expect(mockBatchSet).toHaveBeenCalledWith(
       expect.objectContaining({ path: "payment_call_items/item-duplicate" }),
+      expect.objectContaining({ memberId: "member-1" }),
+    );
+  });
+
+  it("excludes the caller from payment lines", async () => {
+    await wrapped(
+      makeRequest(
+        validPayload({
+          items: [
+            { id: "item-caller", memberId: "board-member" },
+            { id: "item-recipient", memberId: "member-1" },
+          ],
+        }),
+      ),
+    );
+
+    expect(mockBatchSet).toHaveBeenCalledTimes(2);
+    expect(mockBatchSet).not.toHaveBeenCalledWith(
+      expect.objectContaining({ path: "payment_call_items/item-caller" }),
+      expect.anything(),
+    );
+    expect(mockBatchSet).toHaveBeenCalledWith(
+      expect.objectContaining({ path: "payment_call_items/item-recipient" }),
       expect.objectContaining({ memberId: "member-1" }),
     );
   });

@@ -41,7 +41,7 @@ struct NewPaymentCallSheet: View {
 
     private var members: [Member] {
         guard let club = store.currentClub else { return [] }
-        let all = store.members(of: club.id)
+        let all = store.members(of: club.id).filter { $0.id != store.currentUserId }
         let query = search.trimmingCharacters(in: .whitespaces)
         guard !query.isEmpty else { return all }
         return all.filter { $0.fullName.localizedStandardContains(query) }
@@ -49,9 +49,14 @@ struct NewPaymentCallSheet: View {
 
     private var recipients: [UUID] {
         guard let club = store.currentClub else { return [] }
+        let currentUserId = store.currentUserId
         switch audience {
-        case .everyone: return store.members(of: club.id).map(\.id)
-        case .selection, .single: return Array(selection)
+        case .everyone:
+            return store.members(of: club.id)
+                .map(\.id)
+                .filter { $0 != currentUserId }
+        case .selection, .single:
+            return Array(selection).filter { $0 != currentUserId }
         }
     }
 
