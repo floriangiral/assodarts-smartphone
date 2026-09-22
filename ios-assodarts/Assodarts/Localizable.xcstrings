@@ -8929,18 +8929,18 @@
         }
       }
     },
-    "to_confirm_paymenttrackingview %@": {
+    "to_confirm_paymenttrackingview %lld": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ à valider"
+            "value": "%lld à valider"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ to confirm"
+            "value": "%lld to confirm"
           }
         }
       }
