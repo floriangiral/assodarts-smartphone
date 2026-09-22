@@ -1281,18 +1281,18 @@
         }
       }
     },
-    "chase_the_unpaid %@": {
+    "chase_the_unpaid %lld": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Relancer les %@ impayés"
+            "value": "Relancer les impayés (%lld)"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Chase the %@ unpaid"
+            "value": "Chase unpaid (%lld)"
           }
         }
       }
