@@ -1,12 +1,8 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
-import {
-  requireClubAdmin,
-  requireClubBoard,
-  requireNotPlatformAdmin,
-} from "./shared/auth";
+import { requireClubBoard, requireNotPlatformAdmin } from "./shared/auth";
 
-const VALID_ROLES = ["admin", "board", "member"];
+const VALID_ROLES = new Set(["admin", "board", "member"]);
 const PROFILE_FIELDS = [
   "firstName",
   "lastName",
@@ -145,11 +141,11 @@ export const updateMemberProfile = onCall(async (request) => {
 
   if (request.data?.role !== undefined) {
     const role = cleanString(request.data.role);
-    if (!VALID_ROLES.includes(role)) {
+    if (!VALID_ROLES.has(role)) {
       throw new HttpsError("invalid-argument", "Invalid role");
     }
     if (role !== normalizedRole(membership.role)) {
-      await requireClubAdmin(clubId, request.auth.uid);
+      await requireClubBoard(clubId, request.auth.uid);
       await requireNotPlatformAdmin(targetAuthUid);
       membershipUpdate.role = role;
     }

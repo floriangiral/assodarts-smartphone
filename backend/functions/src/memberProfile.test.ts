@@ -150,7 +150,7 @@ describe("updateMemberProfile", () => {
     );
   });
 
-  it("requires admin rights when role changes", async () => {
+  it("requires board rights when role changes", async () => {
     await wrapped(
       makeRequest({
         memberId: "m1",
@@ -159,7 +159,7 @@ describe("updateMemberProfile", () => {
       }),
     );
 
-    expect(mockRequireClubAdmin).toHaveBeenCalledWith("c1", "caller");
+    expect(mockRequireClubBoard).toHaveBeenCalledWith("c1", "caller");
     expect(mockMembershipSet).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ role: "board" }),
@@ -174,9 +174,7 @@ describe("updateMemberProfile", () => {
     );
 
     await expect(
-      wrapped(
-        makeRequest({ memberId: "m1", clubId: "c1", role: "board" }),
-      ),
+      wrapped(makeRequest({ memberId: "m1", clubId: "c1", role: "board" })),
     ).rejects.toThrow("Platform admin accounts cannot belong to a club");
     expect(mockMembershipSet).not.toHaveBeenCalled();
   });
