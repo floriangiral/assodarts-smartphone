@@ -60,10 +60,26 @@ export const platformAdminExists = onCall(async () => {
 /**
  * Claims the single bootstrap slot for the platform admin. The transaction is
  * what makes the "first one wins" race safe; `platform_admins` is read-only for
- * clients in firestore.rules, so this is the only write path.
+ * clients in firestore.rules, so this is the only write path. The slot is
+ * disabled unless the deployed function carries a bootstrap token in its
+ * environment; day-to-day grants should use `backend/scripts/grant-platform-admin.js`.
  */
 export const claimPlatformAdmin = onCall(async (request) => {
   const uid = requireAuth(request);
+  const expectedToken = String(
+    process.env.PLATFORM_ADMIN_BOOTSTRAP_TOKEN ?? "",
+  ).trim();
+  const providedToken = String(request.data?.bootstrapToken ?? "").trim();
+  if (!expectedToken) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Platform admin bootstrap is disabled",
+    );
+  }
+  if (!providedToken || providedToken !== expectedToken) {
+    throw new HttpsError("permission-denied", "Invalid bootstrap token");
+  }
+
   const email = String(request.auth?.token.email ?? "")
     .trim()
     .toLowerCase();

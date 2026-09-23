@@ -185,7 +185,7 @@ describe("updateMemberProfile", () => {
     );
   });
 
-  it("requires board rights when role changes", async () => {
+  it("requires admin rights when role changes", async () => {
     await wrapped(
       makeRequest({
         memberId: "m1",
@@ -195,6 +195,7 @@ describe("updateMemberProfile", () => {
     );
 
     expect(mockRequireClubBoard).toHaveBeenCalledWith("c1", "caller");
+    expect(mockRequireClubAdmin).toHaveBeenCalledWith("c1", "caller");
     expect(mockMembershipSet).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ role: "board" }),

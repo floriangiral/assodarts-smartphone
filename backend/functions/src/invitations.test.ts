@@ -120,6 +120,35 @@ describe("createInvitation", () => {
     });
   });
 
+  it("rejects a board member inviting someone as board", async () => {
+    mockMembershipGet.mockResolvedValue({
+      data: () => ({ status: "active", role: "board" }),
+    });
+
+    await expect(
+      wrapped(makeRequest({ clubId: "c1", email: "a@b.com", role: "board" }, "u1")),
+    ).rejects.toThrow("Only the club admin can do this");
+    expect(mockInvitationSet).not.toHaveBeenCalled();
+    expect(mockMailAdd).not.toHaveBeenCalled();
+  });
+
+  it("lets a club admin invite someone as board", async () => {
+    mockMembershipGet.mockResolvedValue({
+      data: () => ({ status: "active", role: "admin" }),
+    });
+    mockInvitationSet.mockResolvedValue(undefined);
+    mockMailAdd.mockResolvedValue({ id: "mail1" });
+
+    await wrapped(
+      makeRequest({ clubId: "c1", email: "a@b.com", role: "board" }, "u1"),
+    );
+
+    expect(mockInvitationSet).toHaveBeenCalledWith(
+      expect.objectContaining({ role: "board" }),
+      { merge: true },
+    );
+  });
+
   it("rejects the platform admin email", async () => {
     mockMembershipGet.mockResolvedValue({
       data: () => ({ status: "active", role: "board" }),

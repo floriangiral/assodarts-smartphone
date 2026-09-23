@@ -114,6 +114,7 @@ const handlers = {
 };
 
 beforeEach(() => {
+  delete process.env.PLATFORM_ADMIN_BOOTSTRAP_TOKEN;
   mockRequirePlatformAdmin.mockResolvedValue(undefined);
   mockAnnouncementSet.mockResolvedValue(undefined);
   mockCouponQueryGet.mockResolvedValue({ empty: true });
@@ -266,10 +267,29 @@ describe("platform admin bootstrap", () => {
     expect(mockRequirePlatformAdmin).not.toHaveBeenCalled();
   });
 
+  it("rejects claim when bootstrap is disabled", async () => {
+    await expect(
+      handlers.claimAdmin(makeRequest({ bootstrapToken: "secret" }, "first-uid")),
+    ).rejects.toMatchObject({ code: "failed-precondition" });
+    expect(mockAdminSet).not.toHaveBeenCalled();
+  });
+
+  it("rejects claim with an invalid bootstrap token", async () => {
+    process.env.PLATFORM_ADMIN_BOOTSTRAP_TOKEN = "secret";
+
+    await expect(
+      handlers.claimAdmin(makeRequest({ bootstrapToken: "wrong" }, "first-uid")),
+    ).rejects.toMatchObject({ code: "permission-denied" });
+    expect(mockAdminSet).not.toHaveBeenCalled();
+  });
+
   it("claims the first admin slot and writes the document", async () => {
+    process.env.PLATFORM_ADMIN_BOOTSTRAP_TOKEN = "secret";
     mockAdminQueryGet.mockResolvedValue({ empty: true });
 
-    const result = await handlers.claimAdmin(makeRequest({}, "first-uid"));
+    const result = await handlers.claimAdmin(
+      makeRequest({ bootstrapToken: "secret" }, "first-uid"),
+    );
 
     expect(mockAdminSet).toHaveBeenCalledWith(
       "platform_admins/first-uid",
@@ -280,10 +300,11 @@ describe("platform admin bootstrap", () => {
   });
 
   it("refuses to claim when an admin already exists", async () => {
+    process.env.PLATFORM_ADMIN_BOOTSTRAP_TOKEN = "secret";
     mockAdminQueryGet.mockResolvedValue({ empty: false });
 
     await expect(
-      handlers.claimAdmin(makeRequest({}, "second-uid")),
+      handlers.claimAdmin(makeRequest({ bootstrapToken: "secret" }, "second-uid")),
     ).rejects.toMatchObject({ code: "already-exists" });
     expect(mockAdminSet).not.toHaveBeenCalled();
   });

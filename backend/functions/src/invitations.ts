@@ -2,6 +2,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { randomBytes } from "node:crypto";
 import {
+  requireClubAdmin,
   requireClubBoard,
   requireEmailNotPlatformAdmin,
   requireNotPlatformAdmin,
@@ -29,6 +30,9 @@ export const createInvitation = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "Invalid role");
 
   await requireClubBoard(clubId, request.auth.uid);
+  if (role !== "member") {
+    await requireClubAdmin(clubId, request.auth.uid);
+  }
   await requireEmailNotPlatformAdmin(email);
 
   const db = getFirestore();
