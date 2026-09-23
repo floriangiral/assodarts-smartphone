@@ -38,6 +38,11 @@ type PreferenceField =
   | "notifyPayments"
   | "notifyTournaments";
 
+type NotificationRecipient = {
+  memberId: string;
+  clubId: string;
+};
+
 function preferenceField(kind: NotificationKind): PreferenceField | undefined {
   switch (kind) {
     case "announcement":
@@ -56,18 +61,41 @@ function preferenceField(kind: NotificationKind): PreferenceField | undefined {
   }
 }
 
-async function memberAllowsNotification(
-  memberId: string,
-  kind: NotificationKind,
-): Promise<boolean> {
-  const field = preferenceField(kind);
-  if (!field) return true;
+function chunks<T>(values: T[], size: number): T[][] {
+  const groups: T[][] = [];
+  for (let index = 0; index < values.length; index += size) {
+    groups.push(values.slice(index, index + size));
+  }
+  return groups;
+}
 
-  const member = (
-    await getFirestore().collection("members").doc(memberId).get()
-  ).data();
-  if (kind === "tournament") return !!member && member[field] === true;
-  return !!member && member[field] !== false;
+async function allowedMemberIds(
+  memberIds: string[],
+  kind: NotificationKind,
+): Promise<Set<string>> {
+  const uniqueMemberIds = Array.from(new Set(memberIds));
+  const field = preferenceField(kind);
+  if (!field) return new Set(uniqueMemberIds);
+
+  const db = getFirestore();
+  const allowed = new Set<string>();
+  const refs = uniqueMemberIds.map((memberId) =>
+    db.collection("members").doc(memberId),
+  );
+  for (const refChunk of chunks(refs, 300)) {
+    const snapshots = await db.getAll(...refChunk);
+    snapshots.forEach((snapshot, index) => {
+      const member = snapshot.data();
+      if (!member) return;
+      const memberId = refChunk[index].id;
+      if (kind === "tournament") {
+        if (member[field] === true) allowed.add(memberId);
+        return;
+      }
+      if (member[field] !== false) allowed.add(memberId);
+    });
+  }
+  return allowed;
 }
 
 /**
@@ -83,18 +111,53 @@ async function notifyMember(
   body: string,
   payload: NotificationPayload,
 ): Promise<void> {
-  if (!(await memberAllowsNotification(memberId, kind))) return;
+  await notifyMembers([{ memberId, clubId }], kind, title, body, payload);
+}
 
-  await getFirestore().collection("notifications").add({
-    memberId,
-    clubId,
+async function notifyMembers(
+  recipients: NotificationRecipient[],
+  kind: NotificationKind,
+  title: string,
+  body: string,
+  payload: NotificationPayload,
+): Promise<void> {
+  const deduplicated = Array.from(
+    new Map(
+      recipients
+        .filter(({ memberId, clubId }) => memberId && clubId)
+        .map((recipient) => [
+          `${recipient.memberId}:${recipient.clubId}`,
+          recipient,
+        ]),
+    ).values(),
+  );
+  if (deduplicated.length === 0) return;
+
+  const allowed = await allowedMemberIds(
+    deduplicated.map((recipient) => recipient.memberId),
     kind,
-    title,
-    body,
-    payload,
-    createdAt: FieldValue.serverTimestamp(),
-    readAt: null,
-  });
+  );
+  const db = getFirestore();
+  const writableRecipients = deduplicated.filter((recipient) =>
+    allowed.has(recipient.memberId),
+  );
+
+  for (const recipientChunk of chunks(writableRecipients, 450)) {
+    const batch = db.batch();
+    for (const recipient of recipientChunk) {
+      batch.set(db.collection("notifications").doc(), {
+        memberId: recipient.memberId,
+        clubId: recipient.clubId,
+        kind,
+        title,
+        body,
+        payload,
+        createdAt: FieldValue.serverTimestamp(),
+        readAt: null,
+      });
+    }
+    await batch.commit();
+  }
 }
 
 async function activeMemberships(clubId: string, roles?: string[]) {
@@ -230,19 +293,18 @@ export const onPaymentItemWritten = onDocumentWritten(
     if (after.declaredAt && !before?.declaredAt) {
       const memberName = await memberDisplayName(after.memberId);
       const board = await activeMemberships(after.clubId, ["admin", "board"]);
-      await Promise.all(
+      await notifyMembers(
         board.docs
-          .filter((doc) => doc.data().memberId !== after.memberId)
-          .map((doc) =>
-            notifyMember(
-              doc.data().memberId,
-              after.clubId,
-              "payment_to_confirm",
-              "Paiement déclaré",
-              "Un membre a déclaré un paiement à valider.",
-              { itemId: event.params.itemId, label, amountCents, memberName },
-            ),
-          ),
+          .map((doc) => doc.data().memberId as unknown)
+          .filter(
+            (memberId): memberId is string =>
+              typeof memberId === "string" && memberId !== after.memberId,
+          )
+          .map((memberId) => ({ memberId, clubId: after.clubId })),
+        "payment_to_confirm",
+        "Paiement déclaré",
+        "Un membre a déclaré un paiement à valider.",
+        { itemId: event.params.itemId, label, amountCents, memberName },
       );
     }
 
@@ -268,22 +330,22 @@ export const onAnnouncementCreated = onDocumentCreated(
     if (!announcement?.publishedAt || announcement.notify === false) return;
 
     const members = await activeMemberships(announcement.clubId);
-    await Promise.all(
+    await notifyMembers(
       members.docs
-        .filter((doc) => doc.data().memberId !== announcement.createdByMemberId)
-        .map((doc) =>
-          notifyMember(
-            doc.data().memberId,
-            announcement.clubId,
-            "announcement",
-            announcement.title,
-            announcement.body,
-            {
-              announcementId: event.params.announcementId,
-              label: announcement.title,
-            },
-          ),
-        ),
+        .map((doc) => doc.data().memberId as unknown)
+        .filter(
+          (memberId): memberId is string =>
+            typeof memberId === "string" &&
+            memberId !== announcement.createdByMemberId,
+        )
+        .map((memberId) => ({ memberId, clubId: announcement.clubId })),
+      "announcement",
+      announcement.title,
+      announcement.body,
+      {
+        announcementId: event.params.announcementId,
+        label: announcement.title,
+      },
     );
   },
 );
@@ -296,23 +358,23 @@ export const onEventCreated = onDocumentCreated(
     if (!clubEvent) return;
 
     const members = await activeMemberships(clubEvent.clubId);
-    await Promise.all(
+    await notifyMembers(
       members.docs
-        .filter((doc) => doc.data().memberId !== clubEvent.createdByMemberId)
-        .map((doc) =>
-          notifyMember(
-            doc.data().memberId,
-            clubEvent.clubId,
-            "event",
-            clubEvent.title,
-            clubEvent.location ?? "",
-            {
-              eventId: event.params.eventId,
-              label: clubEvent.title,
-              startsAt: clubEvent.startsAt?.toDate?.().toISOString?.(),
-            },
-          ),
-        ),
+        .map((doc) => doc.data().memberId as unknown)
+        .filter(
+          (memberId): memberId is string =>
+            typeof memberId === "string" &&
+            memberId !== clubEvent.createdByMemberId,
+        )
+        .map((memberId) => ({ memberId, clubId: clubEvent.clubId })),
+      "event",
+      clubEvent.title,
+      clubEvent.location ?? "",
+      {
+        eventId: event.params.eventId,
+        label: clubEvent.title,
+        startsAt: clubEvent.startsAt?.toDate?.().toISOString?.(),
+      },
     );
   },
 );
@@ -376,20 +438,18 @@ export const onMessageCreated = onDocumentCreated(
       (memberId) => memberId !== senderId && activeMembers.has(memberId),
     );
 
-    await Promise.all(
-      recipientIds.map((memberId) =>
-        notifyMember(
-          memberId,
-          conversation.clubId,
-          "message",
-          "Nouveau message",
-          `${senderName}: ${textPreview(message.text ?? "")}`,
-          {
-            conversationId: event.params.conversationId,
-            memberName: senderName,
-          },
-        ),
-      ),
+    await notifyMembers(
+      recipientIds.map((memberId) => ({
+        memberId,
+        clubId: conversation.clubId,
+      })),
+      "message",
+      "Nouveau message",
+      `${senderName}: ${textPreview(message.text ?? "")}`,
+      {
+        conversationId: event.params.conversationId,
+        memberName: senderName,
+      },
     );
   },
 );
@@ -411,22 +471,21 @@ export const onTournamentEntryCreated = onDocumentCreated(
     const body = `${entry.playerA} ${entry.scoreA} - ${entry.scoreB} ${entry.playerB}`;
     const members = await activeMemberships(entry.clubId);
 
-    await Promise.all(
+    await notifyMembers(
       members.docs
-        .filter((doc) => doc.data().memberId !== entry.recordedByMemberId)
-        .map((doc) =>
-          notifyMember(
-            doc.data().memberId,
-            entry.clubId,
-            "tournament",
-            "Résultat de tournoi",
-            body,
-            {
-              tournamentId: entry.tournamentId,
-              label,
-            },
-          ),
-        ),
+        .map((doc) => doc.data().memberId as unknown)
+        .filter(
+          (memberId): memberId is string =>
+            typeof memberId === "string" && memberId !== entry.recordedByMemberId,
+        )
+        .map((memberId) => ({ memberId, clubId: entry.clubId })),
+      "tournament",
+      "Résultat de tournoi",
+      body,
+      {
+        tournamentId: entry.tournamentId,
+        label,
+      },
     );
   },
 );
@@ -442,9 +501,7 @@ export const onPlatformAnnouncementCreated = onDocumentCreated(
     if (!announcement?.publishedAt) return;
 
     const memberships = await activePlatformMemberships(announcement.audience);
-    // This simple fan-out is sufficient at the current scale; revisit it once
-    // a broadcast can reach more than a few hundred recipients.
-    await Promise.all(
+    await notifyMembers(
       memberships.docs
         .filter((doc) => {
           // publishedBy is the auth uid of the platform admin who broadcast it.
@@ -455,18 +512,18 @@ export const onPlatformAnnouncementCreated = onDocumentCreated(
         })
         .map((doc) => {
           const membership = doc.data();
-          return notifyMember(
-            membership.memberId,
-            membership.clubId,
-            "platform_announcement",
-            announcement.title,
-            announcement.body,
-            {
-              announcementId: event.params.announcementId,
-              label: announcement.title,
-            },
-          );
+          return {
+            memberId: membership.memberId,
+            clubId: membership.clubId,
+          };
         }),
+      "platform_announcement",
+      announcement.title,
+      announcement.body,
+      {
+        announcementId: event.params.announcementId,
+        label: announcement.title,
+      },
     );
   },
 );

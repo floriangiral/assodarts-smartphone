@@ -5,6 +5,9 @@ const mockTournamentGet = jest.fn();
 const mockMembershipsQueryGet = jest.fn();
 const mockTokensQueryGet = jest.fn();
 const mockNotificationAdd = jest.fn();
+const mockNotificationSet = jest.fn();
+const mockNotificationBatchCommit = jest.fn();
+const mockGetAll = jest.fn();
 const mockSendEachForMulticast = jest.fn();
 const mockTokenDelete = jest.fn();
 let lastMembershipsQuery: { where: jest.Mock; get: jest.Mock };
@@ -24,6 +27,11 @@ function makeMembershipsQuery(): {
 
 jest.mock("firebase-admin/firestore", () => ({
   getFirestore: () => ({
+    getAll: mockGetAll,
+    batch: () => ({
+      set: mockNotificationSet,
+      commit: mockNotificationBatchCommit,
+    }),
     collection: (name: string) => {
       if (name === "payment_calls") {
         return { doc: () => ({ get: mockPaymentCallGet }) };
@@ -31,6 +39,7 @@ jest.mock("firebase-admin/firestore", () => ({
       if (name === "members") {
         return {
           doc: (memberId: string) => ({
+            id: memberId,
             get: () => mockMemberGet(memberId),
           }),
         };
@@ -45,7 +54,10 @@ jest.mock("firebase-admin/firestore", () => ({
         return makeMembershipsQuery();
       }
       if (name === "notifications") {
-        return { add: mockNotificationAdd };
+        return {
+          add: mockNotificationAdd,
+          doc: () => ({ path: "notifications/generated" }),
+        };
       }
       if (name === "device_push_tokens") {
         return {
@@ -76,6 +88,13 @@ import {
 beforeEach(() => {
   jest.clearAllMocks();
   mockNotificationAdd.mockResolvedValue(undefined);
+  mockNotificationSet.mockImplementation((_ref, data) =>
+    mockNotificationAdd(data),
+  );
+  mockNotificationBatchCommit.mockResolvedValue(undefined);
+  mockGetAll.mockImplementation((...refs: { id: string }[]) =>
+    Promise.all(refs.map((ref) => mockMemberGet(ref.id))),
+  );
   mockTokenDelete.mockResolvedValue(undefined);
   mockPaymentCallGet.mockResolvedValue({
     data: () => ({ title: "Cotisation", amountCents: 5000, notify: true }),

@@ -24,8 +24,16 @@ function doc(id: string, data: DocData) {
 
 jest.mock("firebase-admin/firestore", () => ({
   getFirestore: () => ({
+    getAll: async (...refs: { id: string }[]) =>
+      refs.map((ref) => {
+        const found = members[ref.id];
+        return found
+          ? { exists: true, data: () => found }
+          : { exists: false, data: () => undefined };
+      }),
     collection: (name: string) => ({
       doc: (id: string) => ({
+        id,
         get: async () => {
           if (name === "memberships") {
             const found = memberships.find((entry) => entry.id === id);
