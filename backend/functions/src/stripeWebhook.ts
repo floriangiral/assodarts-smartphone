@@ -36,6 +36,229 @@ function subscriptionIdOf(value: unknown): string | null {
   return null;
 }
 
+async function handleSubscriptionCheckout(
+  db: FirebaseFirestore.Firestore,
+  session: Stripe.Checkout.Session,
+): Promise<void> {
+  const clubId = session.metadata?.club_id;
+  if (!clubId) return;
+
+  await db
+    .collection("clubs")
+    .doc(clubId)
+    .set(
+      {
+        stripeCustomerId:
+          typeof session.customer === "string"
+            ? session.customer
+            : (session.customer?.id ?? null),
+        stripeSubscriptionId: subscriptionIdOf(session.subscription),
+        subscriptionStatus: "active",
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+
+  console.log(`Club ${clubId} subscription activated`);
+}
+
+async function handleMembershipFeeCheckout(
+  db: FirebaseFirestore.Firestore,
+  session: Stripe.Checkout.Session,
+): Promise<void> {
+  const itemId = session.metadata?.item_id;
+  if (!itemId || session.payment_status !== "paid") return;
+
+  await db
+    .collection("payment_call_items")
+    .doc(itemId)
+    .set(
+      {
+        isPaid: true,
+        paidAt: FieldValue.serverTimestamp(),
+        declaredAt: null,
+        method: "card",
+        stripePaymentIntentId:
+          typeof session.payment_intent === "string"
+            ? session.payment_intent
+            : (session.payment_intent?.id ?? null),
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+
+  console.log(`Payment line ${itemId} settled by Stripe Checkout`);
+}
+
+async function handleCheckoutSessionCompleted(
+  db: FirebaseFirestore.Firestore,
+  session: Stripe.Checkout.Session,
+): Promise<void> {
+  if (session.mode === "subscription") {
+    await handleSubscriptionCheckout(db, session);
+    return;
+  }
+  await handleMembershipFeeCheckout(db, session);
+}
+
+async function handleChargeRefunded(
+  db: FirebaseFirestore.Firestore,
+  charge: Stripe.Charge,
+): Promise<void> {
+  const itemId = charge.metadata?.item_id;
+  if (!itemId) return;
+
+  await db.collection("payment_call_items").doc(itemId).set(
+    {
+      isPaid: false,
+      paidAt: null,
+      updatedAt: FieldValue.serverTimestamp(),
+    },
+    { merge: true },
+  );
+}
+
+type InvoiceWithSubscription = Stripe.Invoice & {
+  subscription?: string | { id: string } | null;
+  lines?: { data?: Array<{ period?: { end?: number } }> };
+};
+
+async function handleInvoicePaid(
+  db: FirebaseFirestore.Firestore,
+  invoice: InvoiceWithSubscription,
+): Promise<void> {
+  const subscriptionId = subscriptionIdOf(invoice.subscription);
+  const clubRef = await clubRefForSubscription(
+    db,
+    subscriptionId,
+    invoice.metadata?.club_id,
+  );
+  if (!clubRef) return;
+
+  const periodEnd = invoice.lines?.data?.[0]?.period?.end;
+  await clubRef.set(
+    {
+      subscriptionStatus: "active",
+      stripeSubscriptionId: subscriptionId,
+      currentPeriodEnd: periodEnd
+        ? Timestamp.fromMillis(periodEnd * 1000)
+        : null,
+      updatedAt: FieldValue.serverTimestamp(),
+    },
+    { merge: true },
+  );
+}
+
+async function handleInvoicePaymentFailed(
+  db: FirebaseFirestore.Firestore,
+  invoice: InvoiceWithSubscription,
+): Promise<void> {
+  const clubRef = await clubRefForSubscription(
+    db,
+    subscriptionIdOf(invoice.subscription),
+    invoice.metadata?.club_id,
+  );
+  if (!clubRef) return;
+
+  // Grace, not expiry: Stripe keeps retrying the card for about a week
+  // and `checkTrialExpirations` closes the window afterwards.
+  await clubRef.set(
+    {
+      subscriptionStatus: "grace",
+      graceStartedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    },
+    { merge: true },
+  );
+}
+
+async function handleSubscriptionDeleted(
+  db: FirebaseFirestore.Firestore,
+  subscription: Stripe.Subscription,
+): Promise<void> {
+  const clubRef = await clubRefForSubscription(
+    db,
+    subscription.id,
+    subscription.metadata?.club_id,
+  );
+  if (!clubRef) return;
+
+  await clubRef.set(
+    {
+      subscriptionStatus: "expired",
+      stripeSubscriptionId: null,
+      updatedAt: FieldValue.serverTimestamp(),
+    },
+    { merge: true },
+  );
+}
+
+async function handleAccountUpdated(
+  db: FirebaseFirestore.Firestore,
+  account: Stripe.Account,
+): Promise<void> {
+  const status =
+    account.charges_enabled && account.details_submitted
+      ? "verified"
+      : "pending";
+
+  const bankAccounts = await db
+    .collection("club_bank_accounts")
+    .where("stripeAccountId", "==", account.id)
+    .get();
+
+  await Promise.all(
+    bankAccounts.docs.map((doc) =>
+      doc.ref.set(
+        {
+          stripeStatus: status,
+          stripeChargesEnabled: account.charges_enabled ?? false,
+          stripeDetailsSubmitted: account.details_submitted ?? false,
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true },
+      ),
+    ),
+  );
+}
+
+async function handleStripeEvent(
+  db: FirebaseFirestore.Firestore,
+  event: Stripe.Event,
+): Promise<void> {
+  switch (event.type) {
+    case "checkout.session.completed":
+      await handleCheckoutSessionCompleted(
+        db,
+        event.data.object as Stripe.Checkout.Session,
+      );
+      return;
+    case "charge.refunded":
+      await handleChargeRefunded(db, event.data.object as Stripe.Charge);
+      return;
+    case "invoice.paid":
+      await handleInvoicePaid(db, event.data.object as InvoiceWithSubscription);
+      return;
+    case "invoice.payment_failed":
+      await handleInvoicePaymentFailed(
+        db,
+        event.data.object as InvoiceWithSubscription,
+      );
+      return;
+    case "customer.subscription.deleted":
+      await handleSubscriptionDeleted(
+        db,
+        event.data.object as Stripe.Subscription,
+      );
+      return;
+    case "account.updated":
+      await handleAccountUpdated(db, event.data.object as Stripe.Account);
+      return;
+    default:
+      return;
+  }
+}
+
 /**
  * Stripe webhook — the only place a payment is actually marked as settled.
  *
@@ -73,179 +296,7 @@ export const stripeWebhook = onRequest(
     const db = getFirestore();
 
     try {
-      switch (event.type) {
-        case "checkout.session.completed": {
-          const session = event.data.object as Stripe.Checkout.Session;
-
-          // Club subscription: no `item_id`, the club is named directly.
-          if (session.mode === "subscription") {
-            const clubId = session.metadata?.club_id;
-            if (!clubId) break;
-
-            await db
-              .collection("clubs")
-              .doc(clubId)
-              .set(
-                {
-                  stripeCustomerId:
-                    typeof session.customer === "string"
-                      ? session.customer
-                      : (session.customer?.id ?? null),
-                  stripeSubscriptionId: subscriptionIdOf(session.subscription),
-                  subscriptionStatus: "active",
-                  updatedAt: FieldValue.serverTimestamp(),
-                },
-                { merge: true },
-              );
-
-            console.log(`Club ${clubId} subscription activated`);
-            break;
-          }
-
-          const itemId = session.metadata?.item_id;
-          if (!itemId || session.payment_status !== "paid") break;
-
-          await db
-            .collection("payment_call_items")
-            .doc(itemId)
-            .set(
-              {
-                isPaid: true,
-                paidAt: FieldValue.serverTimestamp(),
-                declaredAt: null,
-                method: "card",
-                stripePaymentIntentId:
-                  typeof session.payment_intent === "string"
-                    ? session.payment_intent
-                    : (session.payment_intent?.id ?? null),
-                updatedAt: FieldValue.serverTimestamp(),
-              },
-              { merge: true },
-            );
-
-          console.log(`Payment line ${itemId} settled by Stripe Checkout`);
-          break;
-        }
-
-        case "charge.refunded": {
-          const charge = event.data.object as Stripe.Charge;
-          const itemId = charge.metadata?.item_id;
-          if (!itemId) break;
-
-          await db.collection("payment_call_items").doc(itemId).set(
-            {
-              isPaid: false,
-              paidAt: null,
-              updatedAt: FieldValue.serverTimestamp(),
-            },
-            { merge: true },
-          );
-          break;
-        }
-
-        case "invoice.paid": {
-          const invoice = event.data.object as Stripe.Invoice & {
-            subscription?: string | { id: string } | null;
-            lines?: { data?: Array<{ period?: { end?: number } }> };
-          };
-          const subscriptionId = subscriptionIdOf(invoice.subscription);
-          const clubRef = await clubRefForSubscription(
-            db,
-            subscriptionId,
-            invoice.metadata?.club_id,
-          );
-          if (!clubRef) break;
-
-          const periodEnd = invoice.lines?.data?.[0]?.period?.end;
-          await clubRef.set(
-            {
-              subscriptionStatus: "active",
-              stripeSubscriptionId: subscriptionId,
-              currentPeriodEnd: periodEnd
-                ? Timestamp.fromMillis(periodEnd * 1000)
-                : null,
-              updatedAt: FieldValue.serverTimestamp(),
-            },
-            { merge: true },
-          );
-          break;
-        }
-
-        case "invoice.payment_failed": {
-          const invoice = event.data.object as Stripe.Invoice & {
-            subscription?: string | { id: string } | null;
-          };
-          const clubRef = await clubRefForSubscription(
-            db,
-            subscriptionIdOf(invoice.subscription),
-            invoice.metadata?.club_id,
-          );
-          if (!clubRef) break;
-
-          // Grace, not expiry: Stripe keeps retrying the card for about a week
-          // and `checkTrialExpirations` closes the window afterwards.
-          await clubRef.set(
-            {
-              subscriptionStatus: "grace",
-              graceStartedAt: FieldValue.serverTimestamp(),
-              updatedAt: FieldValue.serverTimestamp(),
-            },
-            { merge: true },
-          );
-          break;
-        }
-
-        case "customer.subscription.deleted": {
-          const subscription = event.data.object as Stripe.Subscription;
-          const clubRef = await clubRefForSubscription(
-            db,
-            subscription.id,
-            subscription.metadata?.club_id,
-          );
-          if (!clubRef) break;
-
-          await clubRef.set(
-            {
-              subscriptionStatus: "expired",
-              stripeSubscriptionId: null,
-              updatedAt: FieldValue.serverTimestamp(),
-            },
-            { merge: true },
-          );
-          break;
-        }
-
-        case "account.updated": {
-          const account = event.data.object as Stripe.Account;
-          const status =
-            account.charges_enabled && account.details_submitted
-              ? "verified"
-              : "pending";
-
-          const bankAccounts = await db
-            .collection("club_bank_accounts")
-            .where("stripeAccountId", "==", account.id)
-            .get();
-
-          await Promise.all(
-            bankAccounts.docs.map((doc) =>
-              doc.ref.set(
-                {
-                  stripeStatus: status,
-                  stripeChargesEnabled: account.charges_enabled ?? false,
-                  stripeDetailsSubmitted: account.details_submitted ?? false,
-                  updatedAt: FieldValue.serverTimestamp(),
-                },
-                { merge: true },
-              ),
-            ),
-          );
-          break;
-        }
-
-        default:
-          break;
-      }
+      await handleStripeEvent(db, event);
     } catch (err) {
       console.error("Webhook handling failed", err);
       res.status(500).json({ error: "Handler failed" });

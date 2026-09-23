@@ -122,7 +122,9 @@ struct SubscriptionView: View {
 
     private func run(
         operation: @escaping () async throws -> URL,
-        onSuccess: @escaping () -> Void = {}
+        onSuccess: @escaping () -> Void = {
+            // Most billing flows only need the returned URL; callers opt into extra work.
+        }
     ) {
         guard !isWorking else { return }
         isWorking = true

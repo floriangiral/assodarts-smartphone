@@ -88,6 +88,61 @@ def split_arguments(text: str, opening: int) -> tuple[list[str], int] | None:
     return None
 
 
+def skip_spacing_and_concat(expression: str, index: int) -> int:
+    while index < len(expression) and expression[index].isspace():
+        index += 1
+    return index + 1 if index < len(expression) and expression[index] == "+" else index
+
+
+def parse_interpolation(expression: str, start: int) -> tuple[str, int] | None:
+    cursor = start
+    depth = 1
+    while cursor < len(expression) and depth:
+        if expression[cursor] == '"':
+            cursor = skip_string(expression, cursor)
+            continue
+        if expression[cursor] == "(":
+            depth += 1
+        elif expression[cursor] == ")":
+            depth -= 1
+        cursor += 1
+    if depth:
+        return None
+    return expression[start : cursor - 1].strip(), cursor
+
+
+def escaped_character(char: str) -> str:
+    escapes = {"n": "\n", "r": "\r", "t": "\t", '"': '"', "\\": "\\"}
+    return escapes.get(char, char)
+
+
+def parse_literal_content(
+    expression: str,
+    index: int,
+    result: list[str],
+    interpolations: list[str],
+) -> int | None:
+    while index < len(expression):
+        char = expression[index]
+        if char == '"':
+            return index + 1
+        if char != "\\" or index + 1 >= len(expression):
+            result.append(char)
+            index += 1
+            continue
+        if expression[index + 1] == "(":
+            parsed = parse_interpolation(expression, index + 2)
+            if not parsed:
+                return None
+            value, index = parsed
+            interpolations.append(value)
+            result.append("{{INTERPOLATION}}")
+            continue
+        result.append(escaped_character(expression[index + 1]))
+        index += 2
+    return None
+
+
 def parse_literal_expression(expression: str) -> tuple[str, list[str]] | None:
     """Parse a concatenation of Swift string literals into text and expressions."""
     index = 0
@@ -95,50 +150,14 @@ def parse_literal_expression(expression: str) -> tuple[str, list[str]] | None:
     interpolations: list[str] = []
     saw_literal = False
     while index < len(expression):
-        while index < len(expression) and expression[index].isspace():
-            index += 1
+        index = skip_spacing_and_concat(expression, index)
         if index >= len(expression):
             break
-        if expression[index] == "+":
-            index += 1
-            continue
         if expression[index] != '"':
             return None
         saw_literal = True
-        index += 1
-        while index < len(expression):
-            char = expression[index]
-            if char == '"':
-                index += 1
-                break
-            if char == "\\" and index + 1 < len(expression):
-                if expression[index + 1] == "(":
-                    start = index + 2
-                    cursor = start
-                    depth = 1
-                    while cursor < len(expression) and depth:
-                        if expression[cursor] == '"':
-                            cursor = skip_string(expression, cursor)
-                            continue
-                        if expression[cursor] == "(":
-                            depth += 1
-                        elif expression[cursor] == ")":
-                            depth -= 1
-                        cursor += 1
-                    if depth:
-                        return None
-                    value = expression[start : cursor - 1].strip()
-                    interpolations.append(value)
-                    result.append("{{INTERPOLATION}}")
-                    index = cursor
-                    continue
-                escapes = {"n": "\n", "r": "\r", "t": "\t", '"': '"', "\\": "\\"}
-                result.append(escapes.get(expression[index + 1], expression[index + 1]))
-                index += 2
-                continue
-            result.append(char)
-            index += 1
-        else:
+        index = parse_literal_content(expression, index + 1, result, interpolations)
+        if index is None:
             return None
     if not saw_literal:
         return None
@@ -241,77 +260,75 @@ def catalog_json(entries: dict[str, Entry]) -> dict:
     return {"sourceLanguage": "fr", "strings": strings, "version": "1.0"}
 
 
+def unit(value: str) -> dict:
+    return {"stringUnit": {"state": "translated", "value": value}}
+
+
+def plural_entry(fr_one: str, fr_other: str, en_one: str, en_other: str) -> dict:
+    return {
+        "localizations": {
+            "fr": {"variations": {"plural": {
+                "one": unit(fr_one), "other": unit(fr_other),
+            }}},
+            "en": {"variations": {"plural": {
+                "one": unit(en_one), "other": unit(en_other),
+            }}},
+        }
+    }
+
+
+def add_plural(
+    strings: dict,
+    key: str,
+    fr_one: str,
+    fr_other: str,
+    en_one: str,
+    en_other: str,
+) -> None:
+    strings[f"{key} %lld"] = plural_entry(fr_one, fr_other, en_one, en_other)
+
+
+def fixed_final_entries() -> dict:
+    return {
+        "french": {"localizations": {"fr": unit("Français"), "en": unit("Français")}},
+        "english": {"localizations": {"fr": unit("English"), "en": unit("English")}},
+        "expiring_trials_count %lld": plural_entry(
+            "%lld essai expire sous 7 jours",
+            "%lld essais expirent sous 7 jours",
+            "%lld trial expiring within 7 days",
+            "%lld trials expiring within 7 days",
+        ),
+        "grace_subscriptions_count %lld": plural_entry(
+            "%lld abonnement en délai de grâce",
+            "%lld abonnements en délai de grâce",
+            "%lld subscription in grace period",
+            "%lld subscriptions in grace period",
+        ),
+        "selected_clubs_count %lld": plural_entry(
+            "Clubs ciblés · %lld sélectionné",
+            "Clubs ciblés · %lld sélectionnés",
+            "Targeted clubs · %lld selected",
+            "Targeted clubs · %lld selected",
+        ),
+    }
+
+
 def add_final_entries() -> None:
     catalog = json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
     strings = catalog.setdefault("strings", {})
-
-    def unit(value: str) -> dict:
-        return {"stringUnit": {"state": "translated", "value": value}}
-
-    def plural(key: str, fr_one: str, fr_other: str, en_one: str, en_other: str) -> None:
-        strings[f"{key} %lld"] = {
-            "localizations": {
-                "fr": {"variations": {"plural": {
-                    "one": unit(fr_one), "other": unit(fr_other),
-                }}},
-                "en": {"variations": {"plural": {
-                    "one": unit(en_one), "other": unit(en_other),
-                }}},
-            }
-        }
-
-    strings.update({
-        "french": {"localizations": {"fr": unit("Français"), "en": unit("Français")}},
-        "english": {"localizations": {"fr": unit("English"), "en": unit("English")}},
-        "expiring_trials_count %lld": {
-            "localizations": {
-                "fr": {"variations": {"plural": {
-                    "one": unit("%lld essai expire sous 7 jours"),
-                    "other": unit("%lld essais expirent sous 7 jours"),
-                }}},
-                "en": {"variations": {"plural": {
-                    "one": unit("%lld trial expiring within 7 days"),
-                    "other": unit("%lld trials expiring within 7 days"),
-                }}},
-            }
-        },
-        "grace_subscriptions_count %lld": {
-            "localizations": {
-                "fr": {"variations": {"plural": {
-                    "one": unit("%lld abonnement en délai de grâce"),
-                    "other": unit("%lld abonnements en délai de grâce"),
-                }}},
-                "en": {"variations": {"plural": {
-                    "one": unit("%lld subscription in grace period"),
-                    "other": unit("%lld subscriptions in grace period"),
-                }}},
-            }
-        },
-        "selected_clubs_count %lld": {
-            "localizations": {
-                "fr": {"variations": {"plural": {
-                    "one": unit("Clubs ciblés · %lld sélectionné"),
-                    "other": unit("Clubs ciblés · %lld sélectionnés"),
-                }}},
-                "en": {"variations": {"plural": {
-                    "one": unit("Targeted clubs · %lld selected"),
-                    "other": unit("Targeted clubs · %lld selected"),
-                }}},
-            }
-        },
-    })
-    plural("count_clubs", "%lld club", "%lld clubs", "%lld club", "%lld clubs")
-    plural("count_targeted_clubs", "club ciblé : %lld", "clubs ciblés : %lld", "%lld club targeted", "%lld clubs targeted")
-    plural("count_open_calls", "%lld appel en cours", "%lld appels en cours", "%lld open request", "%lld open requests")
-    plural("count_attendees", "%lld présent", "%lld présents", "%lld attending", "%lld attending")
-    plural("count_committee_members", "%lld membre du bureau", "%lld membres du bureau", "%lld committee member", "%lld committee members")
-    plural("count_pending_payments", "%lld paiement en attente", "%lld paiements en attente", "%lld pending payment", "%lld pending payments")
-    plural("count_results", "%lld résultat saisi", "%lld résultats saisis", "%lld result recorded", "%lld results recorded")
-    plural("count_payments_to_confirm", "%lld paiement à valider", "%lld paiements à valider", "%lld payment to confirm", "%lld payments to confirm")
-    plural("count_member_declarations", "%lld déclaration de membre", "%lld déclarations de membres", "%lld member declaration", "%lld member declarations")
-    plural("count_club_members", "%lld membre du club", "%lld membres du club", "%lld club member", "%lld club members")
-    plural("count_members", "%lld membre", "%lld membres", "%lld member", "%lld members")
-    plural("count_due_payments", "%lld paiement en attente", "%lld paiements en attente", "%lld pending payment", "%lld pending payments")
+    strings.update(fixed_final_entries())
+    add_plural(strings, "count_clubs", "%lld club", "%lld clubs", "%lld club", "%lld clubs")
+    add_plural(strings, "count_targeted_clubs", "club ciblé : %lld", "clubs ciblés : %lld", "%lld club targeted", "%lld clubs targeted")
+    add_plural(strings, "count_open_calls", "%lld appel en cours", "%lld appels en cours", "%lld open request", "%lld open requests")
+    add_plural(strings, "count_attendees", "%lld présent", "%lld présents", "%lld attending", "%lld attending")
+    add_plural(strings, "count_committee_members", "%lld membre du bureau", "%lld membres du bureau", "%lld committee member", "%lld committee members")
+    add_plural(strings, "count_pending_payments", "%lld paiement en attente", "%lld paiements en attente", "%lld pending payment", "%lld pending payments")
+    add_plural(strings, "count_results", "%lld résultat saisi", "%lld résultats saisis", "%lld result recorded", "%lld results recorded")
+    add_plural(strings, "count_payments_to_confirm", "%lld paiement à valider", "%lld paiements à valider", "%lld payment to confirm", "%lld payments to confirm")
+    add_plural(strings, "count_member_declarations", "%lld déclaration de membre", "%lld déclarations de membres", "%lld member declaration", "%lld member declarations")
+    add_plural(strings, "count_club_members", "%lld membre du club", "%lld membres du club", "%lld club member", "%lld club members")
+    add_plural(strings, "count_members", "%lld membre", "%lld membres", "%lld member", "%lld members")
+    add_plural(strings, "count_due_payments", "%lld paiement en attente", "%lld paiements en attente", "%lld pending payment", "%lld pending payments")
     CATALOG_PATH.write_text(json.dumps(catalog, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 

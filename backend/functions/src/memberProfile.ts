@@ -46,13 +46,149 @@ function normalizedRole(value: unknown): string {
   return role === "bureau" || role === "treasurer" ? "board" : role;
 }
 
+function requireSignedIn(auth: { uid: string } | undefined): string {
+  if (!auth) throw new HttpsError("unauthenticated", "Sign-in required");
+  return auth.uid;
+}
+
+function requiredIds(data: Record<string, unknown>): {
+  memberId: string;
+  clubId: string;
+} {
+  const memberId = cleanString(data.memberId);
+  const clubId = cleanString(data.clubId);
+  if (!memberId || !clubId) {
+    throw new HttpsError(
+      "invalid-argument",
+      "memberId and clubId are required",
+    );
+  }
+  return { memberId, clubId };
+}
+
+async function loadProfileContext(
+  db: FirebaseFirestore.Firestore,
+  memberId: string,
+  clubId: string,
+) {
+  const memberRef = db.collection("members").doc(memberId);
+  const memberSnap = await memberRef.get();
+  if (!memberSnap.exists) {
+    throw new HttpsError("not-found", "Member profile not found");
+  }
+
+  const member = memberSnap.data() ?? {};
+  const targetAuthUid = cleanString(member.authUid);
+  if (!targetAuthUid) {
+    throw new HttpsError("failed-precondition", "Member is not linked to auth");
+  }
+
+  const membershipRef = db
+    .collection("memberships")
+    .doc(`${clubId}_${targetAuthUid}`);
+  const membershipSnap = await membershipRef.get();
+  const membership = membershipSnap.data();
+  if (!membershipSnap.exists || membership?.memberId !== memberId) {
+    throw new HttpsError("not-found", "Club membership not found");
+  }
+
+  return { memberRef, member, targetAuthUid, membershipRef, membership };
+}
+
+function profileFieldValue(
+  field: string,
+  data: Record<string, unknown>,
+  member: FirebaseFirestore.DocumentData,
+): unknown {
+  switch (field) {
+    case "firstName":
+    case "lastName":
+    case "email":
+      return cleanString(data[field], member[field]);
+    case "phone":
+    case "photoPath":
+      return optionalString(data[field]);
+    case "birthDate":
+      return optionalDate(data[field]);
+    default:
+      return optionalBool(data[field]);
+  }
+}
+
+function buildMemberUpdate(
+  data: Record<string, unknown>,
+  member: FirebaseFirestore.DocumentData,
+  isSelf: boolean,
+): Record<string, unknown> {
+  const update: Record<string, unknown> = {
+    updatedAt: FieldValue.serverTimestamp(),
+  };
+
+  for (const field of PROFILE_FIELDS) {
+    if (data[field] === undefined || (!isSelf && field === "photoPath")) {
+      continue;
+    }
+    const value = profileFieldValue(field, data, member);
+    if (typeof value === "boolean" || value !== null) update[field] = value;
+  }
+
+  if (update.firstName || update.lastName) {
+    const firstName = String(update.firstName ?? member.firstName ?? "");
+    const lastName = String(update.lastName ?? member.lastName ?? "");
+    update.displayName = `${firstName} ${lastName}`.trim();
+  }
+
+  return update;
+}
+
+async function buildMembershipUpdate(
+  data: Record<string, unknown>,
+  membership: FirebaseFirestore.DocumentData,
+  clubId: string,
+  callerUid: string,
+  targetAuthUid: string,
+): Promise<Record<string, unknown>> {
+  const update: Record<string, unknown> = {};
+
+  if (data.licenseNumber !== undefined) {
+    const licenseNumber = optionalString(data.licenseNumber);
+    if (licenseNumber !== (membership.licenseNumber ?? null)) {
+      await requireClubBoard(clubId, callerUid);
+      update.licenseNumber = licenseNumber;
+    }
+  }
+
+  if (data.isActive !== undefined) {
+    if (typeof data.isActive !== "boolean") {
+      throw new HttpsError("invalid-argument", "isActive must be a boolean");
+    }
+    const status = data.isActive ? "active" : "inactive";
+    if (status !== membership.status) {
+      await requireClubBoard(clubId, callerUid);
+      update.status = status;
+    }
+  }
+
+  if (data.role !== undefined) {
+    const role = cleanString(data.role);
+    if (!VALID_ROLES.has(role)) {
+      throw new HttpsError("invalid-argument", "Invalid role");
+    }
+    if (role !== normalizedRole(membership.role)) {
+      await requireClubAdmin(clubId, callerUid);
+      await requireNotPlatformAdmin(targetAuthUid);
+      update.role = role;
+    }
+  }
+
+  return update;
+}
+
 /** Creates the authenticated user's member profile exactly once. */
 export const createSelfMember = onCall(async (request) => {
-  if (!request.auth)
-    throw new HttpsError("unauthenticated", "Sign-in required");
-
-  const uid = request.auth.uid;
-  const email = cleanString(request.auth.token.email).toLowerCase();
+  const auth = request.auth;
+  const uid = requireSignedIn(auth);
+  const email = cleanString(auth?.token.email).toLowerCase();
   const firstName = cleanString(request.data?.firstName);
   const lastName = cleanString(request.data?.lastName);
   const phone = optionalString(request.data?.phone);
@@ -109,109 +245,26 @@ export const createSelfMember = onCall(async (request) => {
  * licence/status. Only club admins can change roles.
  */
 export const updateMemberProfile = onCall(async (request) => {
-  if (!request.auth)
-    throw new HttpsError("unauthenticated", "Sign-in required");
-
-  const memberId = cleanString(request.data?.memberId);
-  const clubId = cleanString(request.data?.clubId);
-  if (!memberId || !clubId)
-    throw new HttpsError(
-      "invalid-argument",
-      "memberId and clubId are required",
-    );
-
+  const callerUid = requireSignedIn(request.auth);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const { memberId, clubId } = requiredIds(data);
   const db = getFirestore();
-  const memberRef = db.collection("members").doc(memberId);
-  const memberSnap = await memberRef.get();
-  if (!memberSnap.exists)
-    throw new HttpsError("not-found", "Member profile not found");
-
-  const member = memberSnap.data() ?? {};
-  const targetAuthUid = cleanString(member.authUid);
-  if (!targetAuthUid)
-    throw new HttpsError("failed-precondition", "Member is not linked to auth");
-
-  const membershipRef = db
-    .collection("memberships")
-    .doc(`${clubId}_${targetAuthUid}`);
-  const membershipSnap = await membershipRef.get();
-  const membership = membershipSnap.data();
-  if (!membershipSnap.exists || membership?.memberId !== memberId) {
-    throw new HttpsError("not-found", "Club membership not found");
-  }
-
-  const isSelf = targetAuthUid === request.auth.uid;
+  const { memberRef, member, targetAuthUid, membershipRef, membership } =
+    await loadProfileContext(db, memberId, clubId);
+  const isSelf = targetAuthUid === callerUid;
 
   if (!isSelf) {
-    await requireClubBoard(clubId, request.auth.uid);
+    await requireClubBoard(clubId, callerUid);
   }
 
-  const memberUpdate: Record<string, unknown> = {
-    updatedAt: FieldValue.serverTimestamp(),
-  };
-
-  for (const field of PROFILE_FIELDS) {
-    if (request.data?.[field] === undefined) continue;
-    if (!isSelf && field === "photoPath") continue;
-
-    switch (field) {
-      case "firstName":
-      case "lastName":
-      case "email":
-        memberUpdate[field] = cleanString(request.data[field], member[field]);
-        break;
-      case "phone":
-      case "photoPath":
-        memberUpdate[field] = optionalString(request.data[field]);
-        break;
-      case "birthDate":
-        memberUpdate[field] = optionalDate(request.data[field]);
-        break;
-      default: {
-        const bool = optionalBool(request.data[field]);
-        if (bool !== null) memberUpdate[field] = bool;
-      }
-    }
-  }
-
-  if (memberUpdate.firstName || memberUpdate.lastName) {
-    const firstName = String(memberUpdate.firstName ?? member.firstName ?? "");
-    const lastName = String(memberUpdate.lastName ?? member.lastName ?? "");
-    memberUpdate.displayName = `${firstName} ${lastName}`.trim();
-  }
-
-  const membershipUpdate: Record<string, unknown> = {};
-
-  if (request.data?.licenseNumber !== undefined) {
-    const licenseNumber = optionalString(request.data.licenseNumber);
-    if (licenseNumber !== (membership.licenseNumber ?? null)) {
-      await requireClubBoard(clubId, request.auth.uid);
-      membershipUpdate.licenseNumber = licenseNumber;
-    }
-  }
-
-  if (request.data?.isActive !== undefined) {
-    if (typeof request.data.isActive !== "boolean") {
-      throw new HttpsError("invalid-argument", "isActive must be a boolean");
-    }
-    const status = request.data.isActive ? "active" : "inactive";
-    if (status !== membership.status) {
-      await requireClubBoard(clubId, request.auth.uid);
-      membershipUpdate.status = status;
-    }
-  }
-
-  if (request.data?.role !== undefined) {
-    const role = cleanString(request.data.role);
-    if (!VALID_ROLES.has(role)) {
-      throw new HttpsError("invalid-argument", "Invalid role");
-    }
-    if (role !== normalizedRole(membership.role)) {
-      await requireClubAdmin(clubId, request.auth.uid);
-      await requireNotPlatformAdmin(targetAuthUid);
-      membershipUpdate.role = role;
-    }
-  }
+  const memberUpdate = buildMemberUpdate(data, member, isSelf);
+  const membershipUpdate = await buildMembershipUpdate(
+    data,
+    membership,
+    clubId,
+    callerUid,
+    targetAuthUid,
+  );
 
   const batch = db.batch();
   if (Object.keys(memberUpdate).length > 1)

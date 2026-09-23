@@ -14,8 +14,14 @@
  *     node backend/scripts/audit-club-roster.js --project-id <firebase-project-id> [--club-id <clubId>]
  */
 
-const { initializeApp, applicationDefault } = require("firebase-admin/app");
-const { getFirestore } = require("firebase-admin/firestore");
+const { createRequire } = await import("node:module");
+const require = createRequire(import.meta.url);
+const functionsRequire = createRequire(
+  require.resolve("../functions/package.json"),
+);
+const { initializeApp, applicationDefault } =
+  functionsRequire("firebase-admin/app");
+const { getFirestore } = functionsRequire("firebase-admin/firestore");
 
 function parseArgs(argv) {
   const args = {};
@@ -136,8 +142,10 @@ async function main() {
   }
 }
 
-main().catch((error) => {
+try {
+  await main();
+} catch (error) {
   console.error("Roster audit failed.");
   console.error(error);
   process.exit(1);
-});
+}

@@ -213,6 +213,191 @@ function paymentItemPayload({
   };
 }
 
+function setMemberProfiles(batch, db, clubId, members) {
+  setMemberProfiles(batch, db, clubId, members);
+}
+
+function setMemberships(batch, db, clubId, memberships) {
+  for (const membership of memberships) {
+    batch.set(
+      db.collection("memberships").doc(`${clubId}_${membership.authUid}`),
+      {
+        clubId,
+        memberId: membership.memberId,
+        authUid: membership.authUid,
+        role: membership.role,
+        status: "active",
+        joinDate: Timestamp.fromDate(daysFromNow(-10)),
+        licenseNumber: null,
+      },
+      { merge: true },
+    );
+  }
+}
+
+function setAnnouncements(batch, db, clubId, announcements) {
+  for (const announcement of announcements) {
+    batch.set(
+      db.collection("announcements").doc(announcement.id),
+      {
+        clubId,
+        createdByMemberId: announcement.createdByMemberId,
+        title: announcement.title,
+        body: announcement.body,
+        isPinned: announcement.isPinned,
+        publishedAt: Timestamp.fromDate(announcement.publishedAt),
+        createdAt: Timestamp.fromDate(announcement.publishedAt),
+        visibility: "members",
+      },
+      { merge: true },
+    );
+  }
+}
+
+function setEvents(batch, db, clubId, events) {
+  for (const event of events) {
+    batch.set(
+      db.collection("events").doc(event.id),
+      {
+        clubId,
+        title: event.title,
+        description: event.description,
+        startsAt: Timestamp.fromDate(event.startsAt),
+        location: event.location,
+        category: event.category,
+      },
+      { merge: true },
+    );
+  }
+}
+
+function setEventRegistrations(batch, db, clubId, registrations) {
+  for (const [eventId, memberId, status] of registrations) {
+    batch.set(
+      db
+        .collection("event_registrations")
+        .doc(seedDocumentId(clubId, `registration-${eventId}-${memberId}`)),
+      {
+        clubId,
+        eventId,
+        memberId,
+        status,
+      },
+      { merge: true },
+    );
+  }
+}
+
+function setPaymentCalls(batch, db, clubId, adminMemberId, paymentCalls) {
+  for (const call of paymentCalls) {
+    batch.set(
+      db.collection("payment_calls").doc(call.id),
+      {
+        clubId,
+        title: call.title,
+        detail: call.detail,
+        category: call.category,
+        amountCents: call.amountCents,
+        currency: "eur",
+        dueDate: Timestamp.fromDate(call.dueDate),
+        createdByMemberId: adminMemberId,
+        createdAt: Timestamp.fromDate(daysFromNow(-18)),
+        notify: call.notify,
+      },
+      { merge: true },
+    );
+    for (const item of call.items) {
+      batch.set(
+        db
+          .collection("payment_call_items")
+          .doc(seedDocumentId(clubId, `${call.id}-${item.memberId}`)),
+        paymentItemPayload({
+          paymentCallId: call.id,
+          clubId,
+          memberId: item.memberId,
+          isPaid: item.isPaid,
+          paidAt: item.paidAt,
+          method: item.method,
+          declaredAt: item.declaredAt,
+          reference: item.reference,
+          validatedByMemberId: item.validatedByMemberId,
+          remindedAt: item.remindedAt,
+        }),
+        { merge: true },
+      );
+    }
+  }
+}
+
+function setTournaments(batch, db, clubId, tournaments) {
+  for (const tournament of tournaments) {
+    batch.set(
+      db.collection("tournaments").doc(tournament.id),
+      {
+        clubId,
+        name: tournament.name,
+        date: Timestamp.fromDate(tournament.date),
+        location: tournament.location,
+        markerIds: tournament.markerIds,
+        isFinished: tournament.isFinished,
+      },
+      { merge: true },
+    );
+  }
+}
+
+function setTournamentEntries(batch, db, clubId, entries) {
+  for (const entry of entries) {
+    batch.set(
+      db.collection("tournament_entries").doc(seedDocumentId(clubId, entry.name)),
+      {
+        clubId,
+        tournamentId: entry.tournamentId,
+        tableau: entry.tableau,
+        tour: entry.tour,
+        playerA: entry.playerA,
+        playerB: entry.playerB,
+        scoreA: entry.scoreA,
+        scoreB: entry.scoreB,
+        note: entry.note,
+        recordedByMemberId: entry.recordedByMemberId,
+        recordedAt: Timestamp.fromDate(daysFromNow(-1)),
+      },
+      { merge: true },
+    );
+  }
+}
+
+function setConversations(batch, db, clubId, conversations) {
+  for (const conversation of conversations) {
+    batch.set(
+      db.collection("conversations").doc(conversation.id),
+      {
+        clubId,
+        kind: conversation.kind,
+        participantIds: conversation.participantIds,
+      },
+      { merge: true },
+    );
+    for (const message of conversation.messages) {
+      batch.set(
+        db
+          .collection("conversations")
+          .doc(conversation.id)
+          .collection("messages")
+          .doc(message.id),
+        {
+          senderId: message.senderId,
+          text: message.text,
+          sentAt: Timestamp.fromDate(daysFromNow(-1)),
+          readBy: message.readBy,
+        },
+        { merge: true },
+      );
+    }
+  }
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
 
@@ -477,21 +662,7 @@ async function main() {
     { memberId: adminMemberId, authUid: adminAccount.uid, role: "admin" },
     { memberId: memberMemberId, authUid: memberAccount.uid, role: "board" },
   ];
-  for (const membership of secondMemberships) {
-    batch.set(
-      db.collection("memberships").doc(`${secondClubId}_${membership.authUid}`),
-      {
-        clubId: secondClubId,
-        memberId: membership.memberId,
-        authUid: membership.authUid,
-        role: membership.role,
-        status: "active",
-        joinDate: Timestamp.fromDate(daysFromNow(-10)),
-        licenseNumber: null,
-      },
-      { merge: true },
-    );
-  }
+  setMemberships(batch, db, secondClubId, secondMemberships);
 
   const announcements = [
     {
@@ -511,22 +682,7 @@ async function main() {
       publishedAt: daysFromNow(-2),
     },
   ];
-  for (const announcement of announcements) {
-    batch.set(
-      db.collection("announcements").doc(announcement.id),
-      {
-        clubId,
-        createdByMemberId: announcement.createdByMemberId,
-        title: announcement.title,
-        body: announcement.body,
-        isPinned: announcement.isPinned,
-        publishedAt: Timestamp.fromDate(announcement.publishedAt),
-        createdAt: Timestamp.fromDate(announcement.publishedAt),
-        visibility: "members",
-      },
-      { merge: true },
-    );
-  }
+  setAnnouncements(batch, db, clubId, announcements);
 
   const events = [
     {
@@ -562,20 +718,7 @@ async function main() {
       category: "convivial",
     },
   ];
-  for (const event of events) {
-    batch.set(
-      db.collection("events").doc(event.id),
-      {
-        clubId,
-        title: event.title,
-        description: event.description,
-        startsAt: Timestamp.fromDate(event.startsAt),
-        location: event.location,
-        category: event.category,
-      },
-      { merge: true },
-    );
-  }
+  setEvents(batch, db, clubId, events);
 
   const registrations = [
     [events[0].id, adminMemberId, "going"],
@@ -585,20 +728,7 @@ async function main() {
     [events[1].id, appleMemberId, "going"],
     [events[3].id, memberMemberId, "going"],
   ];
-  for (const [eventId, memberId, status] of registrations) {
-    batch.set(
-      db
-        .collection("event_registrations")
-        .doc(seedDocumentId(clubId, `registration-${eventId}-${memberId}`)),
-      {
-        clubId,
-        eventId,
-        memberId,
-        status,
-      },
-      { merge: true },
-    );
-  }
+  setEventRegistrations(batch, db, clubId, registrations);
 
   const paymentCalls = [
     {
@@ -701,44 +831,7 @@ async function main() {
       ],
     },
   ];
-  for (const call of paymentCalls) {
-    batch.set(
-      db.collection("payment_calls").doc(call.id),
-      {
-        clubId,
-        title: call.title,
-        detail: call.detail,
-        category: call.category,
-        amountCents: call.amountCents,
-        currency: "eur",
-        dueDate: Timestamp.fromDate(call.dueDate),
-        createdByMemberId: adminMemberId,
-        createdAt: Timestamp.fromDate(daysFromNow(-18)),
-        notify: call.notify,
-      },
-      { merge: true },
-    );
-    for (const item of call.items) {
-      batch.set(
-        db
-          .collection("payment_call_items")
-          .doc(seedDocumentId(clubId, `${call.id}-${item.memberId}`)),
-        paymentItemPayload({
-          paymentCallId: call.id,
-          clubId,
-          memberId: item.memberId,
-          isPaid: item.isPaid,
-          paidAt: item.paidAt,
-          method: item.method,
-          declaredAt: item.declaredAt,
-          reference: item.reference,
-          validatedByMemberId: item.validatedByMemberId,
-          remindedAt: item.remindedAt,
-        }),
-        { merge: true },
-      );
-    }
-  }
+  setPaymentCalls(batch, db, clubId, adminMemberId, paymentCalls);
 
   const upcomingTournamentId = seedDocumentId(clubId, "tournament-upcoming");
   const finishedTournamentId = seedDocumentId(clubId, "tournament-finished");
@@ -760,20 +853,7 @@ async function main() {
       isFinished: true,
     },
   ];
-  for (const tournament of tournaments) {
-    batch.set(
-      db.collection("tournaments").doc(tournament.id),
-      {
-        clubId,
-        name: tournament.name,
-        date: Timestamp.fromDate(tournament.date),
-        location: tournament.location,
-        markerIds: tournament.markerIds,
-        isFinished: tournament.isFinished,
-      },
-      { merge: true },
-    );
-  }
+  setTournaments(batch, db, clubId, tournaments);
 
   const tournamentEntries = [
     {
@@ -801,25 +881,7 @@ async function main() {
       recordedByMemberId: adminMemberId,
     },
   ];
-  for (const entry of tournamentEntries) {
-    batch.set(
-      db.collection("tournament_entries").doc(seedDocumentId(clubId, entry.name)),
-      {
-        clubId,
-        tournamentId: entry.tournamentId,
-        tableau: entry.tableau,
-        tour: entry.tour,
-        playerA: entry.playerA,
-        playerB: entry.playerB,
-        scoreA: entry.scoreA,
-        scoreB: entry.scoreB,
-        note: entry.note,
-        recordedByMemberId: entry.recordedByMemberId,
-        recordedAt: Timestamp.fromDate(daysFromNow(-1)),
-      },
-      { merge: true },
-    );
-  }
+  setTournamentEntries(batch, db, clubId, tournamentEntries);
 
   const conversations = [
     {
@@ -861,33 +923,7 @@ async function main() {
       ],
     },
   ];
-  for (const conversation of conversations) {
-    batch.set(
-      db.collection("conversations").doc(conversation.id),
-      {
-        clubId,
-        kind: conversation.kind,
-        participantIds: conversation.participantIds,
-      },
-      { merge: true },
-    );
-    for (const message of conversation.messages) {
-      batch.set(
-        db
-          .collection("conversations")
-          .doc(conversation.id)
-          .collection("messages")
-          .doc(message.id),
-        {
-          senderId: message.senderId,
-          text: message.text,
-          sentAt: Timestamp.fromDate(daysFromNow(-1)),
-          readBy: message.readBy,
-        },
-        { merge: true },
-      );
-    }
-  }
+  setConversations(batch, db, clubId, conversations);
 
   const invitationEmail = "invite.demo@assodarts.test";
   batch.set(

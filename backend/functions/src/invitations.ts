@@ -7,7 +7,7 @@ import {
   requireNotPlatformAdmin,
 } from "./shared/auth";
 
-const VALID_ROLES = ["admin", "board", "member"];
+const VALID_ROLES = new Set(["admin", "board", "member"]);
 const INVITATION_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 
 function timestampMillis(value: unknown): number | null {
@@ -55,7 +55,7 @@ export const createInvitation = onCall(async (request) => {
   const email = rawEmail.trim().toLowerCase();
   if (!email.includes("@"))
     throw new HttpsError("invalid-argument", "A valid email is required");
-  if (!VALID_ROLES.includes(role))
+  if (!VALID_ROLES.has(role))
     throw new HttpsError("invalid-argument", "Invalid role");
 
   await requireClubBoard(clubId, request.auth.uid);

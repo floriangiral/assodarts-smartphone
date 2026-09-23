@@ -60,7 +60,9 @@ struct DashboardHeader: View {
             tr("couldn_t_switch_club"),
             isPresented: Binding(get: { clubSwitchError != nil }, set: { if !$0 { clubSwitchError = nil } })
         ) {
-            Button(tr("ok"), role: .cancel) {}
+            Button(tr("ok"), role: .cancel) {
+                // Alert dismissal is handled by SwiftUI through the binding.
+            }
         } message: {
             Text(clubSwitchError ?? "")
         }

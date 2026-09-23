@@ -65,47 +65,70 @@ def expected_spec(kind: str) -> str:
     return "%lld" if kind in {"Int", "Double", "Float"} else "%@"
 
 
+def parsed_tr_literal(text: str, match: re.Match[str]) -> tuple[str, list[str]] | None:
+    parsed = split_arguments(text, match.end() - 1)
+    if not parsed:
+        return None
+    args, _ = parsed
+    if len(args) != 1:
+        return None
+    literal = parse_literal_expression(args[0])
+    if not literal:
+        return None
+    template, expressions = literal
+    return literal if expressions else None
+
+
+def catalog_candidates(key: str, catalog: dict[str, object]) -> list[str]:
+    return [
+        catalog_key
+        for catalog_key in catalog.get("strings", {})
+        if catalog_key == key or catalog_key.startswith(f"{key} ")
+    ]
+
+
+def type_mismatch_finding(
+    path: Path,
+    line: int,
+    key: str,
+    kinds: list[str],
+    expected: list[str],
+    stored: str,
+) -> str | None:
+    stored_specs = re.findall(r"%(?:lld|@|f|d)", stored)
+    if stored_specs == expected:
+        return None
+    return (
+        f"{path.relative_to(ROOT)}:{line}: {key}: "
+        f"deduced {', '.join(kinds)} expects {' '.join(expected)}, "
+        f"stored {stored_specs or '(none)'} in {stored}"
+    )
+
+
 def audit_file(path: Path, catalog: dict[str, object]) -> list[str]:
     text = path.read_text(encoding="utf-8")
     declared = declared_types(text)
     findings: list[str] = []
     for match in TR_CALL.finditer(text):
-        parsed = split_arguments(text, match.end() - 1)
-        if not parsed:
-            continue
-        args, _ = parsed
-        if len(args) != 1:
-            continue
-        literal = parse_literal_expression(args[0])
+        literal = parsed_tr_literal(text, match)
         if not literal:
             continue
         template, expressions = literal
-        if not expressions:
-            continue
         line = text.count("\n", 0, match.start()) + 1
         key = template.split("{{INTERPOLATION}}", 1)[0].strip()
         kinds = [inferred_type(expression, declared) for expression in expressions]
         if any(kind is None for kind in kinds):
             continue
         expected = [expected_spec(kind) for kind in kinds if kind is not None]
-        candidates = [
-            catalog_key
-            for catalog_key in catalog.get("strings", {})
-            if catalog_key == key or catalog_key.startswith(f"{key} ")
-        ]
+        candidates = catalog_candidates(key, catalog)
         if not candidates:
             findings.append(
                 f"{path.relative_to(ROOT)}:{line}: {key}: catalog key missing"
             )
             continue
-        stored = candidates[0]
-        stored_specs = re.findall(r"%(?:lld|@|f|d)", stored)
-        if stored_specs != expected:
-            findings.append(
-                f"{path.relative_to(ROOT)}:{line}: {key}: "
-                f"deduced {', '.join(kinds)} expects {' '.join(expected)}, "
-                f"stored {stored_specs or '(none)'} in {stored}"
-            )
+        finding = type_mismatch_finding(path, line, key, kinds, expected, candidates[0])
+        if finding:
+            findings.append(finding)
     return findings
 
 
