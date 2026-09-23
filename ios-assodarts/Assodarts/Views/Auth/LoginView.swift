@@ -8,7 +8,6 @@ struct LoginView: View {
     @State private var firstName: String = ""
     @State private var lastName: String = ""
     @State private var email: String = ""
-    @State private var phone: String = ""
     @State private var password: String = ""
     @State private var passwordConfirmation: String = ""
     @State private var errorMessage: String?
@@ -34,7 +33,6 @@ struct LoginView: View {
         case firstName
         case lastName
         case email
-        case phone
         case password
         case passwordConfirmation
     }
@@ -146,20 +144,6 @@ struct LoginView: View {
             }
             .id(Field.email)
 
-            if intent == .signUp {
-                VStack(alignment: .leading, spacing: 8) {
-                    SectionLabel(text: tr("phone_optional"))
-                    TextField("06 12 34 56 78", text: $phone)
-                        .keyboardType(.phonePad)
-                        .textContentType(.telephoneNumber)
-                        .focused($focusedField, equals: .phone)
-                        .foregroundStyle(Theme.ink)
-                        .assoFieldSurface()
-                }
-                .id(Field.phone)
-                .transition(.opacity.combined(with: .move(edge: .top)))
-            }
-
             VStack(alignment: .leading, spacing: 8) {
                 SectionLabel(text: tr("password"))
                 SecureField("••••••", text: $password)
@@ -269,7 +253,7 @@ struct LoginView: View {
                     lastName: lastName,
                     email: email,
                     password: password,
-                    phone: phone
+                    phone: ""
                 )
             }
 
