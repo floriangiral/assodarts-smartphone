@@ -33,7 +33,7 @@ function recipients(value: unknown, field: string): string[] | undefined {
     .filter(Boolean);
 
   if (result.length === 0 && field === "to") {
-    throw new Error(
+    throw new TypeError(
       "Mail document must contain at least one recipient in 'to'",
     );
   }
@@ -53,17 +53,17 @@ function parseMailDocument(data: FirebaseFirestore.DocumentData): {
   const message = mail.message;
 
   if (!to)
-    throw new Error(
+    throw new TypeError(
       "Mail document must contain at least one recipient in 'to'",
     );
   if (!message || typeof message !== "object") {
-    throw new Error("Mail document must contain a message");
+    throw new TypeError("Mail document must contain a message");
   }
   if (typeof message.subject !== "string" || !message.subject.trim()) {
-    throw new Error("Mail message must contain a subject");
+    throw new TypeError("Mail message must contain a subject");
   }
   if (typeof message.text !== "string" && typeof message.html !== "string") {
-    throw new Error("Mail message must contain text or html");
+    throw new TypeError("Mail message must contain text or html");
   }
 
   return {

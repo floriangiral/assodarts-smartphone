@@ -2,7 +2,6 @@ import { getFirestore } from "firebase-admin/firestore";
 import Stripe from "stripe";
 import {
   tierForMemberCount,
-  tierPriceCents,
   type PricingTier,
 } from "./pricing";
 
@@ -110,4 +109,4 @@ export async function ensureStripeCoupon(
   }
 }
 
-export { tierForMemberCount, tierPriceCents };
+export { tierForMemberCount, tierPriceCents } from "./pricing";

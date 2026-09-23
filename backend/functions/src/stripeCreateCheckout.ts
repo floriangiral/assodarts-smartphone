@@ -32,8 +32,7 @@ export const stripeCreateCheckout = onCall(
       .get();
     const membership = membershipSnap.data();
     if (
-      !membership ||
-      membership.status !== "active" ||
+      membership?.status !== "active" ||
       membership.memberId !== item.memberId
     ) {
       throw new HttpsError("permission-denied", "This payment is not yours");

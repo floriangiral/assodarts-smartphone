@@ -71,6 +71,12 @@ struct NewPaymentCallSheet: View {
         !label.trimmingCharacters(in: .whitespaces).isEmpty && amountCents > 0 && !recipients.isEmpty
     }
 
+    private var primaryButtonTitle: String {
+        if isSending { return tr("sending") }
+        guard canSend else { return tr("send_request") }
+        return tr("send_newpaymentcallsheet \(Fmt.count(recipients.count, key: .members)) \(Fmt.money(totalCents))")
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -206,11 +212,7 @@ struct NewPaymentCallSheet: View {
             }
             .safeAreaInset(edge: .bottom) {
                 PrimaryButton(
-                    title: isSending
-                        ? tr("sending")
-                        : canSend
-                        ? tr("send_newpaymentcallsheet \(Fmt.count(recipients.count, key: .members)) \(Fmt.money(totalCents))")
-                        : tr("send_request"),
+                    title: primaryButtonTitle,
                     symbol: "paperplane.fill",
                     isEnabled: canSend && !isSending
                 ) {

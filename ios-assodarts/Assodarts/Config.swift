@@ -14,18 +14,18 @@ import Foundation
 import OSLog
 
 enum Config {
-    static let FIREBASE_API_KEY = value(for: "FIREBASE_API_KEY")
-    static let FIREBASE_APP_ID = value(for: "FIREBASE_APP_ID")
-    static let FIREBASE_PROJECT_ID = value(for: "FIREBASE_PROJECT_ID")
-    static let FIREBASE_GCM_SENDER_ID = value(for: "FIREBASE_GCM_SENDER_ID")
-    static let FIREBASE_STORAGE_BUCKET = value(for: "FIREBASE_STORAGE_BUCKET")
+    static let firebaseApiKey = value(for: "FIREBASE_API_KEY")
+    static let firebaseAppId = value(for: "FIREBASE_APP_ID")
+    static let firebaseProjectId = value(for: "FIREBASE_PROJECT_ID")
+    static let firebaseGcmSenderId = value(for: "FIREBASE_GCM_SENDER_ID")
+    static let firebaseStorageBucket = value(for: "FIREBASE_STORAGE_BUCKET")
 
     static let allValues: [String: String] = [
-        "FIREBASE_API_KEY": FIREBASE_API_KEY,
-        "FIREBASE_APP_ID": FIREBASE_APP_ID,
-        "FIREBASE_PROJECT_ID": FIREBASE_PROJECT_ID,
-        "FIREBASE_GCM_SENDER_ID": FIREBASE_GCM_SENDER_ID,
-        "FIREBASE_STORAGE_BUCKET": FIREBASE_STORAGE_BUCKET,
+        "FIREBASE_API_KEY": firebaseApiKey,
+        "FIREBASE_APP_ID": firebaseAppId,
+        "FIREBASE_PROJECT_ID": firebaseProjectId,
+        "FIREBASE_GCM_SENDER_ID": firebaseGcmSenderId,
+        "FIREBASE_STORAGE_BUCKET": firebaseStorageBucket,
     ]
 
     private static let logger = Logger(subsystem: "com.assodarts.app", category: "Config")
@@ -58,4 +58,3 @@ enum Config {
         values[key] ?? ""
     }
 }
-

@@ -20,9 +20,7 @@ SOURCE_ROOT = ROOT / "ios-assodarts" / "Assodarts"
 CATALOG_PATH = SOURCE_ROOT / "Localizable.xcstrings"
 REPORT_PATH = ROOT / "backend" / "scripts" / "localization_migration_report.txt"
 TR_CALL = re.compile(r"\btr\s*\(")
-DECLARATION = re.compile(
-    r"(?:@\w+(?:\([^\n]*\))?\s+)*(?:var|let)\s+(\w+)\s*(?::\s*(Int|Double|Float|String))?"
-)
+DECLARATION = re.compile(r"\b(?:var|let)\s+(\w+)\s*(?::\s*(Int|Double|Float|String))?")
 PARAMETER = re.compile(r"\b(\w+)\s*:\s*(Int|Double|Float|String)\b")
 
 NUMERIC_PROPERTIES = re.compile(

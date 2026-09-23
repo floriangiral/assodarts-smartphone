@@ -10,9 +10,15 @@
  *   node backend/scripts/delete-demo-club.js --club-id demo-club --preserve-uid 2XctZJlPQdVrSGkrHLk4jAP6VzM2
  */
 
-const { initializeApp, applicationDefault } = require("firebase-admin/app");
-const { getFirestore } = require("firebase-admin/firestore");
-const { getAuth } = require("firebase-admin/auth");
+const { createRequire } = await import("node:module");
+const require = createRequire(import.meta.url);
+const functionsRequire = createRequire(
+  require.resolve("../functions/package.json"),
+);
+const { initializeApp, applicationDefault } =
+  functionsRequire("firebase-admin/app");
+const { getFirestore } = functionsRequire("firebase-admin/firestore");
+const { getAuth } = functionsRequire("firebase-admin/auth");
 
 initializeApp({ credential: applicationDefault() });
 
@@ -213,8 +219,10 @@ async function main() {
   console.log(JSON.stringify(stats, null, 2));
 }
 
-main().catch((error) => {
+try {
+  await main();
+} catch (error) {
   console.error("Failed to delete club.");
   console.error(error);
   process.exit(1);
-});
+}

@@ -2,10 +2,14 @@ import FirebaseAnalytics
 import Foundation
 
 enum AnalyticsService {
-    static let privacyPolicyURL = URL(string: "https://floriangiral.github.io/assodarts-smartphone/")
-        ?? URL(fileURLWithPath: "/")
+    static let privacyPolicyURL = configuredPrivacyPolicyURL()
 
     private static let collectionEnabledKey = "assodarts.analytics.collectionEnabled.v1"
+
+    private static func configuredPrivacyPolicyURL() -> URL {
+        let raw = Bundle.main.object(forInfoDictionaryKey: "ASSODARTSPrivacyPolicyURL") as? String
+        return raw.flatMap(URL.init(string:)) ?? URL(fileURLWithPath: NSHomeDirectory())
+    }
 
     static var isCollectionEnabled: Bool {
         UserDefaults.standard.object(forKey: collectionEnabledKey) as? Bool ?? true

@@ -19,12 +19,12 @@ enum Backend {
         }
         guard hasFallbackConfiguration else { return }
         let options = FirebaseOptions(
-            googleAppID: Config.FIREBASE_APP_ID,
-            gcmSenderID: Config.FIREBASE_GCM_SENDER_ID
+            googleAppID: Config.firebaseAppId,
+            gcmSenderID: Config.firebaseGcmSenderId
         )
-        options.apiKey = Config.FIREBASE_API_KEY
-        options.projectID = Config.FIREBASE_PROJECT_ID
-        options.storageBucket = Config.FIREBASE_STORAGE_BUCKET
+        options.apiKey = Config.firebaseApiKey
+        options.projectID = Config.firebaseProjectId
+        options.storageBucket = Config.firebaseStorageBucket
         FirebaseApp.configure(options: options)
     }
 
@@ -40,10 +40,10 @@ enum Backend {
     }
 
     private static var hasFallbackConfiguration: Bool {
-        !Config.FIREBASE_API_KEY.isEmpty
-            && !Config.FIREBASE_APP_ID.isEmpty
-            && !Config.FIREBASE_PROJECT_ID.isEmpty
-            && !Config.FIREBASE_GCM_SENDER_ID.isEmpty
+        !Config.firebaseApiKey.isEmpty
+            && !Config.firebaseAppId.isEmpty
+            && !Config.firebaseProjectId.isEmpty
+            && !Config.firebaseGcmSenderId.isEmpty
     }
 }
 

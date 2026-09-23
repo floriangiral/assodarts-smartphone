@@ -10,7 +10,8 @@
  * Add --force only when deliberately updating an existing record.
  */
 
-const { createRequire } = require("module");
+const { createRequire } = await import("node:module");
+const require = createRequire(import.meta.url);
 const functionsRequire = createRequire(
   require.resolve("../functions/package.json"),
 );
@@ -58,8 +59,10 @@ async function main() {
   console.log(`Platform admin granted: ${email} (${user.uid})`);
 }
 
-main().catch((error) => {
+try {
+  await main();
+} catch (error) {
   console.error("Grant failed.");
   console.error(error);
   process.exit(1);
-});
+}

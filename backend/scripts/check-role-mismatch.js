@@ -16,8 +16,14 @@
  *   node backend/scripts/check-role-mismatch.js --project-id assodarts-staging
  */
 
-const { initializeApp, applicationDefault } = require("firebase-admin/app");
-const { getFirestore } = require("firebase-admin/firestore");
+const { createRequire } = await import("node:module");
+const require = createRequire(import.meta.url);
+const functionsRequire = createRequire(
+  require.resolve("../functions/package.json"),
+);
+const { initializeApp, applicationDefault } =
+  functionsRequire("firebase-admin/app");
+const { getFirestore } = functionsRequire("firebase-admin/firestore");
 
 const INCORRECT_ROLES = ["bureau", "membre"];
 
@@ -78,8 +84,10 @@ async function main() {
   );
 }
 
-main().catch((error) => {
+try {
+  await main();
+} catch (error) {
   console.error("Diagnostic failed.");
   console.error(error);
   process.exit(1);
-});
+}

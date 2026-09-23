@@ -27,7 +27,7 @@ function extractExportedFunctions(indexPath) {
     for (const rawPart of block.split(",")) {
       const part = rawPart.trim();
       if (!part) continue;
-      const aliasMatch = part.match(/\s+as\s+([A-Za-z_$][\w$]*)$/);
+      const aliasMatch = /\s+as\s+([A-Za-z_$][\w$]*)$/.exec(part);
       exported.add(aliasMatch ? aliasMatch[1] : part);
     }
   }
@@ -39,7 +39,7 @@ function extractDeployedFunctions(jsonPath) {
   const parsed = JSON.parse(fs.readFileSync(jsonPath, "utf8"));
   const functions = Array.isArray(parsed) ? parsed : parsed.result;
   if (!Array.isArray(functions)) {
-    throw new Error("Firebase functions JSON must be an array or contain a result array");
+    throw new TypeError("Firebase functions JSON must be an array or contain a result array");
   }
   return [...new Set(functions.map((item) => item.id).filter(Boolean))].sort();
 }

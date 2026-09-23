@@ -203,15 +203,10 @@ enum RemoteRepository {
             for conversation in remoteConversations {
                 guard let conversationId = conversation.id else { continue }
                 group.addTask {
-                    let messagesSnap = try await db.collection("conversations").document(conversationId)
-                        .collection("messages")
-                        .order(by: "sentAt", descending: true)
-                        .limit(to: initialMessagesPerConversationLimit)
-                        .getDocuments()
-                    let messages = messagesSnap.documents
-                        .compactMap { try? $0.data(as: RemoteMessage.self) }
-                        .sorted { $0.sentAt < $1.sentAt }
-                    return (conversationId, messages)
+                    try await loadRecentMessages(
+                        conversationId: conversationId,
+                        in: db
+                    )
                 }
             }
             for try await (conversationId, messages) in group {
@@ -577,6 +572,21 @@ enum RemoteRepository {
         }
 
         return Array(conversationsById.values)
+    }
+
+    private static func loadRecentMessages(
+        conversationId: String,
+        in db: Firestore
+    ) async throws -> (String, [RemoteMessage]) {
+        let messagesSnap = try await db.collection("conversations").document(conversationId)
+            .collection("messages")
+            .order(by: "sentAt", descending: true)
+            .limit(to: initialMessagesPerConversationLimit)
+            .getDocuments()
+        let messages = messagesSnap.documents
+            .compactMap { try? $0.data(as: RemoteMessage.self) }
+            .sorted { $0.sentAt < $1.sentAt }
+        return (conversationId, messages)
     }
 
     // MARK: - Writes

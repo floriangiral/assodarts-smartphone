@@ -20,8 +20,9 @@
  * - The Apple review account is created or updated with the same demo password.
  */
 
-const { randomBytes, randomUUID } = require("crypto");
-const { createRequire } = require("module");
+const { createRequire } = await import("node:module");
+const require = createRequire(import.meta.url);
+const { randomBytes, randomUUID } = require("node:crypto");
 const functionsRequire = createRequire(
   require.resolve("../functions/package.json"),
 );
@@ -1081,8 +1082,10 @@ async function main() {
   }
 }
 
-main().catch((error) => {
+try {
+  await main();
+} catch (error) {
   console.error("Seed failed.");
   console.error(error);
   process.exit(1);
-});
+}

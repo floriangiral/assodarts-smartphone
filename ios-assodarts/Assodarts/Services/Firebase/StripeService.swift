@@ -93,7 +93,7 @@ enum StripeService {
 
     /// Callable Cloud Function results come back as loosely-typed `Any`; this
     /// re-serializes them through JSON to reuse `Decodable`.
-    private static func decode<T: Decodable>(_ data: Any, as type: T.Type) throws -> T {
+    private static func decode<T: Decodable>(_ data: Any, as _: T.Type) throws -> T {
         let json = try JSONSerialization.data(withJSONObject: data)
         return try JSONDecoder().decode(T.self, from: json)
     }

@@ -17,8 +17,7 @@ export async function requireClubBoard(
   const membership = snap.data();
 
   if (
-    !membership ||
-    membership.status !== "active" ||
+    membership?.status !== "active" ||
     !["admin", "board"].includes(membership.role)
   ) {
     throw new HttpsError(
@@ -43,8 +42,7 @@ export async function requireClubAdmin(
   const membership = snap.data();
 
   if (
-    !membership ||
-    membership.status !== "active" ||
+    membership?.status !== "active" ||
     membership.role !== "admin"
   ) {
     throw new HttpsError(

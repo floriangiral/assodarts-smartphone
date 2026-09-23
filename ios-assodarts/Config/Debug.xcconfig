@@ -1,5 +1,6 @@
 // Debug uses the staging Firebase project for local development.
 FIREBASE_ENVIRONMENT = Staging
 INFOPLIST_KEY_CFBundleDisplayName = Assodarts Staging
+INFOPLIST_KEY_ASSODARTSPrivacyPolicyURL = https:/$()/floriangiral.github.io/assodarts-smartphone/
 CODE_SIGN_ENTITLEMENTS = Assodarts/Assodarts.entitlements
 APS_ENVIRONMENT = development

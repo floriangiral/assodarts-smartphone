@@ -134,6 +134,21 @@ struct MemberRow: View {
     let member: Member
     let feeChip: (text: String, tint: Color, background: Color)
 
+    private var contributionIcon: String {
+        member.contributionStatus == "player" ? "checkmark.seal.fill" : "person.crop.circle"
+    }
+
+    private var contributionTint: Color {
+        member.contributionStatus == "player" ? Theme.orange : Theme.inkSecondary
+    }
+
+    private var contributionText: String {
+        guard member.contributionStatus == "player" else { return tr("member_contribution") }
+        return member.licenceNumber.isEmpty
+            ? tr("licensed")
+            : tr("licensed_membersview \(member.licenceNumber)")
+    }
+
     var body: some View {
         HStack(spacing: 12) {
             AvatarView(initials: member.initials, photoData: member.photoData, size: 44)
@@ -148,14 +163,10 @@ struct MemberRow: View {
                     }
                 }
                 HStack(spacing: 6) {
-                    Image(systemName: member.contributionStatus == "player" ? "checkmark.seal.fill" : "person.crop.circle")
+                    Image(systemName: contributionIcon)
                         .font(.caption2)
-                        .foregroundStyle(member.contributionStatus == "player" ? Theme.orange : Theme.inkSecondary)
-                    Text(member.contributionStatus == "player"
-                        ? (member.licenceNumber.isEmpty
-                            ? tr("licensed")
-                            : tr("licensed_membersview \(member.licenceNumber)"))
-                        : tr("member_contribution"))
+                        .foregroundStyle(contributionTint)
+                    Text(contributionText)
                         .font(.caption)
                         .foregroundStyle(Theme.inkSecondary)
                         .lineLimit(1)

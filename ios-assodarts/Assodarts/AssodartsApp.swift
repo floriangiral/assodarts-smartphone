@@ -16,8 +16,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate {
     private let notificationDelegate = PushNotificationDelegate()
 
     func application(
-        _ application: UIApplication,
-        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+        _: UIApplication,
+        didFinishLaunchingWithOptions _: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         Backend.configure()
         if Backend.isConfigured {
@@ -29,20 +29,20 @@ final class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate {
     }
 
     nonisolated func application(
-        _ application: UIApplication,
+        _: UIApplication,
         didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
     ) {
         Messaging.messaging().apnsToken = deviceToken
     }
 
     nonisolated func application(
-        _ application: UIApplication,
+        _: UIApplication,
         didFailToRegisterForRemoteNotificationsWithError error: Error
     ) {
         print("Push registration failed: \(error.localizedDescription)")
     }
 
-    nonisolated func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
+    nonisolated func messaging(_: Messaging, didReceiveRegistrationToken fcmToken: String?) {
         guard let fcmToken else { return }
         Task { @MainActor in
             NotificationCenter.default.post(
