@@ -169,6 +169,11 @@ Credentials and refuses to overwrite an existing record unless `--force` is
 provided. The staging seeder can also grant the optional account directly with
 `--platform-admin-email`.
 
+The in-app `claimPlatformAdmin` callable is disabled by default. Only enable it
+temporarily for a controlled bootstrap by setting a server-side
+`PLATFORM_ADMIN_BOOTSTRAP_TOKEN` environment variable and passing that token from
+a trusted build/session. Prefer the script above for staging and production.
+
 ## Manual checklist
 
 - [ ] Create/confirm the staging iOS app in Firebase with bundle ID `com.assodarts.app`.

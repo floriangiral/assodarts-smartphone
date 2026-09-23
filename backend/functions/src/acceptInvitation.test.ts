@@ -52,6 +52,21 @@ jest.mock("firebase-admin/firestore", () => ({
     },
   }),
   FieldValue: { serverTimestamp: () => "SERVER_TIMESTAMP" },
+  Timestamp: class {
+    millis: number;
+
+    constructor(millis: number) {
+      this.millis = millis;
+    }
+
+    static fromMillis(millis: number) {
+      return new this(millis);
+    }
+
+    toMillis() {
+      return this.millis;
+    }
+  },
 }));
 
 import { acceptInvitation } from "./invitations";
@@ -80,6 +95,7 @@ describe("acceptInvitation", () => {
               role: "member",
               licenseNumber: "A123",
               status: "pending",
+              expiresAt: Date.now() + 60_000,
             }),
             ref: { set: mockInvitationSet },
           },
@@ -121,6 +137,32 @@ describe("acceptInvitation", () => {
       { clubId: "c1", defaultClubId: "c1" },
       { merge: true },
     );
+  });
+
+  it("ignores an expired pending invitation", async () => {
+    mockInvitationsGet
+      .mockResolvedValueOnce({
+        docs: [
+          {
+            data: () => ({
+              clubId: "c1",
+              role: "member",
+              licenseNumber: null,
+              status: "pending",
+              expiresAt: Date.now() - 60_000,
+            }),
+            ref: { set: mockInvitationSet },
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ docs: [] });
+
+    await expect(wrapped(makeRequest("user@example.com", "u1"))).resolves.toEqual(
+      { joinedClubId: null },
+    );
+    expect(mockMembersGet).not.toHaveBeenCalled();
+    expect(mockMembershipSet).not.toHaveBeenCalled();
+    expect(mockInvitationSet).not.toHaveBeenCalled();
   });
 
   it("recovers an already accepted invitation for a recreated auth user", async () => {

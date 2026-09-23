@@ -12,7 +12,7 @@
  *     --board-email bureau@assodarts.test \
  *     --member-email membre@assodarts.test \
  *     --apple-review-email apple-review@assodarts.app \
- *     --demo-password Demo1234!
+ *     --demo-password "$ASSODARTS_DEMO_PASSWORD"
  *
  * Notes:
  * - The admin/board/member demo accounts are created or updated with the
@@ -20,7 +20,7 @@
  * - The Apple review account is created or updated with the same demo password.
  */
 
-const { randomUUID } = require("crypto");
+const { randomBytes, randomUUID } = require("crypto");
 const { createRequire } = require("module");
 const functionsRequire = createRequire(
   require.resolve("../functions/package.json"),
@@ -32,10 +32,13 @@ const { getFirestore, Timestamp, FieldValue } = functionsRequire(
 );
 const { getAuth } = functionsRequire("firebase-admin/auth");
 
-const DEFAULT_DEMO_PASSWORD = "Demo1234!";
 const SEEDED_COUPON_ID = "3e8688f3-2fb5-4d49-8f11-1e54dc5a0101";
 const SEEDED_PLATFORM_ANNOUNCEMENT_ID =
   "89ef8d8b-f20c-480b-a31d-f11a3cf38201";
+
+function generatedDemoPassword() {
+  return `Demo-${randomBytes(18).toString("base64url")}`;
+}
 
 function parseArgs(argv) {
   const args = {};
@@ -223,7 +226,7 @@ async function main() {
     args["second-club-name"] || "Clermont Darts Club",
   ).trim();
   const demoPassword = String(
-    args["demo-password"] || DEFAULT_DEMO_PASSWORD,
+    args["demo-password"] || generatedDemoPassword(),
   ).trim();
   const adminEmail = String(args["admin-email"] || "")
     .trim()
@@ -1005,10 +1008,16 @@ async function main() {
   console.log(`secondClubId: ${secondClubId}`);
   console.log(`secondClubName: ${secondClubName}`);
   if (platformAdminUid) console.log(`platformAdmin: ${platformAdminEmail}`);
-  console.log(`admin: ${adminAccount.email} / ${adminAccount.password}`);
-  console.log(`board: ${boardAccount.email} / ${boardAccount.password}`);
-  console.log(`member: ${memberAccount.email} / ${memberAccount.password}`);
-  console.log(`apple-review: ${appleReviewAccount.email} / ${appleReviewAccount.password}`);
+  if (args["print-demo-passwords"]) {
+    console.log(`admin: ${adminAccount.email} / ${adminAccount.password}`);
+    console.log(`board: ${boardAccount.email} / ${boardAccount.password}`);
+    console.log(`member: ${memberAccount.email} / ${memberAccount.password}`);
+    console.log(`apple-review: ${appleReviewAccount.email} / ${appleReviewAccount.password}`);
+  } else {
+    console.log(
+      "demo credentials: passwords hidden; pass --print-demo-passwords only in a private local terminal",
+    );
+  }
   console.log(`trialEndsAt: ${trialEndsAt.toISOString()}`);
   console.log(`announcements: ${announcements.map((item) => item.id).join(", ")}`);
   console.log(`events: ${events.map((item) => item.id).join(", ")}`);

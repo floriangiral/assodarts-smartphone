@@ -45,6 +45,21 @@ jest.mock("firebase-admin/firestore", () => ({
     },
   }),
   FieldValue: { serverTimestamp: () => "SERVER_TIMESTAMP" },
+  Timestamp: class {
+    millis: number;
+
+    constructor(millis: number) {
+      this.millis = millis;
+    }
+
+    static fromMillis(millis: number) {
+      return new this(millis);
+    }
+
+    toMillis() {
+      return this.millis;
+    }
+  },
 }));
 
 import { createInvitation, revokeInvitation } from "./invitations";
@@ -102,8 +117,8 @@ describe("createInvitation", () => {
         clubId: "c1",
         email: "a@b.com",
         role: "member",
-        inviteCode: expect.any(String),
         inviteUrl: expect.stringContaining("email=a%40b.com"),
+        expiresAt: expect.objectContaining({ toMillis: expect.any(Function) }),
         status: "pending",
       }),
       { merge: true },
@@ -115,8 +130,8 @@ describe("createInvitation", () => {
       }),
     );
     expect(result).toEqual({
-      inviteCode: expect.any(String),
       inviteUrl: expect.stringContaining("email=a%40b.com"),
+      expiresAtMillis: expect.any(Number),
     });
   });
 

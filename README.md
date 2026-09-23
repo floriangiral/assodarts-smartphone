@@ -150,8 +150,8 @@ settings (**Project settings → General → Your apps**):
 
 | Variable                  | Staging (`assodarts-staging`)               | Production (`assodarts`)                    |
 | ------------------------- | ------------------------------------------- | ------------------------------------------- |
-| `FIREBASE_API_KEY`        | `AIzaSyA9Ytv-16YCsaUaBTfLf5qgpZzksg8mZuQ`   | `AIzaSyD9N1fqXevqDQs_BaM6ujJ4SIrhq0wEGhU`   |
-| `FIREBASE_APP_ID`         | `1:189674137376:ios:cfda13b59775fba891d945` | `1:421200763226:ios:dc9122481d0cf2989c3b63` |
+| `FIREBASE_API_KEY`        | From Firebase Console                        | From Firebase Console                        |
+| `FIREBASE_APP_ID`         | From Firebase Console                        | From Firebase Console                        |
 | `FIREBASE_PROJECT_ID`     | `assodarts-staging`                         | `assodarts`                                 |
 | `FIREBASE_GCM_SENDER_ID`  | `189674137376`                              | `421200763226`                              |
 | `FIREBASE_STORAGE_BUCKET` | `assodarts-staging.firebasestorage.app`     | `assodarts.firebasestorage.app`             |
@@ -218,10 +218,11 @@ node backend/scripts/seed-staging.js \
   --member-email membre@assodarts.test \
   --apple-review-email apple-review@assodarts.app \
   --platform-admin-email platform-admin@assodarts.test \
-  --demo-password Demo1234!
+  --demo-password "$ASSODARTS_DEMO_PASSWORD"
 ```
 
 Le script utilise les identifiants Firebase Admin locaux (`GOOGLE_APPLICATION_CREDENTIALS` ou `applicationDefault()`). Les comptes `admin@assodarts.test`, `bureau@assodarts.test`, `membre@assodarts.test` et `apple-review@assodarts.app` sont créés ou mis à jour avec `--demo-password`.
+Si `--demo-password` est omis, un mot de passe aléatoire est généré et masqué dans les logs. Ajoutez `--print-demo-passwords` seulement dans un terminal privé de staging.
 
 Pour créer également un compte Stripe Express de test, exportez `STRIPE_SECRET_KEY` avec une clé `sk_test_...`. Le compte reste volontairement `pending` : terminez une fois l'onboarding dans `BankSettingsView` pour déclencher la vérification Stripe. Sans cette variable, les données bancaires sont tout de même créées et le résumé final indique l'étape manuelle restante.
 

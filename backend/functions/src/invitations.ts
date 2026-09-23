@@ -1,6 +1,5 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { getFirestore, FieldValue } from "firebase-admin/firestore";
-import { randomBytes } from "node:crypto";
+import { getFirestore, FieldValue, Timestamp } from "firebase-admin/firestore";
 import {
   requireClubAdmin,
   requireClubBoard,
@@ -9,6 +8,34 @@ import {
 } from "./shared/auth";
 
 const VALID_ROLES = ["admin", "board", "member"];
+const INVITATION_TTL_MS = 14 * 24 * 60 * 60 * 1000;
+
+function timestampMillis(value: unknown): number | null {
+  if (value instanceof Timestamp) return value.toMillis();
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (
+    value &&
+    typeof value === "object" &&
+    typeof (value as { toMillis?: unknown }).toMillis === "function"
+  ) {
+    return (value as { toMillis: () => number }).toMillis();
+  }
+  if (
+    value &&
+    typeof value === "object" &&
+    typeof (value as { toDate?: unknown }).toDate === "function"
+  ) {
+    return (value as { toDate: () => Date }).toDate().getTime();
+  }
+  return null;
+}
+
+function pendingInvitationIsUsable(invitation: Record<string, unknown>): boolean {
+  if (invitation.status !== "pending") return false;
+  const expiresAtMillis = timestampMillis(invitation.expiresAt);
+  return expiresAtMillis !== null && expiresAtMillis > Date.now();
+}
 
 /** The board invites someone by email, with the role they'll join with. */
 export const createInvitation = onCall(async (request) => {
@@ -36,12 +63,12 @@ export const createInvitation = onCall(async (request) => {
   await requireEmailNotPlatformAdmin(email);
 
   const db = getFirestore();
-  const inviteCode = randomBytes(12).toString("hex");
+  const expiresAt = Timestamp.fromMillis(Date.now() + INVITATION_TTL_MS);
   const baseUrl =
     process.env.ASSODARTS_INVITE_BASE_URL ?? "https://assodarts.app/invite";
   const inviteUrl = `${baseUrl}?club=${encodeURIComponent(
     clubId,
-  )}&email=${encodeURIComponent(email)}&code=${inviteCode}`;
+  )}&email=${encodeURIComponent(email)}`;
 
   await db.collection("invitations").doc(`${clubId}_${email}`).set(
     {
@@ -49,11 +76,11 @@ export const createInvitation = onCall(async (request) => {
       email,
       role,
       licenseNumber,
-      inviteCode,
       inviteUrl,
       status: "pending",
       invitedByMemberId: request.auth.uid,
       createdAt: FieldValue.serverTimestamp(),
+      expiresAt,
       acceptedAt: null,
       acceptedByMemberId: null,
     },
@@ -77,7 +104,7 @@ export const createInvitation = onCall(async (request) => {
     invitationId: `${clubId}_${email}`,
   });
 
-  return { inviteCode, inviteUrl };
+  return { inviteUrl, expiresAtMillis: expiresAt.toMillis() };
 });
 
 /** The board withdraws a pending invitation before it is accepted. */
@@ -122,9 +149,15 @@ export const acceptInvitation = onCall(async (request) => {
         .get(),
     ),
   );
-  const invitationDocs = invitationSnapshots.flatMap(
-    (snapshot) => snapshot.docs,
-  );
+  const invitationDocs = invitationSnapshots
+    .flatMap((snapshot) => snapshot.docs)
+    .filter((doc) => {
+      const invitation = doc.data();
+      return (
+        invitation.status === "accepted" ||
+        pendingInvitationIsUsable(invitation)
+      );
+    });
 
   if (invitationDocs.length === 0) return { joinedClubId: null };
 
