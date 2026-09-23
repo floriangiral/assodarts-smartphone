@@ -144,6 +144,153 @@ service cloud.firestore {
         ]);
     }
 
+    function announcementFields() {
+      return [
+        'clubId',
+        'createdByMemberId',
+        'title',
+        'body',
+        'isPinned',
+        'publishedAt',
+        'visibility',
+        'notify',
+        'createdAt'
+      ];
+    }
+
+    function announcementCreateIsValid() {
+      return request.resource.data.keys().hasOnly(announcementFields())
+        && request.resource.data.clubId is string
+        && request.resource.data.createdByMemberId == currentMemberId(request.resource.data.clubId);
+    }
+
+    function announcementUpdateIsValid() {
+      return request.resource.data.keys().hasOnly(announcementFields())
+        && request.resource.data.clubId == resource.data.clubId
+        && request.resource.data.createdByMemberId == resource.data.createdByMemberId
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'title',
+          'body',
+          'isPinned',
+          'publishedAt',
+          'visibility',
+          'notify'
+        ]);
+    }
+
+    function eventFields() {
+      return [
+        'clubId',
+        'title',
+        'description',
+        'startsAt',
+        'location',
+        'category',
+        'createdByMemberId'
+      ];
+    }
+
+    function eventCreateIsValid() {
+      return request.resource.data.keys().hasOnly(eventFields())
+        && request.resource.data.clubId is string
+        && request.resource.data.createdByMemberId == currentMemberId(request.resource.data.clubId);
+    }
+
+    function eventUpdateIsValid() {
+      return request.resource.data.keys().hasOnly(eventFields())
+        && request.resource.data.clubId == resource.data.clubId
+        && request.resource.data.createdByMemberId == resource.data.createdByMemberId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'title',
+          'description',
+          'startsAt',
+          'location',
+          'category'
+        ]);
+    }
+
+    function eventRegistrationFields() {
+      return ['clubId', 'eventId', 'memberId', 'status'];
+    }
+
+    function eventRegistrationCreateIsValid(registrationId) {
+      return request.resource.data.keys().hasOnly(eventRegistrationFields())
+        && request.resource.data.clubId is string
+        && request.resource.data.eventId is string
+        && request.resource.data.memberId is string
+        && request.resource.data.status in ['going', 'declined']
+        && registrationId == request.resource.data.eventId + '_' + request.resource.data.memberId;
+    }
+
+    function eventRegistrationUpdateIsValid() {
+      return request.resource.data.keys().hasOnly(eventRegistrationFields())
+        && request.resource.data.clubId == resource.data.clubId
+        && request.resource.data.eventId == resource.data.eventId
+        && request.resource.data.memberId == resource.data.memberId
+        && request.resource.data.status in ['going', 'declined']
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
+    }
+
+    function tournamentFields() {
+      return ['clubId', 'name', 'date', 'location', 'markerIds', 'isFinished'];
+    }
+
+    function tournamentCreateIsValid() {
+      return request.resource.data.keys().hasOnly(tournamentFields())
+        && request.resource.data.clubId is string
+        && request.resource.data.markerIds is list;
+    }
+
+    function tournamentUpdateIsValid() {
+      return request.resource.data.keys().hasOnly(tournamentFields())
+        && request.resource.data.clubId == resource.data.clubId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'name',
+          'date',
+          'location',
+          'markerIds',
+          'isFinished'
+        ]);
+    }
+
+    function paymentCallFields() {
+      return [
+        'clubId',
+        'title',
+        'detail',
+        'category',
+        'amountCents',
+        'currency',
+        'dueDate',
+        'createdByMemberId',
+        'createdAt',
+        'notify'
+      ];
+    }
+
+    function paymentCallCreateIsValid() {
+      return request.resource.data.keys().hasOnly(paymentCallFields())
+        && request.resource.data.clubId is string
+        && request.resource.data.createdByMemberId == currentMemberId(request.resource.data.clubId);
+    }
+
+    function paymentCallUpdateIsValid() {
+      return request.resource.data.keys().hasOnly(paymentCallFields())
+        && request.resource.data.clubId == resource.data.clubId
+        && request.resource.data.createdByMemberId == resource.data.createdByMemberId
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'title',
+          'detail',
+          'category',
+          'amountCents',
+          'currency',
+          'dueDate',
+          'notify'
+        ]);
+    }
+
     function bankAccountClientFields() {
       return [
         'clubId',
@@ -228,8 +375,11 @@ service cloud.firestore {
 
     match /announcements/{announcementId} {
       allow read: if isActiveMember(resource.data.clubId);
-      allow create: if canWriteClubContent(request.resource.data.clubId);
-      allow update, delete: if canWriteClubContent(resource.data.clubId);
+      allow create: if canWriteClubContent(request.resource.data.clubId)
+        && announcementCreateIsValid();
+      allow update: if canWriteClubContent(resource.data.clubId)
+        && announcementUpdateIsValid();
+      allow delete: if canWriteClubContent(resource.data.clubId);
     }
 
     match /platform_announcements/{announcementId} {
@@ -244,22 +394,32 @@ service cloud.firestore {
 
     match /events/{eventId} {
       allow read: if isActiveMember(resource.data.clubId);
-      allow create: if canWriteClubContent(request.resource.data.clubId);
-      allow update, delete: if canWriteClubContent(resource.data.clubId);
+      allow create: if canWriteClubContent(request.resource.data.clubId)
+        && eventCreateIsValid();
+      allow update: if canWriteClubContent(resource.data.clubId)
+        && eventUpdateIsValid();
+      allow delete: if canWriteClubContent(resource.data.clubId);
     }
 
     match /event_registrations/{registrationId} {
       allow read: if isActiveMember(resource.data.clubId);
-      allow create: if isOwnMember(request.resource.data.clubId, request.resource.data.memberId)
-        || isBoard(request.resource.data.clubId);
-      allow update, delete: if isOwnMember(resource.data.clubId, resource.data.memberId)
+      allow create: if eventRegistrationCreateIsValid(registrationId)
+        && (isOwnMember(request.resource.data.clubId, request.resource.data.memberId)
+          || isBoard(request.resource.data.clubId));
+      allow update: if eventRegistrationUpdateIsValid()
+        && (isOwnMember(resource.data.clubId, resource.data.memberId)
+          || isBoard(resource.data.clubId));
+      allow delete: if isOwnMember(resource.data.clubId, resource.data.memberId)
         || isBoard(resource.data.clubId);
     }
 
     match /tournaments/{tournamentId} {
       allow read: if isActiveMember(resource.data.clubId);
-      allow create: if canWriteClubContent(request.resource.data.clubId);
-      allow update, delete: if canWriteClubContent(resource.data.clubId);
+      allow create: if canWriteClubContent(request.resource.data.clubId)
+        && tournamentCreateIsValid();
+      allow update: if canWriteClubContent(resource.data.clubId)
+        && tournamentUpdateIsValid();
+      allow delete: if canWriteClubContent(resource.data.clubId);
     }
 
     match /tournament_entries/{entryId} {
@@ -290,7 +450,11 @@ service cloud.firestore {
 
     match /payment_calls/{callId} {
       allow read: if isActiveMember(resource.data.clubId);
-      allow write: if canWriteClubContent(request.resource.data.clubId);
+      allow create: if canWriteClubContent(request.resource.data.clubId)
+        && paymentCallCreateIsValid();
+      allow update: if canWriteClubContent(resource.data.clubId)
+        && paymentCallUpdateIsValid();
+      allow delete: if canWriteClubContent(resource.data.clubId);
     }
 
     match /payment_call_items/{itemId} {
