@@ -219,7 +219,7 @@ struct EventDetailView: View {
             }
         }
         .assoCanvas()
-        .task { await store.refresh() }
+        .task { await store.refreshIfStale() }
         .navigationTitle(tr("event"))
         .navigationBarTitleDisplayMode(.inline)
     }

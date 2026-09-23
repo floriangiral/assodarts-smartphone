@@ -276,6 +276,7 @@ extension AppStore {
             applySnapshot(snapshot)
             platformAnnouncementsRemote = (try? await RemoteRepository.loadPlatformAnnouncements()) ?? []
             isLive = true
+            lastRemoteSyncAt = Date()
             needsOnboardingChoice = false
             syncError = nil
             save()
@@ -386,6 +387,7 @@ extension AppStore {
             let snapshot = try await loadSnapshotAcceptingInvitations(for: userId)
             applySnapshot(snapshot)
             platformAnnouncementsRemote = (try? await RemoteRepository.loadPlatformAnnouncements()) ?? []
+            lastRemoteSyncAt = Date()
             syncError = nil
             save()
             await loadNotifications()
@@ -408,6 +410,7 @@ extension AppStore {
             try await RemoteRepository.setDefaultClub(memberId: userId, clubId: clubId)
             let snapshot = try await RemoteRepository.loadSnapshot(for: userId, preferredClubId: clubId)
             applySnapshot(snapshot)
+            lastRemoteSyncAt = Date()
             syncError = nil
             save()
             await loadNotifications()
@@ -417,6 +420,17 @@ extension AppStore {
             print("Club switch failed: \(error)")
             return friendlyMessage(for: error)
         }
+    }
+
+    /// Refreshes only when the cached active-club snapshot is old enough to
+    /// justify another full server pass. Detail screens use this on appear so
+    /// navigation does not repeatedly reload the entire club.
+    func refreshIfStale(maxAge: TimeInterval = 60) async {
+        guard isLive, !isSyncing else { return }
+        if let lastRemoteSyncAt, Date().timeIntervalSince(lastRemoteSyncAt) < maxAge {
+            return
+        }
+        await refresh()
     }
 
     /// Accepts the offer surfaced by `pendingClubSwitchOffer` and switches to it.

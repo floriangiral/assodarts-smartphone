@@ -170,7 +170,7 @@ struct AnnouncementDetailView: View {
         }
         .scrollContentBackground(.hidden)
         .assoCanvas()
-        .task { await store.refresh() }
+        .task { await store.refreshIfStale() }
         .navigationTitle(tr("announcement"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

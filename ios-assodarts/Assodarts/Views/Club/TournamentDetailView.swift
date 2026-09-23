@@ -49,7 +49,7 @@ struct TournamentDetailView: View {
         }
         .assoCanvas()
         .refreshable { await store.refresh() }
-        .task { await store.refresh() }
+        .task { await store.refreshIfStale() }
         .navigationTitle(tr("tournament_tracking"))
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showsEntrySheet) {

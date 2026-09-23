@@ -24,6 +24,8 @@ final class AppStore {
     var isLive: Bool = false
     /// True while a full refresh is in flight.
     var isSyncing: Bool = false
+    /// Last successful full backend sync for the active club.
+    var lastRemoteSyncAt: Date?
     /// Last backend failure, already translated for display.
     var syncError: String?
     /// True until the stored Firebase session has been checked at launch.
@@ -130,6 +132,7 @@ final class AppStore {
         platformAnnouncementsRemote = []
         db = Database()
         isLive = false
+        lastRemoteSyncAt = nil
         NotificationService.clearScheduledReminders()
         AnalyticsService.clearUserProperties()
         try? Backend.auth.signOut()
