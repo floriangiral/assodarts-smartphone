@@ -3,8 +3,8 @@ import {
   DocumentReference,
   DocumentSnapshot,
   getFirestore,
-  Timestamp,
 } from "firebase-admin/firestore";
+import { timestampMillis } from "./shared/timestamps";
 
 type MembershipData = {
   clubId?: unknown;
@@ -47,20 +47,6 @@ function optionalBool(value: unknown, fallback: boolean): boolean {
   return typeof value === "boolean" ? value : fallback;
 }
 
-function timestampMillis(value: unknown): number | null {
-  if (value instanceof Timestamp) return value.toMillis();
-  if (value instanceof Date) return value.getTime();
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (
-    value &&
-    typeof value === "object" &&
-    typeof (value as { toMillis?: unknown }).toMillis === "function"
-  ) {
-    return (value as { toMillis: () => number }).toMillis();
-  }
-  return null;
-}
-
 function rank(role: string): number {
   if (role === "admin") return 2;
   if (role === "board") return 1;
@@ -78,24 +64,23 @@ function preferMembership(
   candidate: MembershipData,
 ): MembershipData {
   if (!current) return candidate;
-  const currentStatus = cleanString(current.status);
-  const candidateStatus = cleanString(candidate.status);
-  if (statusRank(candidateStatus) !== statusRank(currentStatus)) {
-    return statusRank(candidateStatus) > statusRank(currentStatus)
-      ? candidate
-      : current;
-  }
-  return rank(cleanString(candidate.role)) > rank(cleanString(current.role))
-    ? candidate
-    : current;
+  return preferByStatusAndRole(current, candidate);
 }
 
 function prefersRosterMember(
   current: Record<string, unknown>,
   candidate: Record<string, unknown>,
 ): Record<string, unknown> {
-  const currentStatus = cleanString(current.membershipStatus);
-  const candidateStatus = cleanString(candidate.membershipStatus);
+  return preferByStatusAndRole(current, candidate);
+}
+
+function preferByStatusAndRole<
+  T extends { status?: unknown; membershipStatus?: unknown; role?: unknown },
+>(current: T, candidate: T): T {
+  const currentStatus = cleanString(current.status ?? current.membershipStatus);
+  const candidateStatus = cleanString(
+    candidate.status ?? candidate.membershipStatus,
+  );
   if (statusRank(candidateStatus) !== statusRank(currentStatus)) {
     return statusRank(candidateStatus) > statusRank(currentStatus)
       ? candidate

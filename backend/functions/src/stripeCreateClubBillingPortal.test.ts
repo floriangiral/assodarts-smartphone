@@ -27,17 +27,10 @@ jest.mock("firebase-admin/firestore", () => ({
 }));
 
 import { stripeCreateClubBillingPortal } from "./stripeCreateClubBillingPortal";
-import type { CallableRequest } from "firebase-functions/v2/https";
+import { makeCallableRequest } from "./testSupport";
 
-function makeRequest(
-  data: Record<string, unknown>,
-  uid?: string,
-): CallableRequest<Record<string, unknown>> {
-  return {
-    data,
-    auth: uid ? { uid, token: { email: "board@example.com" } } : undefined,
-  } as unknown as CallableRequest<Record<string, unknown>>;
-}
+const makeRequest = (data: Record<string, unknown>, uid?: string) =>
+  makeCallableRequest(data, { uid, token: { email: "board@example.com" } });
 
 const handler = stripeCreateClubBillingPortal.run.bind(
   stripeCreateClubBillingPortal,

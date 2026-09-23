@@ -1,17 +1,15 @@
 import functionsTest from "firebase-functions-test";
-import type { CallableRequest } from "firebase-functions/v2/https";
+import {
+  MockTimestamp as mockTimestamp,
+  firestoreDoc,
+  firestoreSnapshot,
+  makeCallableRequest,
+} from "./testSupport";
 
 const testEnv = functionsTest();
 
-function makeRequest(
-  email: string | undefined,
-  uid?: string,
-): CallableRequest<Record<string, unknown>> {
-  return {
-    data: {},
-    auth: uid ? { uid, token: email ? { email } : {} } : undefined,
-  } as unknown as CallableRequest<Record<string, unknown>>;
-}
+const makeRequest = (email: string | undefined, uid?: string) =>
+  makeCallableRequest({}, { uid, token: email ? { email } : {} });
 
 const mockPlatformAdminGet = jest.fn();
 const mockInvitationsGet = jest.fn();
@@ -52,21 +50,7 @@ jest.mock("firebase-admin/firestore", () => ({
     },
   }),
   FieldValue: { serverTimestamp: () => "SERVER_TIMESTAMP" },
-  Timestamp: class {
-    millis: number;
-
-    constructor(millis: number) {
-      this.millis = millis;
-    }
-
-    static fromMillis(millis: number) {
-      return new this(millis);
-    }
-
-    toMillis() {
-      return this.millis;
-    }
-  },
+  Timestamp: mockTimestamp,
 }));
 
 import { acceptInvitation } from "./invitations";
@@ -75,6 +59,16 @@ afterAll(() => testEnv.cleanup());
 
 describe("acceptInvitation", () => {
   const wrapped = testEnv.wrap(acceptInvitation);
+
+  const invitationDoc = (
+    data: Record<string, unknown>,
+    ref = { set: mockInvitationSet },
+  ) => firestoreDoc(data, { ref });
+
+  const memberDoc = (
+    id: string,
+    data: Record<string, unknown> = { clubId: null },
+  ) => firestoreDoc(data, { id, ref: { set: mockMemberSet } });
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -87,30 +81,19 @@ describe("acceptInvitation", () => {
 
   it("joins a pending invitation and links the member's first club", async () => {
     mockInvitationsGet
-      .mockResolvedValueOnce({
-        docs: [
-          {
-            data: () => ({
-              clubId: "c1",
-              role: "member",
-              licenseNumber: "A123",
-              status: "pending",
-              expiresAt: Date.now() + 60_000,
-            }),
-            ref: { set: mockInvitationSet },
-          },
-        ],
-      })
+      .mockResolvedValueOnce(
+        firestoreSnapshot([
+          invitationDoc({
+            clubId: "c1",
+            role: "member",
+            licenseNumber: "A123",
+            status: "pending",
+            expiresAt: Date.now() + 60_000,
+          }),
+        ]),
+      )
       .mockResolvedValueOnce({ docs: [] });
-    mockMembersGet.mockResolvedValue({
-      docs: [
-        {
-          id: "m1",
-          data: () => ({ clubId: null }),
-          ref: { set: mockMemberSet },
-        },
-      ],
-    });
+    mockMembersGet.mockResolvedValue(firestoreSnapshot([memberDoc("m1")]));
 
     const result = await wrapped(makeRequest("USER@EXAMPLE.COM", "u1"));
 
@@ -141,20 +124,17 @@ describe("acceptInvitation", () => {
 
   it("ignores an expired pending invitation", async () => {
     mockInvitationsGet
-      .mockResolvedValueOnce({
-        docs: [
-          {
-            data: () => ({
-              clubId: "c1",
-              role: "member",
-              licenseNumber: null,
-              status: "pending",
-              expiresAt: Date.now() - 60_000,
-            }),
-            ref: { set: mockInvitationSet },
-          },
-        ],
-      })
+      .mockResolvedValueOnce(
+        firestoreSnapshot([
+          invitationDoc({
+            clubId: "c1",
+            role: "member",
+            licenseNumber: null,
+            status: "pending",
+            expiresAt: Date.now() - 60_000,
+          }),
+        ]),
+      )
       .mockResolvedValueOnce({ docs: [] });
 
     await expect(
@@ -168,29 +148,18 @@ describe("acceptInvitation", () => {
   it("recovers an already accepted invitation for a recreated auth user", async () => {
     mockInvitationsGet
       .mockResolvedValueOnce({ docs: [] })
-      .mockResolvedValueOnce({
-        docs: [
-          {
-            data: () => ({
-              clubId: "c1",
-              role: "member",
-              licenseNumber: null,
-              status: "accepted",
-              acceptedByMemberId: "oldUid",
-            }),
-            ref: { set: mockInvitationSet },
-          },
-        ],
-      });
-    mockMembersGet.mockResolvedValue({
-      docs: [
-        {
-          id: "m2",
-          data: () => ({ clubId: null }),
-          ref: { set: mockMemberSet },
-        },
-      ],
-    });
+      .mockResolvedValueOnce(
+        firestoreSnapshot([
+          invitationDoc({
+            clubId: "c1",
+            role: "member",
+            licenseNumber: null,
+            status: "accepted",
+            acceptedByMemberId: "oldUid",
+          }),
+        ]),
+      );
+    mockMembersGet.mockResolvedValue(firestoreSnapshot([memberDoc("m2")]));
 
     const result = await wrapped(makeRequest("user@example.com", "u2"));
 

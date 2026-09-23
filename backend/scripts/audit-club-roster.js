@@ -14,44 +14,24 @@
  *     node backend/scripts/audit-club-roster.js --project-id <firebase-project-id> [--club-id <clubId>]
  */
 
-const { createRequire } = await import("node:module");
-const require = createRequire(import.meta.url);
-const functionsRequire = createRequire(
-  require.resolve("../functions/package.json"),
-);
-const { initializeApp, applicationDefault } =
-  functionsRequire("firebase-admin/app");
-const { getFirestore } = functionsRequire("firebase-admin/firestore");
+import { cleanString, loadAdminSdk, parseArgs, runMain } from "./admin-utils.js";
 
-function parseArgs(argv) {
-  const args = {};
-  for (let i = 0; i < argv.length; i += 1) {
-    const item = argv[i];
-    if (!item.startsWith("--")) continue;
-    const key = item.slice(2);
-    const next = argv[i + 1];
-    if (next && !next.startsWith("--")) {
-      args[key] = next;
-      i += 1;
-    } else {
-      args[key] = true;
-    }
-  }
-  return args;
-}
-
-function clean(value) {
-  return typeof value === "string" ? value.trim() : "";
-}
+const {
+  "firebase-admin/app": { initializeApp, applicationDefault },
+  "firebase-admin/firestore": { getFirestore },
+} = await loadAdminSdk([
+  "firebase-admin/app",
+  "firebase-admin/firestore",
+]);
 
 function fullName(member) {
-  return `${clean(member.firstName)} ${clean(member.lastName)}`.trim();
+  return `${cleanString(member.firstName)} ${cleanString(member.lastName)}`.trim();
 }
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  const projectId = clean(args["project-id"]);
-  const clubId = clean(args["club-id"]);
+  const projectId = cleanString(args["project-id"]);
+  const clubId = cleanString(args["club-id"]);
   if (!projectId) throw new Error("Missing required --project-id");
 
   initializeApp({ credential: applicationDefault(), projectId });
@@ -67,8 +47,8 @@ async function main() {
 
   for (const doc of membershipsSnap.docs) {
     const membership = doc.data();
-    const memberId = clean(membership.memberId);
-    const membershipClubId = clean(membership.clubId);
+    const memberId = cleanString(membership.memberId);
+    const membershipClubId = cleanString(membership.clubId);
     if (!memberId || !membershipClubId) continue;
 
     const memberSnap = await db.collection("members").doc(memberId).get();
@@ -77,30 +57,30 @@ async function main() {
         membershipId: doc.id,
         clubId: membershipClubId,
         memberId,
-        authUid: clean(membership.authUid),
-        status: clean(membership.status),
+        authUid: cleanString(membership.authUid),
+        status: cleanString(membership.status),
       });
       continue;
     }
 
     const member = memberSnap.data() || {};
-    const memberClubId = clean(member.clubId);
-    const defaultClubId = clean(member.defaultClubId);
+    const memberClubId = cleanString(member.clubId);
+    const defaultClubId = cleanString(member.defaultClubId);
     if (memberClubId !== membershipClubId && defaultClubId !== membershipClubId) {
       invisibleProfiles.push({
         membershipId: doc.id,
         clubId: membershipClubId,
         memberId,
-        authUid: clean(membership.authUid),
+        authUid: cleanString(membership.authUid),
         name: fullName(member),
-        email: clean(member.email).toLowerCase(),
+        email: cleanString(member.email).toLowerCase(),
         memberClubId: memberClubId || null,
         defaultClubId: defaultClubId || null,
-        status: clean(membership.status),
+        status: cleanString(membership.status),
       });
     }
 
-    const email = clean(member.email).toLowerCase();
+    const email = cleanString(member.email).toLowerCase();
     if (email) {
       const key = `${membershipClubId}:${email}`;
       const bucket = byClubAndEmail.get(key) || [];
@@ -108,10 +88,10 @@ async function main() {
         membershipId: doc.id,
         clubId: membershipClubId,
         memberId,
-        authUid: clean(membership.authUid),
+        authUid: cleanString(membership.authUid),
         name: fullName(member),
         email,
-        status: clean(membership.status),
+        status: cleanString(membership.status),
       });
       byClubAndEmail.set(key, bucket);
     }
@@ -142,10 +122,4 @@ async function main() {
   }
 }
 
-try {
-  await main();
-} catch (error) {
-  console.error("Roster audit failed.");
-  console.error(error);
-  process.exit(1);
-}
+await runMain(main, "Roster audit failed.");

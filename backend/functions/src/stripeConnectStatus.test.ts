@@ -33,17 +33,9 @@ jest.mock("firebase-admin/firestore", () => ({
 }));
 
 import { stripeConnectStatus } from "./stripeConnectStatus";
-import type { CallableRequest } from "firebase-functions/v2/https";
+import { makeCallableRequest } from "./testSupport";
 
-function makeRequest(
-  data: Record<string, unknown>,
-  uid?: string,
-): CallableRequest<Record<string, unknown>> {
-  return {
-    data,
-    auth: uid ? { uid, token: {} } : undefined,
-  } as unknown as CallableRequest<Record<string, unknown>>;
-}
+const makeRequest = makeCallableRequest;
 
 // `onCall` handlers are invoked directly through `.run()` in tests, same as Firestore triggers.
 const handler = stripeConnectStatus.run.bind(stripeConnectStatus);

@@ -48,23 +48,12 @@ struct MembersView: View {
             .contains { !$0.item.isPaid && $0.item.declaredAt == nil }
     }
 
-    private func feeChip(for member: Member) -> (text: String, tint: Color, background: Color) {
+    private func feeChip(for member: Member) -> ChipStyle {
         let fees = store.payments(for: member.id).filter { $0.call.category == .cotisation }
-        guard !fees.isEmpty else {
-            return (tr("fee_not_requested"), Theme.inkSecondary, Theme.canvas)
-        }
-
-        let state = store.membershipState(for: member.id)
-        switch state {
-        case .paid:
-            return (tr("fee_up_to_date"), state.tint, state.background)
-        case .awaitingValidation:
-            return (tr("fee_to_confirm"), state.tint, state.background)
-        case .pending:
-            return (tr("fee_to_pay"), state.tint, state.background)
-        case .late:
-            return (tr("fee_overdue"), state.tint, state.background)
-        }
+        return membershipFeeChip(
+            hasRequestedFee: !fees.isEmpty,
+            state: store.membershipState(for: member.id)
+        )
     }
 
     var body: some View {
@@ -132,7 +121,7 @@ struct MembersView: View {
 /// One row of the club directory.
 struct MemberRow: View {
     let member: Member
-    let feeChip: (text: String, tint: Color, background: Color)
+    let feeChip: ChipStyle
 
     private var contributionIcon: String {
         member.contributionStatus == "player" ? "checkmark.seal.fill" : "person.crop.circle"

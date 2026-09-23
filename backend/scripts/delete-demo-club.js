@@ -10,37 +10,22 @@
  *   node backend/scripts/delete-demo-club.js --club-id demo-club --preserve-uid 2XctZJlPQdVrSGkrHLk4jAP6VzM2
  */
 
-const { createRequire } = await import("node:module");
-const require = createRequire(import.meta.url);
-const functionsRequire = createRequire(
-  require.resolve("../functions/package.json"),
-);
-const { initializeApp, applicationDefault } =
-  functionsRequire("firebase-admin/app");
-const { getFirestore } = functionsRequire("firebase-admin/firestore");
-const { getAuth } = functionsRequire("firebase-admin/auth");
+import { cleanString, loadAdminSdk, parseArgs, runMain } from "./admin-utils.js";
+
+const {
+  "firebase-admin/app": { initializeApp, applicationDefault },
+  "firebase-admin/firestore": { getFirestore },
+  "firebase-admin/auth": { getAuth },
+} = await loadAdminSdk([
+  "firebase-admin/app",
+  "firebase-admin/firestore",
+  "firebase-admin/auth",
+]);
 
 initializeApp({ credential: applicationDefault() });
 
 const db = getFirestore();
 const auth = getAuth();
-
-function parseArgs(argv) {
-  const args = {};
-  for (let i = 0; i < argv.length; i += 1) {
-    const item = argv[i];
-    if (!item.startsWith("--")) continue;
-    const key = item.slice(2);
-    const next = argv[i + 1];
-    if (next && !next.startsWith("--")) {
-      args[key] = next;
-      i += 1;
-    } else {
-      args[key] = true;
-    }
-  }
-  return args;
-}
 
 function usage() {
   console.error(
@@ -146,10 +131,10 @@ async function collectAuthUidsToDelete(clubId) {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  const clubId = args["club-id"];
-  const preserveUid = args["preserve-uid"] || null;
+  const clubId = cleanString(args["club-id"]);
+  const preserveUid = cleanString(args["preserve-uid"]) || null;
 
-  if (!clubId || typeof clubId !== "string" || clubId.trim() === "") {
+  if (!clubId) {
     usage();
     process.exit(1);
   }
@@ -219,10 +204,4 @@ async function main() {
   console.log(JSON.stringify(stats, null, 2));
 }
 
-try {
-  await main();
-} catch (error) {
-  console.error("Failed to delete club.");
-  console.error(error);
-  process.exit(1);
-}
+await runMain(main, "Failed to delete club.");

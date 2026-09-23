@@ -51,17 +51,10 @@ jest.mock("firebase-admin/firestore", () => ({
 }));
 
 import { stripeCreateClubSubscriptionCheckout } from "./stripeCreateClubSubscriptionCheckout";
-import type { CallableRequest } from "firebase-functions/v2/https";
+import { firestoreDoc, makeCallableRequest } from "./testSupport";
 
-function makeRequest(
-  data: Record<string, unknown>,
-  uid?: string,
-): CallableRequest<Record<string, unknown>> {
-  return {
-    data,
-    auth: uid ? { uid, token: { email: "board@example.com" } } : undefined,
-  } as unknown as CallableRequest<Record<string, unknown>>;
-}
+const makeRequest = (data: Record<string, unknown>, uid?: string) =>
+  makeCallableRequest(data, { uid, token: { email: "board@example.com" } });
 
 const handler = stripeCreateClubSubscriptionCheckout.run.bind(
   stripeCreateClubSubscriptionCheckout,
@@ -72,12 +65,29 @@ function membershipsOfSize(size: number) {
   return { size, docs: [] };
 }
 
+function clubData(overrides: Record<string, unknown> = {}) {
+  return firestoreDoc({ name: "FC Test", ...overrides });
+}
+
+function couponData(overrides: Record<string, unknown>) {
+  return {
+    empty: false,
+    docs: [
+      firestoreDoc({
+        percent: 50,
+        autoRenew: false,
+        clubIds: [],
+        expiresAt: { toDate: () => new Date(Date.now() + 86_400_000) },
+        ...overrides,
+      }),
+    ],
+  };
+}
+
 beforeEach(() => {
   jest.clearAllMocks();
   mockRequireClubAdmin.mockResolvedValue(undefined);
-  mockClubGet.mockResolvedValue({
-    data: () => ({ name: "FC Test" }),
-  });
+  mockClubGet.mockResolvedValue(clubData());
   mockClubSet.mockResolvedValue(undefined);
   mockMembershipsGet.mockResolvedValue(membershipsOfSize(12));
   mockCouponsGet.mockResolvedValue({ empty: true, docs: [] });
@@ -155,9 +165,9 @@ describe("stripeCreateClubSubscriptionCheckout", () => {
   });
 
   it("refuses to start a second checkout when a live subscription exists", async () => {
-    mockClubGet.mockResolvedValue({
-      data: () => ({ name: "FC Test", stripeSubscriptionId: "sub_live" }),
-    });
+    mockClubGet.mockResolvedValue(
+      clubData({ stripeSubscriptionId: "sub_live" }),
+    );
     mockSubscriptionsRetrieve.mockResolvedValue({ status: "active" });
 
     await expect(
@@ -167,9 +177,9 @@ describe("stripeCreateClubSubscriptionCheckout", () => {
   });
 
   it("lets a club re-subscribe when its previous subscription is dead", async () => {
-    mockClubGet.mockResolvedValue({
-      data: () => ({ name: "FC Test", stripeSubscriptionId: "sub_old" }),
-    });
+    mockClubGet.mockResolvedValue(
+      clubData({ stripeSubscriptionId: "sub_old" }),
+    );
     mockSubscriptionsRetrieve.mockResolvedValue({ status: "canceled" });
 
     const result = await handler(makeRequest({ clubId: "c1" }, "u1"));
@@ -181,9 +191,9 @@ describe("stripeCreateClubSubscriptionCheckout", () => {
   });
 
   it("reuses the club's existing Stripe customer", async () => {
-    mockClubGet.mockResolvedValue({
-      data: () => ({ name: "FC Test", stripeCustomerId: "cus_existing" }),
-    });
+    mockClubGet.mockResolvedValue(
+      clubData({ stripeCustomerId: "cus_existing" }),
+    );
 
     await handler(makeRequest({ clubId: "c1" }, "u1"));
 
@@ -194,23 +204,10 @@ describe("stripeCreateClubSubscriptionCheckout", () => {
   });
 
   it("applies a valid coupon as a Stripe discount, not a discounted price", async () => {
-    mockClubGet.mockResolvedValue({
-      data: () => ({ name: "FC Test", couponCode: "WELCOME" }),
-    });
-    mockCouponsGet.mockResolvedValue({
-      empty: false,
-      docs: [
-        {
-          data: () => ({
-            code: "WELCOME",
-            percent: 25,
-            autoRenew: false,
-            clubIds: [],
-            expiresAt: { toDate: () => new Date(Date.now() + 86_400_000) },
-          }),
-        },
-      ],
-    });
+    mockClubGet.mockResolvedValue(clubData({ couponCode: "WELCOME" }));
+    mockCouponsGet.mockResolvedValue(
+      couponData({ code: "WELCOME", percent: 25 }),
+    );
     mockCouponsRetrieve.mockRejectedValue(new Error("not found"));
     mockStripeCouponsCreate.mockResolvedValue({
       id: "assodarts_WELCOME_25_once",
@@ -236,23 +233,15 @@ describe("stripeCreateClubSubscriptionCheckout", () => {
   });
 
   it("makes an auto-renewing coupon a forever discount", async () => {
-    mockClubGet.mockResolvedValue({
-      data: () => ({ name: "FC Test", couponCode: "PARTNER" }),
-    });
-    mockCouponsGet.mockResolvedValue({
-      empty: false,
-      docs: [
-        {
-          data: () => ({
-            code: "PARTNER",
-            percent: 100,
-            autoRenew: true,
-            clubIds: ["c1"],
-            expiresAt: { toDate: () => new Date(Date.now() + 86_400_000) },
-          }),
-        },
-      ],
-    });
+    mockClubGet.mockResolvedValue(clubData({ couponCode: "PARTNER" }));
+    mockCouponsGet.mockResolvedValue(
+      couponData({
+        code: "PARTNER",
+        percent: 100,
+        autoRenew: true,
+        clubIds: ["c1"],
+      }),
+    );
     mockCouponsRetrieve.mockRejectedValue(new Error("not found"));
     mockStripeCouponsCreate.mockResolvedValue({
       id: "assodarts_PARTNER_100_forever",
@@ -268,23 +257,13 @@ describe("stripeCreateClubSubscriptionCheckout", () => {
   });
 
   it("ignores an expired coupon", async () => {
-    mockClubGet.mockResolvedValue({
-      data: () => ({ name: "FC Test", couponCode: "OLD" }),
-    });
-    mockCouponsGet.mockResolvedValue({
-      empty: false,
-      docs: [
-        {
-          data: () => ({
-            code: "OLD",
-            percent: 50,
-            autoRenew: false,
-            clubIds: [],
-            expiresAt: { toDate: () => new Date(Date.now() - 86_400_000) },
-          }),
-        },
-      ],
-    });
+    mockClubGet.mockResolvedValue(clubData({ couponCode: "OLD" }));
+    mockCouponsGet.mockResolvedValue(
+      couponData({
+        code: "OLD",
+        expiresAt: { toDate: () => new Date(Date.now() - 86_400_000) },
+      }),
+    );
 
     await handler(makeRequest({ clubId: "c1" }, "u1"));
 
@@ -294,23 +273,10 @@ describe("stripeCreateClubSubscriptionCheckout", () => {
   });
 
   it("ignores a coupon that targets other clubs", async () => {
-    mockClubGet.mockResolvedValue({
-      data: () => ({ name: "FC Test", couponCode: "OTHER" }),
-    });
-    mockCouponsGet.mockResolvedValue({
-      empty: false,
-      docs: [
-        {
-          data: () => ({
-            code: "OTHER",
-            percent: 50,
-            autoRenew: false,
-            clubIds: ["someone-else"],
-            expiresAt: { toDate: () => new Date(Date.now() + 86_400_000) },
-          }),
-        },
-      ],
-    });
+    mockClubGet.mockResolvedValue(clubData({ couponCode: "OTHER" }));
+    mockCouponsGet.mockResolvedValue(
+      couponData({ code: "OTHER", clubIds: ["someone-else"] }),
+    );
 
     await handler(makeRequest({ clubId: "c1" }, "u1"));
 

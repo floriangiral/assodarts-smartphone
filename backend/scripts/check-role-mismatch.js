@@ -16,37 +16,21 @@
  *   node backend/scripts/check-role-mismatch.js --project-id assodarts-staging
  */
 
-const { createRequire } = await import("node:module");
-const require = createRequire(import.meta.url);
-const functionsRequire = createRequire(
-  require.resolve("../functions/package.json"),
-);
-const { initializeApp, applicationDefault } =
-  functionsRequire("firebase-admin/app");
-const { getFirestore } = functionsRequire("firebase-admin/firestore");
+import { cleanString, loadAdminSdk, parseArgs, runMain } from "./admin-utils.js";
+
+const {
+  "firebase-admin/app": { initializeApp, applicationDefault },
+  "firebase-admin/firestore": { getFirestore },
+} = await loadAdminSdk([
+  "firebase-admin/app",
+  "firebase-admin/firestore",
+]);
 
 const INCORRECT_ROLES = ["bureau", "membre"];
 
-function parseArgs(argv) {
-  const args = {};
-  for (let i = 0; i < argv.length; i += 1) {
-    const item = argv[i];
-    if (!item.startsWith("--")) continue;
-    const key = item.slice(2);
-    const next = argv[i + 1];
-    if (next && !next.startsWith("--")) {
-      args[key] = next;
-      i += 1;
-    } else {
-      args[key] = true;
-    }
-  }
-  return args;
-}
-
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  const projectId = String(args["project-id"] || "").trim();
+  const projectId = cleanString(args["project-id"]);
   if (!projectId) {
     throw new Error("Missing required --project-id");
   }
@@ -84,10 +68,4 @@ async function main() {
   );
 }
 
-try {
-  await main();
-} catch (error) {
-  console.error("Diagnostic failed.");
-  console.error(error);
-  process.exit(1);
-}
+await runMain(main, "Diagnostic failed.");

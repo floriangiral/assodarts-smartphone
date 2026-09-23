@@ -81,23 +81,12 @@ struct MemberDashboardContent: View {
         .assoCard()
     }
 
-    private var feeChip: (text: String, tint: Color, background: Color) {
+    private var feeChip: ChipStyle {
         let fees = store.payments(for: user.id).filter { $0.call.category == .cotisation }
-        guard !fees.isEmpty else {
-            return (tr("fee_not_requested"), Theme.inkSecondary, Theme.canvas)
-        }
-
-        let state = store.membershipState(for: user.id)
-        switch state {
-        case .paid:
-            return (tr("fee_up_to_date"), state.tint, state.background)
-        case .awaitingValidation:
-            return (tr("fee_to_confirm"), state.tint, state.background)
-        case .pending:
-            return (tr("fee_to_pay"), state.tint, state.background)
-        case .late:
-            return (tr("fee_overdue"), state.tint, state.background)
-        }
+        return membershipFeeChip(
+            hasRequestedFee: !fees.isEmpty,
+            state: store.membershipState(for: user.id)
+        )
     }
 
     private var paymentCard: some View {

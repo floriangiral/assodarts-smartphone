@@ -20,18 +20,16 @@
  * - The Apple review account is created or updated with the same demo password.
  */
 
-const { createRequire } = await import("node:module");
-const require = createRequire(import.meta.url);
-const { randomBytes, randomUUID } = require("node:crypto");
-const functionsRequire = createRequire(
-  require.resolve("../functions/package.json"),
-);
+import { functionsRequire, parseArgs, runMain } from "./admin-utils.js";
+import { randomBytes, randomUUID } from "node:crypto";
+
+const requireFromFunctions = await functionsRequire();
 const { initializeApp, applicationDefault } =
-  functionsRequire("firebase-admin/app");
-const { getFirestore, Timestamp, FieldValue } = functionsRequire(
+  requireFromFunctions("firebase-admin/app");
+const { getFirestore, Timestamp, FieldValue } = requireFromFunctions(
   "firebase-admin/firestore",
 );
-const { getAuth } = functionsRequire("firebase-admin/auth");
+const { getAuth } = requireFromFunctions("firebase-admin/auth");
 
 const SEEDED_COUPON_ID = "3e8688f3-2fb5-4d49-8f11-1e54dc5a0101";
 const SEEDED_PLATFORM_ANNOUNCEMENT_ID =
@@ -39,23 +37,6 @@ const SEEDED_PLATFORM_ANNOUNCEMENT_ID =
 
 function generatedDemoPassword() {
   return `Demo-${randomBytes(18).toString("base64url")}`;
-}
-
-function parseArgs(argv) {
-  const args = {};
-  for (let i = 0; i < argv.length; i += 1) {
-    const item = argv[i];
-    if (!item.startsWith("--")) continue;
-    const key = item.slice(2);
-    const next = argv[i + 1];
-    if (next && !next.startsWith("--")) {
-      args[key] = next;
-      i += 1;
-    } else {
-      args[key] = true;
-    }
-  }
-  return args;
 }
 
 function slugify(value) {
@@ -86,7 +67,7 @@ async function existingMemberId(db, authUid, fallbackId) {
 }
 
 function loadStripeClient() {
-  const stripeModule = functionsRequire("stripe");
+  const stripeModule = requireFromFunctions("stripe");
   const Stripe = stripeModule.default || stripeModule;
   return new Stripe(process.env.STRIPE_SECRET_KEY);
 }
@@ -1082,10 +1063,4 @@ async function main() {
   }
 }
 
-try {
-  await main();
-} catch (error) {
-  console.error("Seed failed.");
-  console.error(error);
-  process.exit(1);
-}
+await runMain(main, "Seed failed.");

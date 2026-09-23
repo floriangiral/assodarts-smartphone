@@ -1,18 +1,11 @@
 import functionsTest from "firebase-functions-test";
-import type { CallableRequest } from "firebase-functions/v2/https";
+import {
+  MockTimestamp as mockTimestamp,
+  makeCallableRequest,
+} from "./testSupport";
 
 const testEnv = functionsTest();
-
-/** Minimal fake callable request — only the fields our handlers actually read. */
-function makeRequest(
-  data: Record<string, unknown>,
-  uid?: string,
-): CallableRequest<Record<string, unknown>> {
-  return {
-    data,
-    auth: uid ? { uid, token: {} } : undefined,
-  } as unknown as CallableRequest<Record<string, unknown>>;
-}
+const makeRequest = makeCallableRequest;
 
 const mockMembershipGet = jest.fn();
 const mockInvitationSet = jest.fn();
@@ -45,21 +38,7 @@ jest.mock("firebase-admin/firestore", () => ({
     },
   }),
   FieldValue: { serverTimestamp: () => "SERVER_TIMESTAMP" },
-  Timestamp: class {
-    millis: number;
-
-    constructor(millis: number) {
-      this.millis = millis;
-    }
-
-    static fromMillis(millis: number) {
-      return new this(millis);
-    }
-
-    toMillis() {
-      return this.millis;
-    }
-  },
+  Timestamp: mockTimestamp,
 }));
 
 import { createInvitation, revokeInvitation } from "./invitations";
@@ -68,6 +47,11 @@ afterAll(() => testEnv.cleanup());
 
 describe("createInvitation", () => {
   const wrapped = testEnv.wrap(createInvitation);
+
+  const mockMembership = (role: string) =>
+    mockMembershipGet.mockResolvedValue({
+      data: () => ({ status: "active", role }),
+    });
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -93,18 +77,14 @@ describe("createInvitation", () => {
   });
 
   it("rejects a non-board caller", async () => {
-    mockMembershipGet.mockResolvedValue({
-      data: () => ({ status: "active", role: "member" }),
-    });
+    mockMembership("member");
     await expect(
       wrapped(makeRequest({ clubId: "c1", email: "a@b.com" }, "u1")),
     ).rejects.toThrow();
   });
 
   it("creates the invitation for a board member", async () => {
-    mockMembershipGet.mockResolvedValue({
-      data: () => ({ status: "active", role: "board" }),
-    });
+    mockMembership("board");
     mockInvitationSet.mockResolvedValue(undefined);
     mockMailAdd.mockResolvedValue({ id: "mail1" });
 
@@ -136,9 +116,7 @@ describe("createInvitation", () => {
   });
 
   it("rejects a board member inviting someone as board", async () => {
-    mockMembershipGet.mockResolvedValue({
-      data: () => ({ status: "active", role: "board" }),
-    });
+    mockMembership("board");
 
     await expect(
       wrapped(
@@ -150,9 +128,7 @@ describe("createInvitation", () => {
   });
 
   it("rejects a board member inviting someone as admin", async () => {
-    mockMembershipGet.mockResolvedValue({
-      data: () => ({ status: "active", role: "board" }),
-    });
+    mockMembership("board");
 
     await expect(
       wrapped(
@@ -164,9 +140,7 @@ describe("createInvitation", () => {
   });
 
   it("lets a club admin invite someone as board", async () => {
-    mockMembershipGet.mockResolvedValue({
-      data: () => ({ status: "active", role: "admin" }),
-    });
+    mockMembership("admin");
     mockInvitationSet.mockResolvedValue(undefined);
     mockMailAdd.mockResolvedValue({ id: "mail1" });
 
@@ -181,9 +155,7 @@ describe("createInvitation", () => {
   });
 
   it("rejects the platform admin email", async () => {
-    mockMembershipGet.mockResolvedValue({
-      data: () => ({ status: "active", role: "board" }),
-    });
+    mockMembership("board");
     mockPlatformAdminEmailGet.mockResolvedValue({ empty: false });
 
     await expect(
@@ -201,19 +173,20 @@ describe("createInvitation", () => {
 describe("revokeInvitation", () => {
   const wrapped = testEnv.wrap(revokeInvitation);
 
-  it("rejects a non-board caller", async () => {
+  const mockMembership = (role: string) =>
     mockMembershipGet.mockResolvedValue({
-      data: () => ({ status: "active", role: "member" }),
+      data: () => ({ status: "active", role }),
     });
+
+  it("rejects a non-board caller", async () => {
+    mockMembership("member");
     await expect(
       wrapped(makeRequest({ clubId: "c1", email: "a@b.com" }, "u1")),
     ).rejects.toThrow();
   });
 
   it("deletes the invitation for a board member", async () => {
-    mockMembershipGet.mockResolvedValue({
-      data: () => ({ status: "active", role: "admin" }),
-    });
+    mockMembership("admin");
     mockInvitationDelete.mockResolvedValue(undefined);
 
     await wrapped(makeRequest({ clubId: "c1", email: "A@B.com" }, "u1"));

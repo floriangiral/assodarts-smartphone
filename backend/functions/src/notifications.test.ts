@@ -1,3 +1,5 @@
+import { firestoreDoc, firestoreSnapshot } from "./testSupport";
+
 const mockPaymentCallGet = jest.fn();
 const mockMemberGet = jest.fn();
 const mockConversationGet = jest.fn();
@@ -23,6 +25,23 @@ function makeMembershipsQuery(): {
   query.where.mockImplementation(() => query);
   lastMembershipsQuery = query;
   return query;
+}
+
+function membershipSnapshot(...memberships: Record<string, unknown>[]) {
+  return firestoreSnapshot(
+    memberships.map((membership) => firestoreDoc(membership)),
+  );
+}
+
+function mockConversation(data: Record<string, unknown>) {
+  mockConversationGet.mockResolvedValue({
+    data: () => ({
+      clubId: "c1",
+      kind: "direct",
+      participantIds: ["member1", "member2"],
+      ...data,
+    }),
+  });
 }
 
 jest.mock("firebase-admin/firestore", () => ({
@@ -102,19 +121,13 @@ beforeEach(() => {
   mockMemberGet.mockResolvedValue({
     data: () => ({ displayName: "Jane Doe" }),
   });
-  mockConversationGet.mockResolvedValue({
-    data: () => ({
-      clubId: "c1",
-      kind: "direct",
-      participantIds: ["member1", "member2"],
-    }),
-  });
-  mockMembershipsQueryGet.mockResolvedValue({
-    docs: [
-      { data: () => ({ memberId: "member1", clubId: "c1" }) },
-      { data: () => ({ memberId: "member2", clubId: "c1" }) },
-    ],
-  });
+  mockConversation({});
+  mockMembershipsQueryGet.mockResolvedValue(
+    membershipSnapshot(
+      { memberId: "member1", clubId: "c1" },
+      { memberId: "member2", clubId: "c1" },
+    ),
+  );
   mockTournamentGet.mockResolvedValue({
     data: () => ({ name: "Open de rentrée" }),
   });
@@ -184,12 +197,9 @@ describe("onPaymentItemWritten", () => {
   });
 
   it("notifies the board when a payment is newly declared", async () => {
-    mockMembershipsQueryGet.mockResolvedValue({
-      docs: [
-        { data: () => ({ memberId: "board1" }) },
-        { data: () => ({ memberId: "board2" }) },
-      ],
-    });
+    mockMembershipsQueryGet.mockResolvedValue(
+      membershipSnapshot({ memberId: "board1" }, { memberId: "board2" }),
+    );
 
     await onPaymentItemWritten.run(
       paymentItemEvent(
@@ -221,12 +231,9 @@ describe("onPaymentItemWritten", () => {
   });
 
   it("does not notify the declaring member when they are also on the board", async () => {
-    mockMembershipsQueryGet.mockResolvedValue({
-      docs: [
-        { data: () => ({ memberId: "board1" }) },
-        { data: () => ({ memberId: "member1" }) },
-      ],
-    });
+    mockMembershipsQueryGet.mockResolvedValue(
+      membershipSnapshot({ memberId: "board1" }, { memberId: "member1" }),
+    );
 
     await onPaymentItemWritten.run(
       paymentItemEvent(
@@ -243,7 +250,10 @@ describe("onPaymentItemWritten", () => {
 
     expect(mockNotificationAdd).toHaveBeenCalledTimes(1);
     expect(mockNotificationAdd).toHaveBeenCalledWith(
-      expect.objectContaining({ memberId: "board1", kind: "payment_to_confirm" }),
+      expect.objectContaining({
+        memberId: "board1",
+        kind: "payment_to_confirm",
+      }),
     );
   });
 
@@ -310,9 +320,9 @@ describe("onPaymentItemWritten", () => {
   });
 
   it("does not notify payment recipients outside active club memberships", async () => {
-    mockMembershipsQueryGet.mockResolvedValue({
-      docs: [{ data: () => ({ memberId: "other-member", clubId: "c1" }) }],
-    });
+    mockMembershipsQueryGet.mockResolvedValue(
+      membershipSnapshot({ memberId: "other-member", clubId: "c1" }),
+    );
 
     await onPaymentItemWritten.run(
       paymentItemEvent(undefined, {
@@ -372,12 +382,9 @@ describe("onAnnouncementCreated", () => {
   });
 
   it("notifies every active member once published", async () => {
-    mockMembershipsQueryGet.mockResolvedValue({
-      docs: [
-        { data: () => ({ memberId: "m1" }) },
-        { data: () => ({ memberId: "m2" }) },
-      ],
-    });
+    mockMembershipsQueryGet.mockResolvedValue(
+      membershipSnapshot({ memberId: "m1" }, { memberId: "m2" }),
+    );
 
     await onAnnouncementCreated.run(
       announcementEvent({
@@ -400,12 +407,9 @@ describe("onAnnouncementCreated", () => {
   });
 
   it("does not notify the announcement's author", async () => {
-    mockMembershipsQueryGet.mockResolvedValue({
-      docs: [
-        { data: () => ({ memberId: "m1" }) },
-        { data: () => ({ memberId: "m2" }) },
-      ],
-    });
+    mockMembershipsQueryGet.mockResolvedValue(
+      membershipSnapshot({ memberId: "m1" }, { memberId: "m2" }),
+    );
 
     await onAnnouncementCreated.run(
       announcementEvent({
@@ -426,12 +430,9 @@ describe("onAnnouncementCreated", () => {
 
 describe("onEventCreated", () => {
   it("notifies active members when an event is created", async () => {
-    mockMembershipsQueryGet.mockResolvedValue({
-      docs: [
-        { data: () => ({ memberId: "m1" }) },
-        { data: () => ({ memberId: "m2" }) },
-      ],
-    });
+    mockMembershipsQueryGet.mockResolvedValue(
+      membershipSnapshot({ memberId: "m1" }, { memberId: "m2" }),
+    );
 
     await onEventCreated.run(
       eventEvent({
@@ -452,12 +453,9 @@ describe("onEventCreated", () => {
   });
 
   it("does not notify the event's creator", async () => {
-    mockMembershipsQueryGet.mockResolvedValue({
-      docs: [
-        { data: () => ({ memberId: "m1" }) },
-        { data: () => ({ memberId: "m2" }) },
-      ],
-    });
+    mockMembershipsQueryGet.mockResolvedValue(
+      membershipSnapshot({ memberId: "m1" }, { memberId: "m2" }),
+    );
 
     await onEventCreated.run(
       eventEvent({
@@ -493,16 +491,10 @@ describe("onMessageCreated", () => {
   });
 
   it("does not notify direct participants without an active membership in the conversation club", async () => {
-    mockConversationGet.mockResolvedValue({
-      data: () => ({
-        clubId: "c1",
-        kind: "direct",
-        participantIds: ["member1", "external-member"],
-      }),
-    });
-    mockMembershipsQueryGet.mockResolvedValue({
-      docs: [{ data: () => ({ memberId: "member1", clubId: "c1" }) }],
-    });
+    mockConversation({ participantIds: ["member1", "external-member"] });
+    mockMembershipsQueryGet.mockResolvedValue(
+      membershipSnapshot({ memberId: "member1", clubId: "c1" }),
+    );
 
     await onMessageCreated.run(
       messageEvent({ senderId: "member1", text: "Salut" }),
@@ -512,20 +504,14 @@ describe("onMessageCreated", () => {
   });
 
   it("does not notify malformed direct conversations with too many recipients", async () => {
-    mockConversationGet.mockResolvedValue({
-      data: () => ({
-        clubId: "c1",
-        kind: "direct",
-        participantIds: ["member1", "member2", "member3"],
-      }),
-    });
-    mockMembershipsQueryGet.mockResolvedValue({
-      docs: [
-        { data: () => ({ memberId: "member1", clubId: "c1" }) },
-        { data: () => ({ memberId: "member2", clubId: "c1" }) },
-        { data: () => ({ memberId: "member3", clubId: "c1" }) },
-      ],
-    });
+    mockConversation({ participantIds: ["member1", "member2", "member3"] });
+    mockMembershipsQueryGet.mockResolvedValue(
+      membershipSnapshot(
+        { memberId: "member1", clubId: "c1" },
+        { memberId: "member2", clubId: "c1" },
+        { memberId: "member3", clubId: "c1" },
+      ),
+    );
 
     await onMessageCreated.run(
       messageEvent({ senderId: "member1", text: "Salut" }),
@@ -535,19 +521,10 @@ describe("onMessageCreated", () => {
   });
 
   it("notifies the board when a member writes to a committee conversation", async () => {
-    mockConversationGet.mockResolvedValue({
-      data: () => ({
-        clubId: "c1",
-        kind: "bureau",
-        participantIds: ["member1"],
-      }),
-    });
-    mockMembershipsQueryGet.mockResolvedValue({
-      docs: [
-        { data: () => ({ memberId: "board1" }) },
-        { data: () => ({ memberId: "member1" }) },
-      ],
-    });
+    mockConversation({ kind: "bureau", participantIds: ["member1"] });
+    mockMembershipsQueryGet.mockResolvedValue(
+      membershipSnapshot({ memberId: "board1" }, { memberId: "member1" }),
+    );
 
     await onMessageCreated.run(
       messageEvent({ senderId: "member1", text: "Besoin d'aide" }),
@@ -563,27 +540,21 @@ describe("onMessageCreated", () => {
   });
 
   it("notifies only the thread member when the board replies to a committee conversation", async () => {
-    mockConversationGet.mockResolvedValue({
-      data: () => ({
-        clubId: "c1",
-        kind: "bureau",
-        participantIds: ["member1"],
-      }),
-    });
+    mockConversation({ kind: "bureau", participantIds: ["member1"] });
     mockMembershipsQueryGet
-      .mockResolvedValueOnce({
-        docs: [
-          { data: () => ({ memberId: "member1", clubId: "c1" }) },
-          { data: () => ({ memberId: "board1", clubId: "c1" }) },
-          { data: () => ({ memberId: "board2", clubId: "c1" }) },
-        ],
-      })
-      .mockResolvedValueOnce({
-        docs: [
-          { data: () => ({ memberId: "board1", clubId: "c1" }) },
-          { data: () => ({ memberId: "board2", clubId: "c1" }) },
-        ],
-      });
+      .mockResolvedValueOnce(
+        membershipSnapshot(
+          { memberId: "member1", clubId: "c1" },
+          { memberId: "board1", clubId: "c1" },
+          { memberId: "board2", clubId: "c1" },
+        ),
+      )
+      .mockResolvedValueOnce(
+        membershipSnapshot(
+          { memberId: "board1", clubId: "c1" },
+          { memberId: "board2", clubId: "c1" },
+        ),
+      );
 
     await onMessageCreated.run(
       messageEvent({ senderId: "board1", text: "Bien reçu" }),
@@ -599,12 +570,9 @@ describe("onMessageCreated", () => {
   });
 
   it("does not notify malformed committee conversations with several member-side participants", async () => {
-    mockConversationGet.mockResolvedValue({
-      data: () => ({
-        clubId: "c1",
-        kind: "bureau",
-        participantIds: ["member1", "member2"],
-      }),
+    mockConversation({
+      kind: "bureau",
+      participantIds: ["member1", "member2"],
     });
 
     await onMessageCreated.run(
@@ -617,12 +585,9 @@ describe("onMessageCreated", () => {
 
 describe("onTournamentEntryCreated", () => {
   it("notifies opted-in active members with the recorded result", async () => {
-    mockMembershipsQueryGet.mockResolvedValue({
-      docs: [
-        { data: () => ({ memberId: "m1" }) },
-        { data: () => ({ memberId: "m2" }) },
-      ],
-    });
+    mockMembershipsQueryGet.mockResolvedValue(
+      membershipSnapshot({ memberId: "m1" }, { memberId: "m2" }),
+    );
     mockMemberGet.mockImplementation((memberId?: string) => ({
       data: () => ({ notifyTournaments: memberId === "m1" }),
     }));
@@ -661,13 +626,12 @@ describe("onTournamentEntryCreated", () => {
   });
 
   it("does not notify the member who recorded the result", async () => {
-    mockMembershipsQueryGet.mockResolvedValue({
-      docs: [
-        { data: () => ({ memberId: "m1" }) },
-        { data: () => ({ memberId: "m2" }) },
-      ],
+    mockMembershipsQueryGet.mockResolvedValue(
+      membershipSnapshot({ memberId: "m1" }, { memberId: "m2" }),
+    );
+    mockMemberGet.mockResolvedValue({
+      data: () => ({ notifyTournaments: true }),
     });
-    mockMemberGet.mockResolvedValue({ data: () => ({ notifyTournaments: true }) });
 
     await onTournamentEntryCreated.run(
       tournamentEntryEvent({
@@ -690,12 +654,12 @@ describe("onTournamentEntryCreated", () => {
 
 describe("onPlatformAnnouncementCreated", () => {
   it("notifies every active membership across clubs for all audience", async () => {
-    mockMembershipsQueryGet.mockResolvedValue({
-      docs: [
-        { data: () => ({ memberId: "m1", clubId: "c1" }) },
-        { data: () => ({ memberId: "m2", clubId: "c2" }) },
-      ],
-    });
+    mockMembershipsQueryGet.mockResolvedValue(
+      membershipSnapshot(
+        { memberId: "m1", clubId: "c1" },
+        { memberId: "m2", clubId: "c2" },
+      ),
+    );
 
     await onPlatformAnnouncementCreated.run(
       platformAnnouncementEvent({
@@ -718,9 +682,9 @@ describe("onPlatformAnnouncementCreated", () => {
   });
 
   it("uses the admin and board membership filter for admins audience", async () => {
-    mockMembershipsQueryGet.mockResolvedValue({
-      docs: [{ data: () => ({ memberId: "admin1", clubId: "c1" }) }],
-    });
+    mockMembershipsQueryGet.mockResolvedValue(
+      membershipSnapshot({ memberId: "admin1", clubId: "c1" }),
+    );
 
     await onPlatformAnnouncementCreated.run(
       platformAnnouncementEvent({
@@ -766,12 +730,12 @@ describe("onPlatformAnnouncementCreated", () => {
   });
 
   it("does not notify the platform admin who published the announcement", async () => {
-    mockMembershipsQueryGet.mockResolvedValue({
-      docs: [
-        { data: () => ({ memberId: "m1", clubId: "c1", authUid: "admin-uid" }) },
-        { data: () => ({ memberId: "m2", clubId: "c2", authUid: "other-uid" }) },
-      ],
-    });
+    mockMembershipsQueryGet.mockResolvedValue(
+      membershipSnapshot(
+        { memberId: "m1", clubId: "c1", authUid: "admin-uid" },
+        { memberId: "m2", clubId: "c2", authUid: "other-uid" },
+      ),
+    );
 
     await onPlatformAnnouncementCreated.run(
       platformAnnouncementEvent({
@@ -785,7 +749,10 @@ describe("onPlatformAnnouncementCreated", () => {
 
     expect(mockNotificationAdd).toHaveBeenCalledTimes(1);
     expect(mockNotificationAdd).toHaveBeenCalledWith(
-      expect.objectContaining({ memberId: "m2", kind: "platform_announcement" }),
+      expect.objectContaining({
+        memberId: "m2",
+        kind: "platform_announcement",
+      }),
     );
   });
 });
