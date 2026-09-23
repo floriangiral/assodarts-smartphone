@@ -32,6 +32,13 @@ destination="$destination_dir/FirebaseConfig.plist"
 
 keys="FIREBASE_API_KEY FIREBASE_APP_ID FIREBASE_PROJECT_ID FIREBASE_GCM_SENDER_ID FIREBASE_STORAGE_BUCKET"
 
+xml_escape() {
+    printf '%s' "$1" \
+        | sed -e 's/&/\&amp;/g' \
+              -e 's/</\&lt;/g' \
+              -e 's/>/\&gt;/g'
+}
+
 missing=""
 for key in $keys; do
     eval "value=\${${key}_${suffix}:-}"
@@ -49,13 +56,12 @@ mkdir -p "$destination_dir"
 
 {
     echo '<?xml version="1.0" encoding="UTF-8"?>'
-    echo '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">'
     echo '<plist version="1.0">'
     echo '<dict>'
     for key in $keys; do
         eval "value=\${${key}_${suffix}}"
         printf '\t<key>%s</key>\n' "$key"
-        printf '\t<string>%s</string>\n' "$value"
+        printf '\t<string>%s</string>\n' "$(xml_escape "$value")"
     done
     echo '</dict>'
     echo '</plist>'

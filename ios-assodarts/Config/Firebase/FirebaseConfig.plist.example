@@ -10,7 +10,6 @@
   The generated file is gitignored: never commit real values.
   Leaving a value empty keeps the app on the login screen, with no server access.
 -->
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
 	<key>FIREBASE_API_KEY</key>
