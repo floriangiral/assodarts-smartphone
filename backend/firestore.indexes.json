@@ -94,7 +94,8 @@
     {
       "collectionGroup": "mail",
       "fieldPath": "expireAt",
-      "ttl": true
+      "ttl": true,
+      "indexes": []
     }
   ]
 }
