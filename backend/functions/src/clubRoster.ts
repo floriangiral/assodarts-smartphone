@@ -1,5 +1,10 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { getFirestore, Timestamp } from "firebase-admin/firestore";
+import {
+  DocumentReference,
+  DocumentSnapshot,
+  getFirestore,
+  Timestamp,
+} from "firebase-admin/firestore";
 
 type MembershipData = {
   clubId?: unknown;
@@ -101,6 +106,14 @@ function prefersRosterMember(
     : current;
 }
 
+function chunks<T>(values: T[], size: number): T[][] {
+  const groups: T[][] = [];
+  for (let index = 0; index < values.length; index += size) {
+    groups.push(values.slice(index, index + size));
+  }
+  return groups;
+}
+
 function mapRosterMember(
   memberId: string,
   membership: MembershipData,
@@ -196,10 +209,20 @@ export const clubRoster = onCall(async (request) => {
     );
   }
 
+  const membershipEntries = Array.from(membershipByMember.entries());
+  const memberRefs = membershipEntries.map(([memberId]) =>
+    db.collection("members").doc(memberId),
+  );
+  const memberSnaps: DocumentSnapshot[] = [];
+  for (const memberRefChunk of chunks<DocumentReference>(memberRefs, 300)) {
+    memberSnaps.push(...(await db.getAll(...memberRefChunk)));
+  }
+
   const byId = new Map<string, Record<string, unknown>>();
   const duplicateMemberIds: string[] = [];
-  for (const [memberId, membership] of membershipByMember) {
-    const memberSnap = await db.collection("members").doc(memberId).get();
+  for (let index = 0; index < membershipEntries.length; index += 1) {
+    const [memberId, membership] = membershipEntries[index];
+    const memberSnap = memberSnaps[index];
     if (!memberSnap.exists) continue;
     const member = memberSnap.data() as MemberData | undefined;
     if (!member) continue;

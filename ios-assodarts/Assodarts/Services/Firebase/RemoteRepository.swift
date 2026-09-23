@@ -271,10 +271,26 @@ enum RemoteRepository {
             $0.membershipStatus == "active" && $0.profileStatus != "deleted"
         }.count
 
+        var profilePhotosByMemberId: [String: Data] = [:]
+        await withTaskGroup(of: (String, Data?).self) { group in
+            for remote in roster.members {
+                guard remote.photoPath?.isEmpty == false else { continue }
+                let memberId = remote.id
+                let photoPath = remote.photoPath
+                group.addTask {
+                    (memberId, await loadProfilePhoto(path: photoPath))
+                }
+            }
+            for await (memberId, photoData) in group {
+                if let photoData {
+                    profilePhotosByMemberId[memberId] = photoData
+                }
+            }
+        }
+
         var members: [Member] = []
         for remote in roster.members {
             let memberId = remoteId(remote.id)
-            let photoData = await loadProfilePhoto(path: remote.photoPath)
             members.append(Member(
                 id: memberId,
                 clubId: clubUUID,
@@ -290,7 +306,7 @@ enum RemoteRepository {
                 licenceNumber: remote.licenseNumber ?? "",
                 joinedAt: remote.joinedAt,
                 isActive: remote.membershipStatus == "active" && remote.profileStatus != "deleted",
-                photoData: photoData,
+                photoData: profilePhotosByMemberId[remote.id],
                 photoPath: remote.photoPath,
                 notifyAnnouncements: remote.notifyAnnouncements ?? true,
                 notifyEvents: remote.notifyEvents ?? true,
