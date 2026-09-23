@@ -10,6 +10,7 @@ struct LoginView: View {
     @State private var email: String = ""
     @State private var phone: String = ""
     @State private var password: String = ""
+    @State private var passwordConfirmation: String = ""
     @State private var errorMessage: String?
     @State private var infoMessage: String?
     @State private var isSubmitting: Bool = false
@@ -35,6 +36,17 @@ struct LoginView: View {
         case email
         case phone
         case password
+        case passwordConfirmation
+    }
+
+    private var canSubmit: Bool {
+        guard !isSubmitting,
+              !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              !password.isEmpty else { return false }
+        guard intent == .signUp else { return true }
+        return !firstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !lastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !passwordConfirmation.isEmpty
     }
 
     var body: some View {
@@ -96,6 +108,7 @@ struct LoginView: View {
             .onChange(of: intent) { _, _ in
                 errorMessage = nil
                 infoMessage = nil
+                passwordConfirmation = ""
             }
 
             if intent == .signUp {
@@ -150,9 +163,18 @@ struct LoginView: View {
             VStack(alignment: .leading, spacing: 8) {
                 SectionLabel(text: tr("password"))
                 SecureField("••••••", text: $password)
-                    .keyboardField(intent == .signIn ? .password : .newPassword, submit: .go)
+                    .keyboardField(
+                        intent == .signIn ? .password : .newPassword,
+                        submit: intent == .signIn ? .go : .next
+                    )
                     .focused($focusedField, equals: .password)
-                    .onSubmit(submit)
+                    .onSubmit {
+                        if intent == .signUp {
+                            focusedField = .passwordConfirmation
+                        } else {
+                            submit()
+                        }
+                    }
                     .foregroundStyle(Theme.ink)
                     .assoFieldSurface()
                 if intent == .signUp {
@@ -162,6 +184,20 @@ struct LoginView: View {
                 }
             }
             .id(Field.password)
+
+            if intent == .signUp {
+                VStack(alignment: .leading, spacing: 8) {
+                    SectionLabel(text: tr("confirm_the_password"))
+                    SecureField("••••••", text: $passwordConfirmation)
+                        .keyboardField(.newPassword, submit: .go)
+                        .focused($focusedField, equals: .passwordConfirmation)
+                        .onSubmit(submit)
+                        .foregroundStyle(Theme.ink)
+                        .assoFieldSurface()
+                }
+                .id(Field.passwordConfirmation)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
 
             if let errorMessage {
                 Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
@@ -184,7 +220,7 @@ struct LoginView: View {
                     ? tr("signing_in")
                     : intent.label,
                 symbol: isSubmitting ? "ellipsis" : "arrow.right",
-                isEnabled: !isSubmitting && !email.isEmpty && !password.isEmpty,
+                isEnabled: canSubmit,
                 action: submit
             )
             .padding(.top, 4)
@@ -204,7 +240,20 @@ struct LoginView: View {
 
     private func submit() {
         focusedField = nil
-        guard !isSubmitting else { return }
+        guard canSubmit else { return }
+        if intent == .signUp {
+            if let message = AuthValidation.validateNewPassword(password) {
+                errorMessage = message
+                return
+            }
+            if let message = AuthValidation.validatePasswordConfirmation(
+                password: password,
+                confirmation: passwordConfirmation
+            ) {
+                errorMessage = message
+                return
+            }
+        }
         isSubmitting = true
         errorMessage = nil
         infoMessage = nil

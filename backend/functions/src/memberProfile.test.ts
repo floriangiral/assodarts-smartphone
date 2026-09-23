@@ -8,10 +8,12 @@ const mockRequireClubAdmin = jest.fn();
 const mockRequireNotPlatformAdmin = jest.fn();
 const mockMemberSet = jest.fn();
 const mockMembershipSet = jest.fn();
+const mockCreatedMemberSet = jest.fn();
 const mockBatchCommit = jest.fn();
 
 let mockMemberData: Record<string, unknown>;
 let mockMembershipData: Record<string, unknown>;
+let mockExistingSelfMemberId: string | null;
 
 function makeRequest(
   data: Record<string, unknown>,
@@ -19,7 +21,15 @@ function makeRequest(
 ): CallableRequest<Record<string, unknown>> {
   return {
     data,
-    auth: { uid, token: {} },
+    auth: { uid, token: { email: "caller@example.com" } },
+  } as unknown as CallableRequest<Record<string, unknown>>;
+}
+
+function makeUnauthenticatedRequest(
+  data: Record<string, unknown>,
+): CallableRequest<Record<string, unknown>> {
+  return {
+    data,
   } as unknown as CallableRequest<Record<string, unknown>>;
 }
 
@@ -32,7 +42,8 @@ jest.mock("./shared/auth", () => ({
 jest.mock("firebase-admin/firestore", () => ({
   getFirestore: () => ({
     collection: (name: string) => ({
-      doc: () => ({
+      doc: (id = "doc") => ({
+        path: `${name}/${id}`,
         get: async () => {
           if (name === "members")
             return { exists: true, data: () => mockMemberData };
@@ -40,6 +51,29 @@ jest.mock("firebase-admin/firestore", () => ({
             return { exists: true, data: () => mockMembershipData };
           throw new Error(`Unexpected collection ${name}`);
         },
+        set: async (data: unknown, options?: unknown) => {
+          mockCreatedMemberSet(id, data, options);
+        },
+      }),
+      where: (field: string, op: string, value: string) => ({
+        limit: () => ({
+          get: async () => {
+            if (
+              name === "members" &&
+              field === "authUid" &&
+              op === "==" &&
+              value === "caller"
+            ) {
+              return {
+                empty: mockExistingSelfMemberId === null,
+                docs: mockExistingSelfMemberId
+                  ? [{ id: mockExistingSelfMemberId }]
+                  : [],
+              };
+            }
+            throw new Error(`Unexpected query ${name}.${field}`);
+          },
+        }),
       }),
     }),
     batch: () => ({
@@ -62,7 +96,7 @@ jest.mock("firebase-admin/firestore", () => ({
   FieldValue: { serverTimestamp: () => "SERVER_TIMESTAMP" },
 }));
 
-import { updateMemberProfile } from "./memberProfile";
+import { createSelfMember, updateMemberProfile } from "./memberProfile";
 
 afterAll(() => testEnv.cleanup());
 
@@ -87,6 +121,7 @@ describe("updateMemberProfile", () => {
     mockRequireClubAdmin.mockResolvedValue(undefined);
     mockRequireNotPlatformAdmin.mockResolvedValue(undefined);
     mockBatchCommit.mockResolvedValue(undefined);
+    mockExistingSelfMemberId = null;
   });
 
   it("lets a member edit their own profile without board rights", async () => {
@@ -177,5 +212,66 @@ describe("updateMemberProfile", () => {
       wrapped(makeRequest({ memberId: "m1", clubId: "c1", role: "board" })),
     ).rejects.toThrow("Platform admin accounts cannot belong to a club");
     expect(mockMembershipSet).not.toHaveBeenCalled();
+  });
+});
+
+describe("createSelfMember", () => {
+  const wrapped = testEnv.wrap(createSelfMember);
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockExistingSelfMemberId = null;
+  });
+
+  it("rejects an unauthenticated call", async () => {
+    await expect(
+      wrapped(
+        makeUnauthenticatedRequest({ firstName: "Alex", lastName: "Smith" }),
+      ),
+    ).rejects.toThrow();
+  });
+
+  it("creates the authenticated member profile server-side", async () => {
+    const response = await wrapped(
+      makeRequest({
+        firstName: " Alex ",
+        lastName: " Smith ",
+        phone: " 0612345678 ",
+      }),
+    );
+
+    expect(response).toEqual({
+      memberId: expect.stringMatching(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+      ),
+      created: true,
+    });
+    expect(mockCreatedMemberSet).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        authUid: "caller",
+        clubId: null,
+        defaultClubId: null,
+        firstName: "Alex",
+        lastName: "Smith",
+        displayName: "Alex Smith",
+        email: "caller@example.com",
+        phone: "0612345678",
+        status: "active",
+      }),
+      undefined,
+    );
+  });
+
+  it("returns the existing profile instead of creating a duplicate", async () => {
+    mockExistingSelfMemberId = "11111111-1111-4111-8111-111111111111";
+
+    await expect(
+      wrapped(makeRequest({ firstName: "Alex", lastName: "Smith" })),
+    ).resolves.toEqual({
+      memberId: "11111111-1111-4111-8111-111111111111",
+      created: false,
+    });
+    expect(mockCreatedMemberSet).not.toHaveBeenCalled();
   });
 });

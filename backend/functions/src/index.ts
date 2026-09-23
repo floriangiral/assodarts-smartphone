@@ -38,7 +38,7 @@ export {
 } from "./invitations";
 export { clubRoster } from "./clubRoster";
 export { createClub } from "./createClub";
-export { updateMemberProfile } from "./memberProfile";
+export { createSelfMember, updateMemberProfile } from "./memberProfile";
 export { sendMailOnCreate } from "./triggers/sendMailOnCreate";
 export {
   platformAdminExists,

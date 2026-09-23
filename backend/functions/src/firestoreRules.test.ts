@@ -28,4 +28,9 @@ describe("firestore.rules", () => {
       "request.resource.data.readBy.size() <= resource.data.readBy.size() + 1",
     );
   });
+
+  it("blocks direct client creation of member profiles", () => {
+    expect(rules).toContain("match /members/{memberId}");
+    expect(rules).toContain("allow create: if false;");
+  });
 });

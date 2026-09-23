@@ -204,12 +204,11 @@ service cloud.firestore {
     }
 
     match /members/{memberId} {
-      // `clubId` is null until the member accepts a club invitation, so only
-      // the member themselves can read/write their own doc until then.
+      // Member profiles are created by the `createSelfMember` Cloud Function;
+      // clients only read their profile and update the safe fields below.
       allow read: if isSignedIn()
         && (resource.data.authUid == request.auth.uid || canViewMemberProfile(resource.data));
-      allow create: if isSignedIn()
-        && request.resource.data.authUid == request.auth.uid;
+      allow create: if false;
       // Profile, role, licence and status updates go through `updateMemberProfile`
       // so the server can update both `members` and `memberships` atomically.
       // The only direct member write left in the app is switching default club.

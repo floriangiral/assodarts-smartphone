@@ -146,21 +146,17 @@ extension AppStore {
         guard !first.isEmpty, !last.isEmpty else {
             return tr("enter_your_first_and_last_name")
         }
-        guard password.count >= 6 else {
-            return tr("the_password_must_be_at_least_6_characters_long")
+        if let message = AuthValidation.validateNewPassword(password) {
+            return message
         }
 
         do {
             let result = try await Backend.auth.createUser(withEmail: normalized, password: password)
-            let userId = UUID()
 
             do {
-                try await RemoteRepository.createSelfMember(
-                    userId: userId,
-                    authUid: result.user.uid,
+                let userId = try await RemoteRepository.createSelfMember(
                     firstName: first,
                     lastName: last,
-                    email: normalized,
                     phone: phone.isEmpty ? nil : phone
                 )
                 let message = await loadRemote(userId: userId)
@@ -201,8 +197,8 @@ extension AppStore {
         guard !first.isEmpty, !last.isEmpty else {
             return tr("enter_your_first_and_last_name")
         }
-        guard password.count >= 6 else {
-            return tr("the_password_must_be_at_least_6_characters_long")
+        if let message = AuthValidation.validateNewPassword(password) {
+            return message
         }
         guard !name.isEmpty else {
             return tr("enter_your_club_s_name")
@@ -210,15 +206,11 @@ extension AppStore {
 
         do {
             let result = try await Backend.auth.createUser(withEmail: normalized, password: password)
-            let userId = UUID()
 
             do {
-                try await RemoteRepository.createSelfMember(
-                    userId: userId,
-                    authUid: result.user.uid,
+                let userId = try await RemoteRepository.createSelfMember(
                     firstName: first,
                     lastName: last,
-                    email: normalized,
                     phone: phone.isEmpty ? nil : phone
                 )
 

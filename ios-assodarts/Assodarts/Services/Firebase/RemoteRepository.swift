@@ -864,27 +864,25 @@ enum RemoteRepository {
     /// user. `clubId` starts `nil`: the board links it to a club membership
     /// once the invite flow assigns one.
     static func createSelfMember(
-        userId: UUID,
-        authUid: String,
         firstName: String,
         lastName: String,
-        email: String,
         phone: String?
-    ) async throws {
-        let payload = MemberSelfInsert(
-            authUid: authUid,
-            clubId: nil,
-            firstName: firstName,
-            lastName: lastName,
-            displayName: "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces),
-            email: email,
-            phone: phone,
-            status: "active"
-        )
-        try await Backend.firestore
-            .collection("members")
-            .document(userId.uuidString)
-            .setData(encodedData(from: payload), merge: true)
+    ) async throws -> UUID {
+        var payload: [String: Any] = [
+            "firstName": firstName,
+            "lastName": lastName
+        ]
+        if let phone {
+            payload["phone"] = phone
+        }
+
+        let result = try await Backend.functions.httpsCallable("createSelfMember").call(payload)
+        guard let data = result.data as? [String: Any],
+              let rawMemberId = data["memberId"] as? String,
+              let memberId = UUID(uuidString: rawMemberId) else {
+            throw BackendError.message(tr("unexpected_server_response"))
+        }
+        return memberId
     }
 
     /// Creates a brand-new club for the signed-in member, who becomes its

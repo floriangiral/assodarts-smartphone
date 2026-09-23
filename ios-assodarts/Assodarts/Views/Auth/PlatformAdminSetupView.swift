@@ -153,12 +153,12 @@ struct PlatformAdminSetupView: View {
             errorMessage = tr("enter_your_first_and_last_name")
             return
         }
-        guard password.count >= 6 else {
-            errorMessage = tr("the_password_must_be_at_least_6_characters_long")
+        if let message = AuthValidation.validateNewPassword(password) {
+            errorMessage = message
             return
         }
-        guard password == confirmation else {
-            errorMessage = tr("the_two_passwords_do_not_match")
+        if let message = AuthValidation.validatePasswordConfirmation(password: password, confirmation: confirmation) {
+            errorMessage = message
             return
         }
 
@@ -192,13 +192,9 @@ struct PlatformAdminSetupView: View {
         }
 
         do {
-            let userId = UUID()
-            try await RemoteRepository.createSelfMember(
-                userId: userId,
-                authUid: result.user.uid,
+            let userId = try await RemoteRepository.createSelfMember(
                 firstName: firstName,
                 lastName: lastName,
-                email: email,
                 phone: nil
             )
             store.isPlatformAdmin = true

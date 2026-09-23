@@ -790,13 +790,13 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "6 caractères minimum."
+            "value": "10 caractères minimum, avec au moins une lettre et un chiffre."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "At least 6 characters."
+            "value": "At least 10 characters, with at least one letter and one number."
           }
         }
       }
@@ -8710,13 +8710,13 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Le mot de passe doit contenir au moins 6 caractères."
+            "value": "Le mot de passe doit contenir au moins 10 caractères, avec au moins une lettre et un chiffre."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The password must be at least 6 characters long."
+            "value": "The password must be at least 10 characters long, with at least one letter and one number."
           }
         }
       }

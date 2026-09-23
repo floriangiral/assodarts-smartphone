@@ -1,5 +1,6 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { randomUUID } from "node:crypto";
 import { requireClubBoard, requireNotPlatformAdmin } from "./shared/auth";
 
 const VALID_ROLES = new Set(["admin", "board", "member"]);
@@ -40,6 +41,63 @@ function normalizedRole(value: unknown): string {
   const role = cleanString(value);
   return role === "bureau" || role === "treasurer" ? "board" : role;
 }
+
+/** Creates the authenticated user's member profile exactly once. */
+export const createSelfMember = onCall(async (request) => {
+  if (!request.auth)
+    throw new HttpsError("unauthenticated", "Sign-in required");
+
+  const uid = request.auth.uid;
+  const email = cleanString(request.auth.token.email).toLowerCase();
+  const firstName = cleanString(request.data?.firstName);
+  const lastName = cleanString(request.data?.lastName);
+  const phone = optionalString(request.data?.phone);
+  const displayName = `${firstName} ${lastName}`.trim();
+
+  if (!email.includes("@")) {
+    throw new HttpsError("invalid-argument", "A valid email is required");
+  }
+  if (!firstName || !lastName) {
+    throw new HttpsError(
+      "invalid-argument",
+      "First name and last name are required",
+    );
+  }
+  if (
+    firstName.length > 80 ||
+    lastName.length > 80 ||
+    displayName.length > 160 ||
+    (phone !== null && phone.length > 30)
+  ) {
+    throw new HttpsError("invalid-argument", "Profile fields are too long");
+  }
+
+  const db = getFirestore();
+  const existing = await db
+    .collection("members")
+    .where("authUid", "==", uid)
+    .limit(1)
+    .get();
+  if (!existing.empty) {
+    return { memberId: existing.docs[0].id, created: false };
+  }
+
+  const memberId = randomUUID();
+  await db.collection("members").doc(memberId).set({
+    authUid: uid,
+    clubId: null,
+    defaultClubId: null,
+    firstName,
+    lastName,
+    displayName,
+    email,
+    phone,
+    status: "active",
+    createdAt: FieldValue.serverTimestamp(),
+  });
+
+  return { memberId, created: true };
+});
 
 /**
  * Persists profile edits and club-management changes in one server-checked path.
