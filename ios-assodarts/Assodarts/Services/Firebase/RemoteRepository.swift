@@ -10,6 +10,14 @@ import Foundation
 /// The member roster is loaded through a callable Cloud Function because it
 /// needs the Admin SDK to join `memberships` with profiles reliably.
 enum RemoteRepository {
+    private static let initialAnnouncementsLimit = 40
+    private static let initialEventsLimit = 120
+    private static let initialPaymentCallsLimit = 80
+    private static let initialTournamentsLimit = 60
+    private static let initialTournamentEntriesLimit = 500
+    private static let initialMessagesPerConversationLimit = 50
+    private static let platformAnnouncementsLimit = 20
+
     /// A club the signed-in member belongs to, for the active-club switcher.
     struct AvailableClub: Identifiable, Hashable, Sendable {
         let id: String
@@ -122,22 +130,32 @@ enum RemoteRepository {
         async let bankAccountDoc = db.collection("club_bank_accounts").document(clubId).getDocument()
         async let announcementsSnap = db.collection("announcements")
             .whereField("clubId", isEqualTo: clubId)
+            .order(by: "createdAt", descending: true)
+            .limit(to: initialAnnouncementsLimit)
             .getDocuments()
         async let eventsSnap = db.collection("events")
             .whereField("clubId", isEqualTo: clubId)
+            .order(by: "startsAt", descending: true)
+            .limit(to: initialEventsLimit)
             .getDocuments()
         async let registrationsSnap = db.collection("event_registrations")
             .whereField("clubId", isEqualTo: clubId)
             .getDocuments()
         async let callsSnap = db.collection("payment_calls")
             .whereField("clubId", isEqualTo: clubId)
+            .order(by: "createdAt", descending: true)
+            .limit(to: initialPaymentCallsLimit)
             .getDocuments()
         async let itemsSnap = paymentItemsQueryForLoad.getDocuments()
         async let tournamentsSnap = db.collection("tournaments")
             .whereField("clubId", isEqualTo: clubId)
+            .order(by: "date", descending: true)
+            .limit(to: initialTournamentsLimit)
             .getDocuments()
         async let tournamentEntriesSnap = db.collection("tournament_entries")
             .whereField("clubId", isEqualTo: clubId)
+            .order(by: "recordedAt", descending: true)
+            .limit(to: initialTournamentEntriesLimit)
             .getDocuments()
         async let contributionSeasonDoc = db.collection("clubs").document(clubId)
             .collection("contribution_seasons").document("current").getDocument()
@@ -187,9 +205,12 @@ enum RemoteRepository {
                 group.addTask {
                     let messagesSnap = try await db.collection("conversations").document(conversationId)
                         .collection("messages")
-                        .order(by: "sentAt")
+                        .order(by: "sentAt", descending: true)
+                        .limit(to: initialMessagesPerConversationLimit)
                         .getDocuments()
-                    let messages = messagesSnap.documents.compactMap { try? $0.data(as: RemoteMessage.self) }
+                    let messages = messagesSnap.documents
+                        .compactMap { try? $0.data(as: RemoteMessage.self) }
+                        .sorted { $0.sentAt < $1.sentAt }
                     return (conversationId, messages)
                 }
             }
@@ -1024,6 +1045,7 @@ enum RemoteRepository {
     static func loadPlatformAnnouncements() async throws -> [PlatformAnnouncement] {
         let documents = try await Backend.firestore.collection("platform_announcements")
             .order(by: "publishedAt", descending: true)
+            .limit(to: platformAnnouncementsLimit)
             .getDocuments().documents
         return documents.compactMap { document in
             guard let remote = try? document.data(as: RemotePlatformAnnouncement.self),
