@@ -31,7 +31,9 @@ function timestampMillis(value: unknown): number | null {
   return null;
 }
 
-function pendingInvitationIsUsable(invitation: Record<string, unknown>): boolean {
+function pendingInvitationIsUsable(
+  invitation: Record<string, unknown>,
+): boolean {
   if (invitation.status !== "pending") return false;
   const expiresAtMillis = timestampMillis(invitation.expiresAt);
   return expiresAtMillis !== null && expiresAtMillis > Date.now();

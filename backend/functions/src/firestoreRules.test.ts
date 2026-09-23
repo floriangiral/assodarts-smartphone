@@ -33,4 +33,30 @@ describe("firestore.rules", () => {
     expect(rules).toContain("match /members/{memberId}");
     expect(rules).toContain("allow create: if false;");
   });
+
+  it("keeps payment call updates bound to the existing club", () => {
+    expect(rules).toContain("function paymentCallUpdateIsValid");
+    expect(rules).toContain(
+      "request.resource.data.clubId == resource.data.clubId",
+    );
+    expect(rules).toContain(
+      "allow update: if canWriteClubContent(resource.data.clubId)",
+    );
+    expect(rules).not.toContain(
+      "allow write: if canWriteClubContent(request.resource.data.clubId);",
+    );
+  });
+
+  it("keeps event registrations immutable except for status", () => {
+    expect(rules).toContain("function eventRegistrationCreateIsValid");
+    expect(rules).toContain(
+      "registrationId == request.resource.data.eventId + '_' + request.resource.data.memberId",
+    );
+    expect(rules).toContain(
+      "request.resource.data.eventId == resource.data.eventId",
+    );
+    expect(rules).toContain(
+      "request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])",
+    );
+  });
 });

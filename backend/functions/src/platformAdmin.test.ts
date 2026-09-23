@@ -99,9 +99,7 @@ function makeRequest(
 ): CallableRequest<Record<string, unknown>> {
   return {
     data,
-    auth: uid
-      ? { uid, token: { email: `${uid}@example.com` } }
-      : undefined,
+    auth: uid ? { uid, token: { email: `${uid}@example.com` } } : undefined,
   } as unknown as CallableRequest<Record<string, unknown>>;
 }
 
@@ -269,7 +267,9 @@ describe("platform admin bootstrap", () => {
 
   it("rejects claim when bootstrap is disabled", async () => {
     await expect(
-      handlers.claimAdmin(makeRequest({ bootstrapToken: "secret" }, "first-uid")),
+      handlers.claimAdmin(
+        makeRequest({ bootstrapToken: "secret" }, "first-uid"),
+      ),
     ).rejects.toMatchObject({ code: "failed-precondition" });
     expect(mockAdminSet).not.toHaveBeenCalled();
   });
@@ -278,7 +278,9 @@ describe("platform admin bootstrap", () => {
     process.env.PLATFORM_ADMIN_BOOTSTRAP_TOKEN = "secret";
 
     await expect(
-      handlers.claimAdmin(makeRequest({ bootstrapToken: "wrong" }, "first-uid")),
+      handlers.claimAdmin(
+        makeRequest({ bootstrapToken: "wrong" }, "first-uid"),
+      ),
     ).rejects.toMatchObject({ code: "permission-denied" });
     expect(mockAdminSet).not.toHaveBeenCalled();
   });
@@ -304,7 +306,9 @@ describe("platform admin bootstrap", () => {
     mockAdminQueryGet.mockResolvedValue({ empty: false });
 
     await expect(
-      handlers.claimAdmin(makeRequest({ bootstrapToken: "secret" }, "second-uid")),
+      handlers.claimAdmin(
+        makeRequest({ bootstrapToken: "secret" }, "second-uid"),
+      ),
     ).rejects.toMatchObject({ code: "already-exists" });
     expect(mockAdminSet).not.toHaveBeenCalled();
   });

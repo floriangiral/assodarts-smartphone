@@ -204,6 +204,19 @@ describe("updateMemberProfile", () => {
     expect(mockRequireNotPlatformAdmin).toHaveBeenCalledWith("self");
   });
 
+  it("does not write role changes when the caller is not a club admin", async () => {
+    mockRequireClubAdmin.mockRejectedValue(
+      new Error("Only the club admin can do this"),
+    );
+
+    await expect(
+      wrapped(makeRequest({ memberId: "m1", clubId: "c1", role: "admin" })),
+    ).rejects.toThrow("Only the club admin can do this");
+    expect(mockRequireClubBoard).toHaveBeenCalledWith("c1", "caller");
+    expect(mockRequireClubAdmin).toHaveBeenCalledWith("c1", "caller");
+    expect(mockMembershipSet).not.toHaveBeenCalled();
+  });
+
   it("rejects assigning a platform admin to a club role", async () => {
     mockRequireNotPlatformAdmin.mockRejectedValue(
       new Error("Platform admin accounts cannot belong to a club"),

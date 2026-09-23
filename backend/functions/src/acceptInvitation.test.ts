@@ -157,9 +157,9 @@ describe("acceptInvitation", () => {
       })
       .mockResolvedValueOnce({ docs: [] });
 
-    await expect(wrapped(makeRequest("user@example.com", "u1"))).resolves.toEqual(
-      { joinedClubId: null },
-    );
+    await expect(
+      wrapped(makeRequest("user@example.com", "u1")),
+    ).resolves.toEqual({ joinedClubId: null });
     expect(mockMembersGet).not.toHaveBeenCalled();
     expect(mockMembershipSet).not.toHaveBeenCalled();
     expect(mockInvitationSet).not.toHaveBeenCalled();

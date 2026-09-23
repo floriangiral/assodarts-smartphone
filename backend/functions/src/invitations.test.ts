@@ -141,7 +141,23 @@ describe("createInvitation", () => {
     });
 
     await expect(
-      wrapped(makeRequest({ clubId: "c1", email: "a@b.com", role: "board" }, "u1")),
+      wrapped(
+        makeRequest({ clubId: "c1", email: "a@b.com", role: "board" }, "u1"),
+      ),
+    ).rejects.toThrow("Only the club admin can do this");
+    expect(mockInvitationSet).not.toHaveBeenCalled();
+    expect(mockMailAdd).not.toHaveBeenCalled();
+  });
+
+  it("rejects a board member inviting someone as admin", async () => {
+    mockMembershipGet.mockResolvedValue({
+      data: () => ({ status: "active", role: "board" }),
+    });
+
+    await expect(
+      wrapped(
+        makeRequest({ clubId: "c1", email: "a@b.com", role: "admin" }, "u1"),
+      ),
     ).rejects.toThrow("Only the club admin can do this");
     expect(mockInvitationSet).not.toHaveBeenCalled();
     expect(mockMailAdd).not.toHaveBeenCalled();
