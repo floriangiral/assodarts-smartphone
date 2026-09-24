@@ -19,10 +19,7 @@ export function functionsBaseUrl(): string {
 
 export const stripeConnectedAccountInclude: Array<
   "configuration.recipient" | "requirements"
-> = [
-  "configuration.recipient",
-  "requirements",
-];
+> = ["configuration.recipient", "requirements"];
 
 export type StripeConnectStatus = "not_connected" | "pending" | "verified";
 
@@ -30,16 +27,12 @@ export type StripeConnectStatus = "not_connected" | "pending" | "verified";
  * A connected account can collect money once Stripe has enabled charges and
  * the onboarding form is complete.
  */
-export function accountStatus(
-  account: Stripe.Account,
-): StripeConnectStatus {
+export function accountStatus(account: Stripe.Account): StripeConnectStatus {
   if (account.charges_enabled && account.details_submitted) return "verified";
   return "pending";
 }
 
-export function v2AccountReadiness(
-  account: Stripe.V2.Core.Account,
-): {
+export function v2AccountReadiness(account: Stripe.V2.Core.Account): {
   status: StripeConnectStatus;
   chargesEnabled: boolean;
   detailsSubmitted: boolean;

@@ -476,7 +476,8 @@ export const onTournamentEntryCreated = onDocumentCreated(
         .map((doc) => doc.data().memberId as unknown)
         .filter(
           (memberId): memberId is string =>
-            typeof memberId === "string" && memberId !== entry.recordedByMemberId,
+            typeof memberId === "string" &&
+            memberId !== entry.recordedByMemberId,
         )
         .map((memberId) => ({ memberId, clubId: entry.clubId })),
       "tournament",

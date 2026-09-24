@@ -45,7 +45,9 @@ jest.mock("firebase-admin/firestore", () => ({
     collection: (name: string) => ({
       doc: (id: string) => ({
         path: `${name}/${id}`,
-        get: async () => ({ exists: name === "platform_admins" && platformAdminExists }),
+        get: async () => ({
+          exists: name === "platform_admins" && platformAdminExists,
+        }),
       }),
       where: () => ({
         limit: () => ({

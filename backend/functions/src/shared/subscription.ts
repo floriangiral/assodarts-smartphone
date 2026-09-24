@@ -1,9 +1,6 @@
 import { getFirestore } from "firebase-admin/firestore";
 import Stripe from "stripe";
-import {
-  tierForMemberCount,
-  type PricingTier,
-} from "./pricing";
+import { tierForMemberCount, type PricingTier } from "./pricing";
 
 /**
  * How long a club keeps working after Stripe reports a failed renewal, before
