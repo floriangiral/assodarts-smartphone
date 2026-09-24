@@ -41,7 +41,11 @@ def read_repo_text(path: Path) -> str:
 
 
 def write_repo_text(path: Path, text: str) -> None:
-    safe_path(path).write_text(text, encoding="utf-8")
+    repository_root = ROOT.resolve()
+    resolved_path = path.resolve()
+    if not resolved_path.is_relative_to(repository_root):
+        raise ValueError(f"Refusing to write outside repository: {path}")
+    resolved_path.write_text(text, encoding="utf-8")
 
 
 @dataclass(frozen=True)
@@ -250,6 +254,45 @@ def parse_file(path: Path) -> tuple[list[ParsedCall], list[str]]:
     return calls, failures
 
 
+def unique_catalog_key(base_key: str, pair: tuple[str, str], entries: dict[str, Entry]) -> str:
+    key = base_key
+    suffix = 2
+    while key in entries and (entries[key].french, entries[key].english) != pair:
+        key = f"{base_key}_{suffix}"
+        suffix += 1
+    return key
+
+
+def register_catalog_entry(
+    path: Path,
+    call: ParsedCall,
+    entries: dict[str, Entry],
+    pair_to_key: dict[tuple[str, str], str],
+    english_to_pair: dict[str, tuple[str, str]],
+) -> bool:
+    """Assign a catalog key to `call`. Returns True if it duplicates an existing entry."""
+    pair = (call.french_catalog, call.english_catalog)
+    if pair in pair_to_key:
+        return True
+    key = slug(call.english_catalog)
+    if key in english_to_pair and english_to_pair[key] != pair:
+        key = f"{key}_{slug(path.stem)}"
+    key = unique_catalog_key(key, pair, entries)
+    pair_to_key[pair] = key
+    english_to_pair[key] = pair
+    placeholders = re.findall(r"%(?:[a-z]+|@)", call.english_catalog)
+    catalog_key = key + (" " + " ".join(placeholders) if placeholders else "")
+    entries[key] = Entry(key, call.french_catalog, call.english_catalog, catalog_key)
+    return False
+
+
+def apply_call_replacement(call: ParsedCall, pair_to_key: dict[tuple[str, str], str]) -> None:
+    pair = (call.french_catalog, call.english_catalog)
+    key = pair_to_key[pair]
+    interpolation = "".join(f" \\({expression})" for expression in call.interpolations)
+    call.replacement = f'tr("{key}{interpolation}")'
+
+
 def build_catalog(calls_by_file: dict[Path, list[ParsedCall]]) -> tuple[dict[str, Entry], int]:
     entries: dict[str, Entry] = {}
     pair_to_key: dict[tuple[str, str], str] = {}
@@ -257,29 +300,11 @@ def build_catalog(calls_by_file: dict[Path, list[ParsedCall]]) -> tuple[dict[str
     duplicates = 0
     for path, calls in calls_by_file.items():
         for call in calls:
-            pair = (call.french_catalog, call.english_catalog)
-            if pair in pair_to_key:
+            if register_catalog_entry(path, call, entries, pair_to_key, english_to_pair):
                 duplicates += 1
-                continue
-            key = slug(call.english_catalog)
-            if key in english_to_pair and english_to_pair[key] != pair:
-                key = f"{key}_{slug(path.stem)}"
-            suffix = 2
-            base = key
-            while key in entries and (entries[key].french, entries[key].english) != pair:
-                key = f"{base}_{suffix}"
-                suffix += 1
-            pair_to_key[pair] = key
-            english_to_pair[key] = pair
-            placeholders = re.findall(r"%(?:[a-z]+|@)", call.english_catalog)
-            catalog_key = key + (" " + " ".join(placeholders) if placeholders else "")
-            entries[key] = Entry(key, call.french_catalog, call.english_catalog, catalog_key)
     for calls in calls_by_file.values():
         for call in calls:
-            pair = (call.french_catalog, call.english_catalog)
-            key = pair_to_key[pair]
-            interpolation = "".join(f" \\({expression})" for expression in call.interpolations)
-            call.replacement = f'tr("{key}{interpolation}")'
+            apply_call_replacement(call, pair_to_key)
     return entries, duplicates
 
 
@@ -380,7 +405,10 @@ def repair_catalog_placeholders() -> None:
         if not placeholders:
             repaired[key] = entry
             continue
-        base_key = re.sub(r"(?: (?:%lld|%@))+$", "", key)
+        tokens = key.split(" ")
+        while tokens and tokens[-1] in ("%lld", "%@"):
+            tokens.pop()
+        base_key = " ".join(tokens)
         repaired[base_key + " " + " ".join(placeholders)] = entry
     catalog["strings"] = repaired
     write_repo_text(CATALOG_PATH, json.dumps(catalog, ensure_ascii=False, indent=2) + "\n")

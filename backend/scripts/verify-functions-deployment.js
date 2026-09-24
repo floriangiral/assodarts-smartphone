@@ -21,18 +21,18 @@ function extractExportedFunctions(indexPath) {
 
   while ((match = exportBlockPattern.exec(source)) !== null) {
     const block = match[1]
-      .replace(/\/\/.*$/gm, "")
+      .replace(/\/\/.*/gm, "")
       .replace(/\/\*[\s\S]*?\*\//g, "");
 
     for (const rawPart of block.split(",")) {
       const part = rawPart.trim();
       if (!part) continue;
-      const aliasMatch = /\s+as\s+([A-Za-z_$][\w$]*)$/.exec(part);
-      exported.add(aliasMatch ? aliasMatch[1] : part);
+      const asIndex = part.lastIndexOf(" as ");
+      exported.add(asIndex === -1 ? part : part.slice(asIndex + 4).trim());
     }
   }
 
-  return [...exported].sort();
+  return [...exported].sort((a, b) => a.localeCompare(b));
 }
 
 function extractDeployedFunctions(jsonPath) {
@@ -41,7 +41,7 @@ function extractDeployedFunctions(jsonPath) {
   if (!Array.isArray(functions)) {
     throw new TypeError("Firebase functions JSON must be an array or contain a result array");
   }
-  return [...new Set(functions.map((item) => item.id).filter(Boolean))].sort();
+  return [...new Set(functions.map((item) => item.id).filter(Boolean))].sort((a, b) => a.localeCompare(b));
 }
 
 function difference(left, right) {
