@@ -33,7 +33,8 @@ destination="$destination_dir/FirebaseConfig.plist"
 keys="FIREBASE_API_KEY FIREBASE_APP_ID FIREBASE_PROJECT_ID FIREBASE_GCM_SENDER_ID FIREBASE_STORAGE_BUCKET"
 
 xml_escape() {
-    printf '%s' "$1" \
+    raw_value=$1
+    printf '%s' "$raw_value" \
         | sed -e 's/&/\&amp;/g' \
               -e 's/</\&lt;/g' \
               -e 's/>/\&gt;/g'

@@ -51,6 +51,11 @@ jobs:
       - name: Check out source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+
       - name: Validate deployment configuration
         run: |
           test -n "$FIREBASE_PROJECT_ID" || { echo "FIREBASE_PROJECT_ID is not configured"; exit 1; }
@@ -70,9 +75,12 @@ jobs:
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
 
+      - name: Install Firebase CLI
+        run: npm install --global --ignore-scripts firebase-tools@$FIREBASE_TOOLS_VERSION
+
       - name: Validate Firestore rules and indexes
         working-directory: backend
-        run: npx --yes firebase-tools@$FIREBASE_TOOLS_VERSION deploy --only firestore:rules,firestore:indexes --project "$FIREBASE_PROJECT_ID" --non-interactive --dry-run
+        run: firebase deploy --only firestore:rules,firestore:indexes --project "$FIREBASE_PROJECT_ID" --non-interactive --dry-run
 
       - name: Remove service account credentials
         if: always()
@@ -122,7 +130,10 @@ jobs:
 
       - name: Install Cloud Functions dependencies
         working-directory: backend/functions
-        run: npm ci
+        run: npm ci --ignore-scripts
+
+      - name: Install Firebase CLI
+        run: npm install --global --ignore-scripts firebase-tools@$FIREBASE_TOOLS_VERSION
 
       - name: Audit production dependencies
         working-directory: backend/functions
@@ -146,20 +157,20 @@ jobs:
 
       - name: Deploy Firestore rules and indexes
         working-directory: backend
-        run: npx --yes firebase-tools@$FIREBASE_TOOLS_VERSION deploy --only firestore:rules,firestore:indexes --project "$FIREBASE_PROJECT_ID" --non-interactive
+        run: firebase deploy --only firestore:rules,firestore:indexes --project "$FIREBASE_PROJECT_ID" --non-interactive
 
       - name: Deploy Cloud Functions
         working-directory: backend
-        run: npx --yes firebase-tools@$FIREBASE_TOOLS_VERSION deploy --only functions --project "$FIREBASE_PROJECT_ID" --non-interactive
+        run: firebase deploy --only functions --project "$FIREBASE_PROJECT_ID" --non-interactive
 
       - name: Verify deployed functions match source exports
         run: |
-          npx --yes firebase-tools@$FIREBASE_TOOLS_VERSION --json functions:list --project "$FIREBASE_PROJECT_ID" > deployed-functions.json
+          firebase --json functions:list --project "$FIREBASE_PROJECT_ID" > deployed-functions.json
           node backend/scripts/verify-functions-deployment.js --functions-json deployed-functions.json
 
       - name: Verify deployed functions are healthy
         working-directory: backend
-        run: npx --yes firebase-tools@$FIREBASE_TOOLS_VERSION functions:list --project "$FIREBASE_PROJECT_ID"
+        run: firebase functions:list --project "$FIREBASE_PROJECT_ID"
 
       - name: Remove service account credentials
         if: always()

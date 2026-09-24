@@ -92,7 +92,7 @@ jobs:
 
       - name: Install SwiftLint
         run: |
-          curl --fail --location --retry 3 \
+          curl --fail --location --proto '=https' --proto-redir '=https' --retry 3 \
             --output "$RUNNER_TEMP/portable_swiftlint.zip" \
             https://github.com/realm/SwiftLint/releases/download/0.65.1/portable_swiftlint.zip
           echo "c1e429b0599cf1b516f369a2d9ec04eaf0e436f3c12b637df8851fa52ff694d0  $RUNNER_TEMP/portable_swiftlint.zip" | shasum --algorithm 256 --check
@@ -186,7 +186,7 @@ jobs:
 
       - name: Install Cloud Functions dependencies
         working-directory: backend/functions
-        run: npm ci --loglevel=error
+        run: npm ci --ignore-scripts --loglevel=error
 
       - name: Audit dependencies
         working-directory: backend/functions
