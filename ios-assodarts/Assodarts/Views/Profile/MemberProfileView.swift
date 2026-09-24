@@ -69,7 +69,9 @@ struct MemberProfileView: View {
         .onAppear(perform: load)
         .keyboardDoneBar(isVisible: isEditingLicence) { isEditingLicence = false }
         .alert(tr("deactivate_this_account"), isPresented: $showsDeactivateAlert) {
-            Button(tr("cancel"), role: .cancel) {}
+            Button(tr("cancel"), role: .cancel) {
+                // Dismissing the alert is the only action needed for cancel.
+            }
             Button(tr("deactivate"), role: .destructive) {
                 guard var member else { return }
                 member.isActive = false

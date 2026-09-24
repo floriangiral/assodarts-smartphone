@@ -50,9 +50,10 @@ enum Role: String, Codable, CaseIterable, Identifiable, Sendable {
     }
 
     var badgeForeground: Color {
-        switch self {
-        case .membre: Theme.navy
-        default: .white
+        if self == .membre {
+            Theme.navy
+        } else {
+            .white
         }
     }
 }

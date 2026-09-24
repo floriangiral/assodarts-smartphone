@@ -148,13 +148,21 @@ struct DevOverviewView: View {
             }
             Spacer(minLength: 4)
             StatusChip(
-                text: club.status == .trial
-                    ? tr("trial")
-                    : club.status == .active ? tr("active") : tr("grace"),
+                text: statusText(for: club),
                 tint: club.status == .active ? Theme.green : Theme.amber,
                 background: club.status == .active ? Theme.greenTint : Theme.amberTint
             )
         }
         .padding(.vertical, 9)
+    }
+
+    private func statusText(for club: Club) -> String {
+        if club.status == .trial {
+            tr("trial")
+        } else if club.status == .active {
+            tr("active")
+        } else {
+            tr("grace")
+        }
     }
 }

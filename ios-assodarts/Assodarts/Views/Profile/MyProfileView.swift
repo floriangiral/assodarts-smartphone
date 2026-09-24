@@ -47,7 +47,9 @@ struct MyProfileView: View {
             EditProfileSheet()
         }
         .alert(tr("sign_out_developertabview"), isPresented: $showsSignOutAlert) {
-            Button(tr("cancel"), role: .cancel) {}
+            Button(tr("cancel"), role: .cancel) {
+                // Dismissing the alert is the only action needed for cancel.
+            }
             Button(tr("sign_out"), role: .destructive) { Task { await store.signOut() } }
         }
     }

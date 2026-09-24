@@ -313,21 +313,22 @@ enum RemoteRepository {
                 firstName: remote.firstName,
                 lastName: remote.lastName,
                 email: remote.email,
-                password: "",
-                phone: remote.phone ?? "",
-                birthDate: remote.birthDate,
-                role: .fromRemote(remote.role),
-                isLicensed: remote.seasonStatus == "player" || !(remote.licenseNumber ?? "").isEmpty,
-                contributionStatus: remote.seasonStatus ?? "none",
-                licenceNumber: remote.licenseNumber ?? "",
-                joinedAt: remote.joinedAt,
-                isActive: remote.membershipStatus == "active" && remote.profileStatus != "deleted",
-                photoData: profilePhotosByMemberId[remote.id],
-                photoPath: remote.photoPath,
-                notifyAnnouncements: remote.notifyAnnouncements ?? true,
-                notifyEvents: remote.notifyEvents ?? true,
-                notifyPayments: remote.notifyPayments ?? true,
-                notifyTournaments: remote.notifyTournaments ?? false
+                options: Member.Options(
+                    phone: remote.phone ?? "",
+                    birthDate: remote.birthDate,
+                    role: .fromRemote(remote.role),
+                    isLicensed: remote.seasonStatus == "player" || !(remote.licenseNumber ?? "").isEmpty,
+                    contributionStatus: remote.seasonStatus ?? "none",
+                    licenceNumber: remote.licenseNumber ?? "",
+                    joinedAt: remote.joinedAt,
+                    isActive: remote.membershipStatus == "active" && remote.profileStatus != "deleted",
+                    photoData: profilePhotosByMemberId[remote.id],
+                    photoPath: remote.photoPath,
+                    notifyAnnouncements: remote.notifyAnnouncements ?? true,
+                    notifyEvents: remote.notifyEvents ?? true,
+                    notifyPayments: remote.notifyPayments ?? true,
+                    notifyTournaments: remote.notifyTournaments ?? false
+                )
             ))
         }
 

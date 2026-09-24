@@ -8,7 +8,7 @@ import SwiftUI
 struct SafariSheet: UIViewControllerRepresentable {
     let url: URL
 
-    func makeUIViewController(context: Context) -> SFSafariViewController {
+    func makeUIViewController(context _: Context) -> SFSafariViewController {
         let configuration = SFSafariViewController.Configuration()
         configuration.barCollapsingEnabled = true
 
@@ -17,7 +17,9 @@ struct SafariSheet: UIViewControllerRepresentable {
         return controller
     }
 
-    func updateUIViewController(_ uiViewController: SFSafariViewController, context: Context) {}
+    func updateUIViewController(_: SFSafariViewController, context _: Context) {
+        // Stripe's hosted page is static once presented; there is nothing to update.
+    }
 }
 
 /// A URL that can drive a `.sheet(item:)` presentation.
