@@ -59,46 +59,6 @@ struct Member: Identifiable, Codable, Sendable, Hashable {
         var eventsAttended = 0
         var tournamentsPlayed = 0
         var average: Double = 0
-
-        init(
-            password: String = "",
-            phone: String = "",
-            birthDate: Date? = nil,
-            role: Role = .membre,
-            isLicensed: Bool = false,
-            contributionStatus: String? = nil,
-            licenceNumber: String = "",
-            joinedAt: Date = .now,
-            isActive: Bool = true,
-            photoData: Data? = nil,
-            photoPath: String? = nil,
-            notifyAnnouncements: Bool = true,
-            notifyEvents: Bool = true,
-            notifyPayments: Bool = true,
-            notifyTournaments: Bool = false,
-            eventsAttended: Int = 0,
-            tournamentsPlayed: Int = 0,
-            average: Double = 0
-        ) {
-            self.password = password
-            self.phone = phone
-            self.birthDate = birthDate
-            self.role = role
-            self.isLicensed = isLicensed
-            self.contributionStatus = contributionStatus
-            self.licenceNumber = licenceNumber
-            self.joinedAt = joinedAt
-            self.isActive = isActive
-            self.photoData = photoData
-            self.photoPath = photoPath
-            self.notifyAnnouncements = notifyAnnouncements
-            self.notifyEvents = notifyEvents
-            self.notifyPayments = notifyPayments
-            self.notifyTournaments = notifyTournaments
-            self.eventsAttended = eventsAttended
-            self.tournamentsPlayed = tournamentsPlayed
-            self.average = average
-        }
     }
 
     init(

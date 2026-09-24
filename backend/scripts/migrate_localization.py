@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import unicodedata
 from dataclasses import dataclass
@@ -41,11 +42,12 @@ def read_repo_text(path: Path) -> str:
 
 
 def write_repo_text(path: Path, text: str) -> None:
-    repository_root = ROOT.resolve()
-    resolved_path = path.resolve()
-    if not resolved_path.is_relative_to(repository_root):
+    repo_root = os.path.realpath(ROOT)
+    target = os.path.realpath(path)
+    if target != repo_root and not target.startswith(repo_root + os.sep):
         raise ValueError(f"Refusing to write outside repository: {path}")
-    resolved_path.write_text(text, encoding="utf-8")
+    with open(target, "w", encoding="utf-8") as handle:
+        handle.write(text)
 
 
 @dataclass(frozen=True)
