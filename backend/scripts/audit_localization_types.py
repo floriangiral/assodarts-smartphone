@@ -73,7 +73,7 @@ def parsed_tr_literal(text: str, match: re.Match[str]) -> tuple[str, list[str]] 
     literal = parse_literal_expression(args[0])
     if not literal:
         return None
-    template, expressions = literal
+    _, expressions = literal
     return literal if expressions else None
 
 

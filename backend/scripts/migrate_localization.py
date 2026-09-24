@@ -28,6 +28,22 @@ REPORT_PATH = ROOT / "backend" / "scripts" / "localization_migration_report.txt"
 TR_CALL = re.compile(r"\btr\s*\(")
 
 
+def safe_path(path: Path, base: Path = ROOT) -> Path:
+    resolved_base = base.resolve()
+    resolved_path = path.resolve()
+    if resolved_path != resolved_base and resolved_base not in resolved_path.parents:
+        raise ValueError(f"Refusing to access path outside repository: {path}")
+    return resolved_path
+
+
+def read_repo_text(path: Path) -> str:
+    return safe_path(path).read_text(encoding="utf-8")
+
+
+def write_repo_text(path: Path, text: str) -> None:
+    safe_path(path).write_text(text, encoding="utf-8")
+
+
 @dataclass(frozen=True)
 class Entry:
     key: str
@@ -182,36 +198,55 @@ def slug(value: str) -> str:
     return value[:56] or "localized_string"
 
 
+def parsed_call_failure(path: Path, text: str, match: re.Match[str], reason: str) -> str:
+    line = text.count(chr(10), 0, match.start()) + 1
+    return f"{path.relative_to(ROOT)}:{line}: {reason}"
+
+
+def parse_tr_call(
+    path: Path,
+    text: str,
+    match: re.Match[str],
+) -> tuple[ParsedCall | None, str | None]:
+    parsed = split_arguments(text, match.end() - 1)
+    if parsed is None:
+        return None, parsed_call_failure(path, text, match, "unclosed tr()")
+
+    args, end = parsed
+    if len(args) != 2:
+        return None, None
+
+    french_data = parse_literal_expression(args[0])
+    english_data = parse_literal_expression(args[1])
+    if not french_data or not english_data:
+        return None, parsed_call_failure(path, text, match, "non-literal tr()")
+
+    french, french_interpolations = french_data
+    english, english_interpolations = english_data
+    if len(french_interpolations) != len(english_interpolations):
+        return None, parsed_call_failure(path, text, match, "interpolation count differs")
+
+    key = slug(english)
+    return ParsedCall(
+        match.start(), end, french, english,
+        with_placeholders(french, french_interpolations),
+        with_placeholders(english, english_interpolations),
+        english_interpolations,
+        f'tr("{key}")',
+    ), None
+
+
 def parse_file(path: Path) -> tuple[list[ParsedCall], list[str]]:
-    text = path.read_text(encoding="utf-8")
+    path = safe_path(path, SOURCE_ROOT)
+    text = read_repo_text(path)
     calls: list[ParsedCall] = []
     failures: list[str] = []
     for match in TR_CALL.finditer(text):
-        parsed = split_arguments(text, match.end() - 1)
-        if parsed is None:
-            failures.append(f"{path.relative_to(ROOT)}:{text.count(chr(10), 0, match.start()) + 1}: unclosed tr()")
-            continue
-        args, end = parsed
-        if len(args) != 2:
-            continue
-        french_data = parse_literal_expression(args[0])
-        english_data = parse_literal_expression(args[1])
-        if not french_data or not english_data:
-            failures.append(f"{path.relative_to(ROOT)}:{text.count(chr(10), 0, match.start()) + 1}: non-literal tr()")
-            continue
-        french, french_interpolations = french_data
-        english, english_interpolations = english_data
-        if len(french_interpolations) != len(english_interpolations):
-            failures.append(f"{path.relative_to(ROOT)}:{text.count(chr(10), 0, match.start()) + 1}: interpolation count differs")
-            continue
-        key = slug(english)
-        calls.append(ParsedCall(
-            match.start(), end, french, english,
-            with_placeholders(french, french_interpolations),
-            with_placeholders(english, english_interpolations),
-            english_interpolations,
-            f'tr("{key}")',
-        ))
+        call, failure = parse_tr_call(path, text, match)
+        if failure:
+            failures.append(failure)
+        if call:
+            calls.append(call)
     return calls, failures
 
 
@@ -314,7 +349,7 @@ def fixed_final_entries() -> dict:
 
 
 def add_final_entries() -> None:
-    catalog = json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
+    catalog = json.loads(read_repo_text(CATALOG_PATH))
     strings = catalog.setdefault("strings", {})
     strings.update(fixed_final_entries())
     add_plural(strings, "count_clubs", "%lld club", "%lld clubs", "%lld club", "%lld clubs")
@@ -329,11 +364,11 @@ def add_final_entries() -> None:
     add_plural(strings, "count_club_members", "%lld membre du club", "%lld membres du club", "%lld club member", "%lld club members")
     add_plural(strings, "count_members", "%lld membre", "%lld membres", "%lld member", "%lld members")
     add_plural(strings, "count_due_payments", "%lld paiement en attente", "%lld paiements en attente", "%lld pending payment", "%lld pending payments")
-    CATALOG_PATH.write_text(json.dumps(catalog, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    write_repo_text(CATALOG_PATH, json.dumps(catalog, ensure_ascii=False, indent=2) + "\n")
 
 
 def repair_catalog_placeholders() -> None:
-    catalog = json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
+    catalog = json.loads(read_repo_text(CATALOG_PATH))
     repaired = {}
     for key, entry in catalog.get("strings", {}).items():
         values = []
@@ -348,7 +383,7 @@ def repair_catalog_placeholders() -> None:
         base_key = re.sub(r"(?: (?:%lld|%@))+$", "", key)
         repaired[base_key + " " + " ".join(placeholders)] = entry
     catalog["strings"] = repaired
-    CATALOG_PATH.write_text(json.dumps(catalog, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    write_repo_text(CATALOG_PATH, json.dumps(catalog, ensure_ascii=False, indent=2) + "\n")
 
 
 def main() -> None:
@@ -367,7 +402,7 @@ def main() -> None:
 
     calls_by_file: dict[Path, list[ParsedCall]] = {}
     failures: list[str] = []
-    for path in sorted(SOURCE_ROOT.rglob("*.swift")):
+    for path in sorted(safe_path(SOURCE_ROOT).rglob("*.swift")):
         calls, file_failures = parse_file(path)
         if calls:
             calls_by_file[path] = calls
@@ -382,7 +417,7 @@ def main() -> None:
         f"Unparsed calls: {len(failures)}",
         *failures,
     ]
-    REPORT_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    write_repo_text(REPORT_PATH, "\n".join(lines) + "\n")
     print("\n".join(lines))
 
     if args.dry_run:
@@ -390,15 +425,16 @@ def main() -> None:
 
     generated = catalog_json(entries)
     if CATALOG_PATH.exists():
-        existing = json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
+        existing = json.loads(read_repo_text(CATALOG_PATH))
         existing.setdefault("strings", {}).update(generated["strings"])
         generated = existing
-    CATALOG_PATH.write_text(json.dumps(generated, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    write_repo_text(CATALOG_PATH, json.dumps(generated, ensure_ascii=False, indent=2) + "\n")
     for path, calls in calls_by_file.items():
-        text = path.read_text(encoding="utf-8")
+        path = safe_path(path, SOURCE_ROOT)
+        text = read_repo_text(path)
         for call in reversed(calls):
             text = text[: call.start] + call.replacement + text[call.end :]
-        path.write_text(text, encoding="utf-8")
+        write_repo_text(path, text)
 
 
 if __name__ == "__main__":
