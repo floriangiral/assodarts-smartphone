@@ -39,6 +39,50 @@ function generatedDemoPassword() {
   return `Demo-${randomBytes(18).toString("base64url")}`;
 }
 
+function stringArg(args, name, fallback = "") {
+  return String(args[name] || fallback).trim();
+}
+
+function emailArg(args, name) {
+  return stringArg(args, name).toLowerCase();
+}
+
+function parseSeedOptions(args) {
+  const projectId = stringArg(args, "project-id");
+  if (!projectId) {
+    throw new Error("Missing required --project-id");
+  }
+
+  const options = {
+    projectId,
+    clubName: stringArg(args, "club-name", "Saint-Flour Fléchettes"),
+    secondClubName: stringArg(args, "second-club-name", "Clermont Darts Club"),
+    demoPassword: stringArg(args, "demo-password", generatedDemoPassword()),
+    adminEmail: emailArg(args, "admin-email"),
+    boardEmail: emailArg(args, "board-email"),
+    memberEmail: emailArg(args, "member-email"),
+    appleReviewEmail: emailArg(args, "apple-review-email"),
+    platformAdminEmail: emailArg(args, "platform-admin-email"),
+  };
+
+  if (
+    !options.adminEmail ||
+    !options.boardEmail ||
+    !options.memberEmail ||
+    !options.appleReviewEmail
+  ) {
+    throw new Error(
+      "Missing required args: --admin-email, --board-email, --member-email, " +
+        "--apple-review-email",
+    );
+  }
+  if (options.demoPassword.length < 6) {
+    throw new Error("--demo-password must contain at least 6 characters");
+  }
+
+  return options;
+}
+
 function slugify(value) {
   return String(value || "")
     .trim()
@@ -106,6 +150,27 @@ async function prepareStripeAccount(db, clubId, clubName) {
     );
     return { accountId: null, status: "pending" };
   }
+}
+
+async function platformAdminUidFor(auth, platformAdminEmail) {
+  if (!platformAdminEmail) {
+    return null;
+  }
+  return (await auth.getUserByEmail(platformAdminEmail)).uid;
+}
+
+async function setPlatformAdmin(db, platformAdminUid, platformAdminEmail) {
+  if (!platformAdminUid) {
+    return;
+  }
+  await db.collection("platform_admins").doc(platformAdminUid).set(
+    {
+      email: platformAdminEmail,
+      addedAt: FieldValue.serverTimestamp(),
+      addedBy: null,
+    },
+    { merge: true },
+  );
 }
 
 async function ensureOrCreateUser(auth, email, firstName, lastName, password) {
@@ -380,45 +445,84 @@ function setConversations(batch, db, clubId, conversations) {
   }
 }
 
-async function main() {
-  const args = parseArgs(process.argv.slice(2));
-
-  const projectId = String(args["project-id"] || "").trim();
-  if (!projectId) {
-    throw new Error("Missing required --project-id");
-  }
-
-  const clubName = String(args["club-name"] || "Saint-Flour Fléchettes").trim();
-  const secondClubName = String(
-    args["second-club-name"] || "Clermont Darts Club",
-  ).trim();
-  const demoPassword = String(
-    args["demo-password"] || generatedDemoPassword(),
-  ).trim();
-  const adminEmail = String(args["admin-email"] || "")
-    .trim()
-    .toLowerCase();
-  const boardEmail = String(args["board-email"] || "")
-    .trim()
-    .toLowerCase();
-  const memberEmail = String(args["member-email"] || "")
-    .trim()
-    .toLowerCase();
-  const appleReviewEmail = String(args["apple-review-email"] || "")
-    .trim()
-    .toLowerCase();
-  const platformAdminEmail = String(args["platform-admin-email"] || "")
-    .trim()
-    .toLowerCase();
-
-  if (!adminEmail || !boardEmail || !memberEmail || !appleReviewEmail) {
-    throw new Error(
-      "Missing required args: --admin-email, --board-email, --member-email, --apple-review-email",
+function logSeedSummary({
+  clubId,
+  clubName,
+  secondClubId,
+  secondClubName,
+  platformAdminUid,
+  platformAdminEmail,
+  printDemoPasswords,
+  accounts,
+  trialEndsAt,
+  announcements,
+  events,
+  paymentCalls,
+  upcomingTournamentId,
+  finishedTournamentId,
+  conversations,
+  stripe,
+}) {
+  console.log("Seed complete.");
+  console.log(`clubId: ${clubId}`);
+  console.log(`clubName: ${clubName}`);
+  console.log(`secondClubId: ${secondClubId}`);
+  console.log(`secondClubName: ${secondClubName}`);
+  if (platformAdminUid) console.log(`platformAdmin: ${platformAdminEmail}`);
+  if (printDemoPasswords) {
+    console.log(`admin: ${accounts.admin.email} / ${accounts.admin.password}`);
+    console.log(`board: ${accounts.board.email} / ${accounts.board.password}`);
+    console.log(`member: ${accounts.member.email} / ${accounts.member.password}`);
+    console.log(
+      `apple-review: ${accounts.appleReview.email} / ${accounts.appleReview.password}`,
+    );
+  } else {
+    console.log(
+      "demo credentials: passwords hidden; pass --print-demo-passwords only in a private local terminal",
     );
   }
-  if (demoPassword.length < 6) {
-    throw new Error("--demo-password must contain at least 6 characters");
+  console.log(`trialEndsAt: ${trialEndsAt.toISOString()}`);
+  console.log(
+    `announcements: ${announcements.map((item) => item.id).join(", ")}`,
+  );
+  console.log(`events: ${events.map((item) => item.id).join(", ")}`);
+  console.log(
+    `paymentCalls: ${paymentCalls.map((item) => item.id).join(", ")}`,
+  );
+  console.log(`tournaments: ${upcomingTournamentId}, ${finishedTournamentId}`);
+  console.log(
+    `conversations: ${conversations.map((item) => item.id).join(", ")}`,
+  );
+  console.log(`coupon: DEMO50 (${SEEDED_COUPON_ID})`);
+  if (stripe.status === "verified") {
+    console.log(`stripe: existing verified account ${stripe.accountId}`);
+  } else if (stripe.accountId) {
+    console.log(
+      `stripe: Express test account ${stripe.accountId} created with status pending`,
+    );
+    console.log(
+      "stripe: finish onboarding once in BankSettingsView to receive account.updated/verified",
+    );
+  } else {
+    console.log(
+      "stripe: no account created; set STRIPE_SECRET_KEY to create one, then finish onboarding in BankSettingsView",
+    );
   }
+}
+
+async function main() {
+  const args = parseArgs(process.argv.slice(2));
+  const {
+    projectId,
+    clubName,
+    secondClubName,
+    demoPassword,
+    adminEmail,
+    boardEmail,
+    memberEmail,
+    appleReviewEmail,
+    platformAdminEmail,
+  } = parseSeedOptions(args);
 
   initializeApp({
     credential: applicationDefault(),
@@ -483,10 +587,7 @@ async function main() {
   );
   const inactiveMemberId = seedDocumentId(clubId, "inactive-member");
   const stripe = await prepareStripeAccount(db, clubId, clubName);
-  let platformAdminUid = null;
-  if (platformAdminEmail) {
-    platformAdminUid = (await auth.getUserByEmail(platformAdminEmail)).uid;
-  }
+  const platformAdminUid = await platformAdminUidFor(auth, platformAdminEmail);
 
   const batch = db.batch();
 
@@ -1011,56 +1112,31 @@ async function main() {
   });
 
   await batch.commit();
+  await setPlatformAdmin(db, platformAdminUid, platformAdminEmail);
 
-  if (platformAdminUid) {
-    await db.collection("platform_admins").doc(platformAdminUid).set({
-      email: platformAdminEmail,
-      addedAt: FieldValue.serverTimestamp(),
-      addedBy: null,
-    }, { merge: true });
-  }
-
-  console.log("Seed complete.");
-  console.log(`clubId: ${clubId}`);
-  console.log(`clubName: ${clubName}`);
-  console.log(`secondClubId: ${secondClubId}`);
-  console.log(`secondClubName: ${secondClubName}`);
-  if (platformAdminUid) console.log(`platformAdmin: ${platformAdminEmail}`);
-  if (args["print-demo-passwords"]) {
-    console.log(`admin: ${adminAccount.email} / ${adminAccount.password}`);
-    console.log(`board: ${boardAccount.email} / ${boardAccount.password}`);
-    console.log(`member: ${memberAccount.email} / ${memberAccount.password}`);
-    console.log(`apple-review: ${appleReviewAccount.email} / ${appleReviewAccount.password}`);
-  } else {
-    console.log(
-      "demo credentials: passwords hidden; pass --print-demo-passwords only in a private local terminal",
-    );
-  }
-  console.log(`trialEndsAt: ${trialEndsAt.toISOString()}`);
-  console.log(`announcements: ${announcements.map((item) => item.id).join(", ")}`);
-  console.log(`events: ${events.map((item) => item.id).join(", ")}`);
-  console.log(`paymentCalls: ${paymentCalls.map((item) => item.id).join(", ")}`);
-  console.log(
-    `tournaments: ${upcomingTournamentId}, ${finishedTournamentId}`,
-  );
-  console.log(
-    `conversations: ${conversations.map((item) => item.id).join(", ")}`,
-  );
-  console.log(`coupon: DEMO50 (${SEEDED_COUPON_ID})`);
-  if (stripe.status === "verified") {
-    console.log(`stripe: existing verified account ${stripe.accountId}`);
-  } else if (stripe.accountId) {
-    console.log(
-      `stripe: Express test account ${stripe.accountId} created with status pending`,
-    );
-    console.log(
-      "stripe: finish onboarding once in BankSettingsView to receive account.updated/verified",
-    );
-  } else {
-    console.log(
-      "stripe: no account created; set STRIPE_SECRET_KEY to create one, then finish onboarding in BankSettingsView",
-    );
-  }
+  logSeedSummary({
+    clubId,
+    clubName,
+    secondClubId,
+    secondClubName,
+    platformAdminUid,
+    platformAdminEmail,
+    printDemoPasswords: Boolean(args["print-demo-passwords"]),
+    accounts: {
+      admin: adminAccount,
+      board: boardAccount,
+      member: memberAccount,
+      appleReview: appleReviewAccount,
+    },
+    trialEndsAt,
+    announcements,
+    events,
+    paymentCalls,
+    upcomingTournamentId,
+    finishedTournamentId,
+    conversations,
+    stripe,
+  });
 }
 
 await runMain(main, "Seed failed.");
