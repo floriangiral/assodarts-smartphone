@@ -190,7 +190,9 @@ Do not include any of these values in Git, issue comments, or application logs.
 
 1. Create or select the Stripe platform account that owns this integration.
 2. Add a webhook endpoint: the deployed `stripeWebhook` function URL (`https://<region>-<project-id>.cloudfunctions.net/stripeWebhook`).
-3. Subscribe it to `checkout.session.completed`, `charge.refunded`, and `account.updated`.
+3. Subscribe it to `checkout.session.completed`, `charge.refunded`,
+   `invoice.paid`, `invoice.payment_failed`,
+   `customer.subscription.deleted`, and `account.updated`.
 4. Copy the webhook signing secret into `STRIPE_WEBHOOK_SECRET`.
 5. Confirm the platform account and connected-account settings allow Express accounts, card payments, and transfers in each club's country.
 

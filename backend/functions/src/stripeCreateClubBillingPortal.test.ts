@@ -27,10 +27,10 @@ jest.mock("firebase-admin/firestore", () => ({
 }));
 
 import { stripeCreateClubBillingPortal } from "./stripeCreateClubBillingPortal";
-import { makeCallableRequest } from "./testSupport";
-
-const makeRequest = (data: Record<string, unknown>, uid?: string) =>
-  makeCallableRequest(data, { uid, token: { email: "board@example.com" } });
+import {
+  describeClubAdminCallableGuards,
+  makeCommitteeCallableRequest as makeRequest,
+} from "./testSupport";
 
 const handler = stripeCreateClubBillingPortal.run.bind(
   stripeCreateClubBillingPortal,
@@ -46,25 +46,11 @@ beforeEach(() => {
 });
 
 describe("stripeCreateClubBillingPortal", () => {
-  it("rejects unauthenticated calls", async () => {
-    await expect(handler(makeRequest({ clubId: "c1" }))).rejects.toMatchObject({
-      code: "unauthenticated",
-    });
-  });
-
-  it("rejects calls without clubId", async () => {
-    await expect(handler(makeRequest({}, "u1"))).rejects.toMatchObject({
-      code: "invalid-argument",
-    });
-  });
-
-  it("rejects a caller who is not on the committee", async () => {
-    mockRequireClubAdmin.mockRejectedValue(new Error("permission denied"));
-
-    await expect(handler(makeRequest({ clubId: "c1" }, "u1"))).rejects.toThrow(
-      "permission denied",
-    );
-    expect(mockPortalCreate).not.toHaveBeenCalled();
+  describeClubAdminCallableGuards({
+    handler,
+    makeRequest,
+    requireClubAdminMock: mockRequireClubAdmin,
+    downstreamMock: mockPortalCreate,
   });
 
   it("rejects an unknown club", async () => {
