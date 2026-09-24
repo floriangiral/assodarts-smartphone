@@ -17,13 +17,52 @@ export function functionsBaseUrl(): string {
   return `https://us-central1-${projectId}.cloudfunctions.net`;
 }
 
+export const stripeConnectedAccountInclude: Array<
+  "configuration.recipient" | "requirements"
+> = [
+  "configuration.recipient",
+  "requirements",
+];
+
+export type StripeConnectStatus = "not_connected" | "pending" | "verified";
+
 /**
  * A connected account can collect money once Stripe has enabled charges and
  * the onboarding form is complete.
  */
 export function accountStatus(
   account: Stripe.Account,
-): "not_connected" | "pending" | "verified" {
+): StripeConnectStatus {
   if (account.charges_enabled && account.details_submitted) return "verified";
   return "pending";
+}
+
+export function v2AccountReadiness(
+  account: Stripe.V2.Core.Account,
+): {
+  status: StripeConnectStatus;
+  chargesEnabled: boolean;
+  detailsSubmitted: boolean;
+} {
+  const transfersStatus =
+    account.configuration?.recipient?.capabilities?.stripe_balance
+      ?.stripe_transfers?.status;
+  const chargesEnabled = transfersStatus === "active";
+  const hasBlockingRequirement =
+    account.requirements?.entries?.some((entry) =>
+      entry.impact.restricts_capabilities?.some(
+        (restricted) =>
+          restricted.configuration === "recipient" &&
+          restricted.capability === "stripe_balance.stripe_transfers" &&
+          (restricted.deadline.status === "currently_due" ||
+            restricted.deadline.status === "past_due"),
+      ),
+    ) ?? false;
+  const detailsSubmitted = !hasBlockingRequirement;
+
+  return {
+    status: chargesEnabled && detailsSubmitted ? "verified" : "pending",
+    chargesEnabled,
+    detailsSubmitted,
+  };
 }

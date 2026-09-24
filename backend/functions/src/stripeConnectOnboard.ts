@@ -1,10 +1,11 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import {
-  accountStatus,
   functionsBaseUrl,
+  stripeConnectedAccountInclude,
   stripeClient,
   stripeSecretKey,
+  v2AccountReadiness,
 } from "./shared/stripe";
 import { requireClubBoard } from "./shared/auth";
 
@@ -34,19 +35,38 @@ export const stripeConnectOnboard = onCall(
     const stripe = stripeClient(stripeSecretKey.value());
 
     if (!accountId) {
-      const account = await stripe.accounts.create({
-        type: "express",
-        country: (club?.country ?? "FR").toUpperCase().slice(0, 2),
-        business_type: "non_profit",
-        business_profile: {
-          name: club?.name ?? "Club",
-          product_description: "Cotisations et paiements des membres du club",
+      const userEmail =
+        typeof request.auth.token.email === "string"
+          ? request.auth.token.email
+          : "support@assodarts.fr";
+      const account = await stripe.v2.core.accounts.create({
+        contact_email: userEmail,
+        dashboard: "express",
+        display_name: club?.name ?? "Club",
+        defaults: {
+          responsibilities: {
+            fees_collector: "application",
+            losses_collector: "application",
+          },
         },
-        capabilities: {
-          card_payments: { requested: true },
-          transfers: { requested: true },
+        identity: {
+          country: (club?.country ?? "FR").toUpperCase().slice(0, 2),
+          entity_type: "non_profit",
+          business_details: {
+            registered_name: club?.name ?? "Club",
+          },
+        },
+        configuration: {
+          recipient: {
+            capabilities: {
+              stripe_balance: {
+                stripe_transfers: { requested: true },
+              },
+            },
+          },
         },
         metadata: { club_id: clubId },
+        include: stripeConnectedAccountInclude,
       });
       accountId = account.id;
 
@@ -63,19 +83,27 @@ export const stripeConnectOnboard = onCall(
     }
 
     const base = functionsBaseUrl();
-    const link = await stripe.accountLinks.create({
+    const link = await stripe.v2.core.accountLinks.create({
       account: accountId,
-      refresh_url: `${base}/stripeReturn?state=refresh`,
-      return_url: `${base}/stripeReturn?state=done`,
-      type: "account_onboarding",
+      use_case: {
+        type: "account_onboarding",
+        account_onboarding: {
+          configurations: ["recipient"],
+          refresh_url: `${base}/stripeReturn?state=refresh`,
+          return_url: `${base}/stripeReturn?state=done`,
+        },
+      },
     });
 
-    const account = await stripe.accounts.retrieve(accountId);
+    const account = await stripe.v2.core.accounts.retrieve(accountId, {
+      include: stripeConnectedAccountInclude,
+    });
+    const readiness = v2AccountReadiness(account);
 
     return {
       url: link.url,
       accountId,
-      status: accountStatus(account),
+      status: readiness.status,
     };
   },
 );

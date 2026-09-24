@@ -16,11 +16,15 @@ jest.mock("./shared/stripe", () => {
     ...actual,
     stripeSecretKey: { value: () => "sk_test_123" },
     stripeClient: () => ({
-      accounts: {
-        create: mockAccountsCreate,
-        retrieve: mockAccountsRetrieve,
+      v2: {
+        core: {
+          accounts: {
+            create: mockAccountsCreate,
+            retrieve: mockAccountsRetrieve,
+          },
+          accountLinks: { create: mockAccountLinksCreate },
+        },
       },
-      accountLinks: { create: mockAccountLinksCreate },
     }),
   };
 });
@@ -46,6 +50,8 @@ import { stripeConnectOnboard } from "./stripeConnectOnboard";
 import { makeCallableRequest } from "./testSupport";
 
 const makeRequest = makeCallableRequest;
+const makeAuthedRequest = (data: Record<string, unknown>) =>
+  makeRequest(data, { uid: "u1", token: { email: "board@example.com" } });
 
 const handler = stripeConnectOnboard.run.bind(stripeConnectOnboard);
 
@@ -56,8 +62,16 @@ beforeEach(() => {
   mockBankAccountSet.mockResolvedValue(undefined);
   mockAccountsCreate.mockResolvedValue({ id: "acct_new" });
   mockAccountsRetrieve.mockResolvedValue({
-    charges_enabled: true,
-    details_submitted: true,
+    configuration: {
+      recipient: {
+        capabilities: {
+          stripe_balance: {
+            stripe_transfers: { status: "active" },
+          },
+        },
+      },
+    },
+    requirements: { entries: [] },
   });
   mockAccountLinksCreate.mockResolvedValue({
     url: "https://stripe.test/onboard",
@@ -88,16 +102,21 @@ describe("stripeConnectOnboard", () => {
       data: () => ({ stripeAccountId: "acct_existing" }),
     });
 
-    const result = await handler(makeRequest({ clubId: "c1" }, "u1"));
+    const result = await handler(makeAuthedRequest({ clubId: "c1" }));
 
     expect(mockAccountsCreate).not.toHaveBeenCalled();
     expect(mockAccountLinksCreate).toHaveBeenCalledWith({
       account: "acct_existing",
-      refresh_url:
-        "https://us-central1-undefined.cloudfunctions.net/stripeReturn?state=refresh",
-      return_url:
-        "https://us-central1-undefined.cloudfunctions.net/stripeReturn?state=done",
-      type: "account_onboarding",
+      use_case: {
+        type: "account_onboarding",
+        account_onboarding: {
+          configurations: ["recipient"],
+          refresh_url:
+            "https://us-central1-undefined.cloudfunctions.net/stripeReturn?state=refresh",
+          return_url:
+            "https://us-central1-undefined.cloudfunctions.net/stripeReturn?state=done",
+        },
+      },
     });
     expect(result).toEqual({
       url: "https://stripe.test/onboard",
@@ -114,13 +133,32 @@ describe("stripeConnectOnboard", () => {
       data: () => ({ name: "Club Paris", ...club }),
     });
 
-    const result = await handler(makeRequest({ clubId: "c1" }, "u1"));
+    const result = await handler(makeAuthedRequest({ clubId: "c1" }));
 
     expect(mockAccountsCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        type: "express",
-        country,
-        business_type: "non_profit",
+        contact_email: "board@example.com",
+        dashboard: "express",
+        defaults: {
+          responsibilities: {
+            fees_collector: "application",
+            losses_collector: "application",
+          },
+        },
+        identity: expect.objectContaining({
+          country,
+          entity_type: "non_profit",
+        }),
+        configuration: {
+          recipient: {
+            capabilities: {
+              stripe_balance: {
+                stripe_transfers: { requested: true },
+              },
+            },
+          },
+        },
+        include: ["configuration.recipient", "requirements"],
       }),
     );
     expect(mockBankAccountSet).toHaveBeenCalledWith(

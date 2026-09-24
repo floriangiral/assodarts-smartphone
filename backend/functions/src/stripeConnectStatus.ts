@@ -1,6 +1,11 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
-import { accountStatus, stripeClient, stripeSecretKey } from "./shared/stripe";
+import {
+  stripeConnectedAccountInclude,
+  stripeClient,
+  stripeSecretKey,
+  v2AccountReadiness,
+} from "./shared/stripe";
 import { requireClubBoard } from "./shared/auth";
 
 /**
@@ -31,23 +36,25 @@ export const stripeConnectStatus = onCall(
     }
 
     const stripe = stripeClient(stripeSecretKey.value());
-    const account = await stripe.accounts.retrieve(stripeAccountId);
-    const status = accountStatus(account);
+    const account = await stripe.v2.core.accounts.retrieve(stripeAccountId, {
+      include: stripeConnectedAccountInclude,
+    });
+    const readiness = v2AccountReadiness(account);
 
     await bankRef.set(
       {
-        stripeStatus: status,
-        stripeChargesEnabled: account.charges_enabled ?? false,
-        stripeDetailsSubmitted: account.details_submitted ?? false,
+        stripeStatus: readiness.status,
+        stripeChargesEnabled: readiness.chargesEnabled,
+        stripeDetailsSubmitted: readiness.detailsSubmitted,
         updatedAt: FieldValue.serverTimestamp(),
       },
       { merge: true },
     );
 
     return {
-      status,
-      chargesEnabled: account.charges_enabled ?? false,
-      detailsSubmitted: account.details_submitted ?? false,
+      status: readiness.status,
+      chargesEnabled: readiness.chargesEnabled,
+      detailsSubmitted: readiness.detailsSubmitted,
     };
   },
 );

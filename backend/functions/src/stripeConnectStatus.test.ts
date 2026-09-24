@@ -13,7 +13,7 @@ jest.mock("./shared/stripe", () => {
     ...actual,
     stripeSecretKey: { value: () => "sk_test_123" },
     stripeClient: () => ({
-      accounts: { retrieve: mockAccountsRetrieve },
+      v2: { core: { accounts: { retrieve: mockAccountsRetrieve } } },
     }),
   };
 });
@@ -72,14 +72,24 @@ describe("stripeConnectStatus", () => {
       data: () => ({ stripeAccountId: "acct_123" }),
     });
     mockAccountsRetrieve.mockResolvedValue({
-      charges_enabled: true,
-      details_submitted: true,
+      configuration: {
+        recipient: {
+          capabilities: {
+            stripe_balance: {
+              stripe_transfers: { status: "active" },
+            },
+          },
+        },
+      },
+      requirements: { entries: [] },
     });
     mockBankAccountSet.mockResolvedValue(undefined);
 
     const result = await handler(makeRequest({ clubId: "c1" }, "u1"));
 
-    expect(mockAccountsRetrieve).toHaveBeenCalledWith("acct_123");
+    expect(mockAccountsRetrieve).toHaveBeenCalledWith("acct_123", {
+      include: ["configuration.recipient", "requirements"],
+    });
     expect(result).toEqual({
       status: "verified",
       chargesEnabled: true,
@@ -100,8 +110,16 @@ describe("stripeConnectStatus", () => {
       data: () => ({ stripeAccountId: "acct_456" }),
     });
     mockAccountsRetrieve.mockResolvedValue({
-      charges_enabled: false,
-      details_submitted: true,
+      configuration: {
+        recipient: {
+          capabilities: {
+            stripe_balance: {
+              stripe_transfers: { status: "pending" },
+            },
+          },
+        },
+      },
+      requirements: { entries: [] },
     });
     mockBankAccountSet.mockResolvedValue(undefined);
 

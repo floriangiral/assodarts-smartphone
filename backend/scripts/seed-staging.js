@@ -113,10 +113,12 @@ async function existingMemberId(db, authUid, fallbackId) {
 function loadStripeClient() {
   const stripeModule = requireFromFunctions("stripe");
   const Stripe = stripeModule.default || stripeModule;
-  return new Stripe(process.env.STRIPE_SECRET_KEY);
+  return new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: "2026-08-26.dahlia",
+  });
 }
 
-async function prepareStripeAccount(db, clubId, clubName) {
+async function prepareStripeAccount(db, clubId, clubName, contactEmail) {
   const bankRef = db.collection("club_bank_accounts").doc(clubId);
   const existing = await bankRef.get();
   const current = existing.data() || {};
@@ -132,16 +134,34 @@ async function prepareStripeAccount(db, clubId, clubName) {
   }
 
   try {
-    const account = await loadStripeClient().accounts.create({
-      type: "express",
-      country: "FR",
-      business_type: "non_profit",
-      business_profile: { name: clubName },
-      capabilities: {
-        card_payments: { requested: true },
-        transfers: { requested: true },
+    const account = await loadStripeClient().v2.core.accounts.create({
+      contact_email: process.env.SEED_CLUB_CONTACT_EMAIL || contactEmail,
+      dashboard: "express",
+      display_name: clubName,
+      defaults: {
+        responsibilities: {
+          fees_collector: "application",
+          losses_collector: "application",
+        },
+      },
+      identity: {
+        country: "FR",
+        entity_type: "non_profit",
+        business_details: {
+          registered_name: clubName,
+        },
+      },
+      configuration: {
+        recipient: {
+          capabilities: {
+            stripe_balance: {
+              stripe_transfers: { requested: true },
+            },
+          },
+        },
       },
       metadata: { club_id: clubId },
+      include: ["configuration.recipient", "requirements"],
     });
     return { accountId: account.id, status: "pending" };
   } catch (error) {
@@ -586,7 +606,7 @@ async function main() {
     randomUUID(),
   );
   const inactiveMemberId = seedDocumentId(clubId, "inactive-member");
-  const stripe = await prepareStripeAccount(db, clubId, clubName);
+  const stripe = await prepareStripeAccount(db, clubId, clubName, adminEmail);
   const platformAdminUid = await platformAdminUidFor(auth, platformAdminEmail);
 
   const batch = db.batch();

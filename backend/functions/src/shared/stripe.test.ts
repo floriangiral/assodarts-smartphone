@@ -1,4 +1,4 @@
-import { accountStatus, functionsBaseUrl } from "./stripe";
+import { accountStatus, functionsBaseUrl, v2AccountReadiness } from "./stripe";
 import type Stripe from "stripe";
 
 describe("accountStatus", () => {
@@ -27,6 +27,65 @@ describe("accountStatus", () => {
         details_submitted: true,
       } as Stripe.Account),
     ).toBe("verified");
+  });
+});
+
+describe("v2AccountReadiness", () => {
+  const makeAccount = (
+    status: "active" | "pending" | "restricted" | "unsupported",
+    hasBlockingRequirement = false,
+  ) =>
+    ({
+      configuration: {
+        recipient: {
+          capabilities: {
+            stripe_balance: {
+              stripe_transfers: { status },
+            },
+          },
+        },
+      },
+      requirements: {
+        entries: hasBlockingRequirement
+          ? [
+              {
+                impact: {
+                  restricts_capabilities: [
+                    {
+                      configuration: "recipient",
+                      capability: "stripe_balance.stripe_transfers",
+                      deadline: { status: "currently_due" },
+                    },
+                  ],
+                },
+              },
+            ]
+          : [],
+      },
+    }) as Stripe.V2.Core.Account;
+
+  it("is verified when recipient transfers are active and requirements are clear", () => {
+    expect(v2AccountReadiness(makeAccount("active"))).toEqual({
+      status: "verified",
+      chargesEnabled: true,
+      detailsSubmitted: true,
+    });
+  });
+
+  it("is pending while the recipient transfer capability is not active", () => {
+    expect(v2AccountReadiness(makeAccount("pending"))).toEqual({
+      status: "pending",
+      chargesEnabled: false,
+      detailsSubmitted: true,
+    });
+  });
+
+  it("keeps details pending when Stripe still blocks recipient transfers", () => {
+    expect(v2AccountReadiness(makeAccount("active", true))).toEqual({
+      status: "pending",
+      chargesEnabled: true,
+      detailsSubmitted: false,
+    });
   });
 });
 
