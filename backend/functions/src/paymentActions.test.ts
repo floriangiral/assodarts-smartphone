@@ -6,15 +6,34 @@ const testEnv = functionsTest();
 const mockMembershipGet = jest.fn();
 const mockItemGet = jest.fn();
 const mockItemSet = jest.fn();
+const mockMembershipsWhereGet = jest.fn();
+const mockChoiceSet = jest.fn();
+const mockMembershipRefSet = jest.fn();
 
 jest.mock("firebase-admin/firestore", () => ({
   getFirestore: () => ({
     collection: (name: string) => {
       if (name === "memberships") {
-        return { doc: () => ({ get: mockMembershipGet }) };
+        return {
+          doc: () => ({ get: mockMembershipGet }),
+          where: () => ({ get: mockMembershipsWhereGet }),
+        };
       }
       if (name === "payment_call_items") {
         return { doc: () => ({ get: mockItemGet, set: mockItemSet }) };
+      }
+      if (name === "clubs") {
+        return {
+          doc: () => ({
+            collection: () => ({
+              doc: () => ({
+                collection: () => ({
+                  doc: () => ({ set: mockChoiceSet }),
+                }),
+              }),
+            }),
+          }),
+        };
       }
       throw new Error(`Unexpected collection ${name}`);
     },
@@ -53,6 +72,16 @@ describe("declarePayment", () => {
     await expect(
       wrapped(makeRequest({ itemId: "i1" }, "member1")),
     ).rejects.toThrow();
+  });
+
+  it("rejects when the payment line is missing its ownership data", async () => {
+    mockItemGet.mockResolvedValue({
+      exists: true,
+      data: () => ({ isPaid: false }),
+    });
+    await expect(
+      wrapped(makeRequest({ itemId: "i1", method: "cash" }, "auth1")),
+    ).rejects.toMatchObject({ code: "failed-precondition" });
   });
 
   it("rejects when the item does not belong to the caller", async () => {
@@ -108,6 +137,18 @@ describe("declarePayment", () => {
 describe("validatePayment", () => {
   const wrapped = testEnv.wrap(validatePayment);
 
+  it("rejects unauthenticated calls", async () => {
+    await expect(wrapped(makeRequest({ itemId: "i1" }))).rejects.toMatchObject({
+      code: "unauthenticated",
+    });
+  });
+
+  it("rejects when itemId is missing", async () => {
+    await expect(wrapped(makeRequest({}, "board1"))).rejects.toMatchObject({
+      code: "invalid-argument",
+    });
+  });
+
   it("rejects a non-board caller", async () => {
     mockItemGet.mockResolvedValue({
       exists: true,
@@ -145,10 +186,76 @@ describe("validatePayment", () => {
       wrapped(makeRequest({ itemId: "missing" }, "board1")),
     ).rejects.toThrow();
   });
+
+  it("marks the linked contribution choice and membership as paid", async () => {
+    mockItemGet.mockResolvedValue({
+      exists: true,
+      data: () => ({
+        memberId: "member1",
+        clubId: "c1",
+        contributionSeasonId: "season1",
+        contributionOption: "player_license",
+      }),
+    });
+    mockMembershipGet.mockResolvedValue({
+      data: () => ({ status: "active", role: "board" }),
+    });
+    mockItemSet.mockResolvedValue(undefined);
+    mockChoiceSet.mockResolvedValue(undefined);
+    mockMembershipRefSet.mockResolvedValue(undefined);
+    mockMembershipsWhereGet.mockResolvedValue({
+      docs: [
+        {
+          data: () => ({ clubId: "c1" }),
+          ref: { set: mockMembershipRefSet },
+        },
+        {
+          data: () => ({ clubId: "other-club" }),
+          ref: { set: jest.fn() },
+        },
+      ],
+    });
+
+    await wrapped(makeRequest({ itemId: "i1" }, "board1"));
+
+    expect(mockChoiceSet).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "paid" }),
+      { merge: true },
+    );
+    expect(mockMembershipRefSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contributionSeasonId: "season1",
+        contributionStatus: "player",
+      }),
+      { merge: true },
+    );
+  });
+
+  it("skips the contribution update when the item has no contribution season", async () => {
+    mockItemGet.mockResolvedValue({
+      exists: true,
+      data: () => ({ memberId: "member1", clubId: "c1" }),
+    });
+    mockMembershipGet.mockResolvedValue({
+      data: () => ({ status: "active", role: "board" }),
+    });
+    mockItemSet.mockResolvedValue(undefined);
+
+    await wrapped(makeRequest({ itemId: "i1" }, "board1"));
+
+    expect(mockChoiceSet).not.toHaveBeenCalled();
+    expect(mockMembershipsWhereGet).not.toHaveBeenCalled();
+  });
 });
 
 describe("cancelPaymentDeclaration", () => {
   const wrapped = testEnv.wrap(cancelPaymentDeclaration);
+
+  it("rejects unauthenticated calls", async () => {
+    await expect(wrapped(makeRequest({ itemId: "i1" }))).rejects.toMatchObject({
+      code: "unauthenticated",
+    });
+  });
 
   it("lets the owner cancel their own declaration", async () => {
     mockItemGet.mockResolvedValue({
@@ -183,5 +290,15 @@ describe("cancelPaymentDeclaration", () => {
     await expect(
       wrapped(makeRequest({ itemId: "i1" }, "someoneElse")),
     ).rejects.toThrow();
+  });
+
+  it("rethrows a non-permission error instead of falling back to board membership", async () => {
+    mockItemGet.mockResolvedValue({
+      exists: true,
+      data: () => ({ isPaid: false }),
+    });
+    await expect(
+      wrapped(makeRequest({ itemId: "i1" }, "auth1")),
+    ).rejects.toMatchObject({ code: "failed-precondition" });
   });
 });
