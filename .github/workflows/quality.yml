@@ -127,7 +127,7 @@ jobs:
         run: python3 .github/scripts/xccov_to_sonar_generic.py TestResults.xcresult ios-coverage.xml "$GITHUB_WORKSPACE"
 
       - name: Upload coverage report
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ios-coverage
           path: ios-coverage.xml
@@ -154,7 +154,7 @@ jobs:
 
       - name: Upload iOS CodeQL SARIF
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: codeql-sarif-ios
           path: ${{ github.workspace }}/codeql-results/ios.sarif
@@ -212,7 +212,7 @@ jobs:
         run: cp backend/functions/coverage/lcov.info backend-coverage.lcov
 
       - name: Upload coverage report
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: backend-coverage
           path: backend-coverage.lcov
@@ -239,7 +239,7 @@ jobs:
 
       - name: Upload backend CodeQL SARIF
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: codeql-sarif-backend
           path: ${{ github.workspace }}/codeql-results/backend.sarif
