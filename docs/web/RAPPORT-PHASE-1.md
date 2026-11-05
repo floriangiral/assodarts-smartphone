@@ -1,6 +1,6 @@
 # Rapport de phase 1 — en cours, non validée
 
-État au 5 novembre 2026. Ce rapport trace le travail effectué ; il ne déclare pas la phase terminée. La checklist et les contraintes détaillées restent dans [SUIVI.md](SUIVI.md), le déploiement dans [DEPLOY.md](DEPLOY.md).
+Les sections 1 à 7 ci-dessous constituent un instantané historique de la phase 1 ; les éléments réalisés depuis, notamment les slugs et le backend staging, sont précisés dans l’actualisation à la fin et dans le suivi courant. Ce rapport ne déclare pas la phase terminée. La checklist et les contraintes détaillées restent dans [SUIVI.md](SUIVI.md), le déploiement dans [DEPLOY.md](DEPLOY.md).
 
 ## 1. Réalisations
 
@@ -32,7 +32,7 @@ Aucune nouvelle décision produit n'a été tranchée. Les placeholders n'impliq
 
 ## 5. Actions manuelles
 
-- [ ] Créer et lier le backend App Hosting staging, choisir région/runtime et environnement `staging`, désactiver les rollouts automatiques.
+- [x] Créer et lier le backend App Hosting staging, choisir région/runtime et environnement `staging`, désactiver les rollouts automatiques (fait après l’instantané initial).
 - [ ] Configurer `APPHOSTING_BACKEND_ID`, les droits App Hosting, les domaines et DNS, puis exécuter le circuit CI sur une branche `release-*` après validation.
 - [ ] Confirmer que Cloud Build inclut `shared/`, que le runtime accepte les versions choisies et que le rollout et les domaines fonctionnent.
 - [ ] Suivre la checklist complète de `DEPLOY.md` ; aucune action de production sans validation du propriétaire.
@@ -43,7 +43,7 @@ Les slugs sont définis une seule fois dans `shared/` et consommés côté web ;
 
 ## 7. Risques et dette
 
-CI finale et staging non prouvés ; backend App Hosting absent ; confiance des en-têtes de proxy à vérifier ; gestion et publication futures des domaines personnalisés à définir ; résolution de clubs et 404 réels en attente de la phase 2 ; validation de l'override gRPC à suivre ; Node/Next récents potentiellement en aperçu chez App Hosting ; migration OIDC et alertes de sécurité historiques encore ouvertes.
+À la date de l’audit initial : CI finale et staging non prouvés ; backend App Hosting alors absent ; confiance des en-têtes de proxy à vérifier ; gestion et publication futures des domaines personnalisés à définir ; résolution de clubs et 404 réels en attente de la phase 2 ; validation de l'override gRPC à suivre ; Node/Next récents potentiellement en aperçu chez App Hosting ; migration OIDC et alertes de sécurité historiques encore ouvertes.
 
 ## Actualisation — backend staging
 

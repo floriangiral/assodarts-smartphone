@@ -1,10 +1,10 @@
-# Web — développement local
+# Web — développement et démonstration locale
 
-Le site est un squelette en cours de réalisation. Les pages n'utilisent pas encore les données Firebase ; ne pas déployer cet état.
+Les pages publiques club, agenda et événement sont en cours de développement et lisent des projections Firestore. L'espace responsables est encore un placeholder ; les inscriptions et la gestion web ne sont pas encore disponibles. Voir [le suivi des phases](../docs/web/SUIVI.md).
 
 ## Installation
 
-Node 26 et npm sont nécessaires. Avec nvm, depuis la racine du dépôt :
+Avec Node 26, npm, nvm et Java 21, depuis la racine du dépôt :
 
 ```sh
 cd web
@@ -14,32 +14,39 @@ npm ci --ignore-scripts
 cd ..
 ```
 
-À refaire après une modification du fichier de dépendances. Le registre npm public est utilisé par le lockfile. Les commandes ci-dessous peuvent utiliser automatiquement Node 26 installé dans nvm, même si un autre Node est actif dans le shell.
+La première utilisation de la démonstration peut télécharger Firebase CLI 15.35.0 et l'émulateur Firestore. Si Java 21 n'est pas dans le PATH, lancer `JAVA_HOME=/chemin/vers/jdk-21 ./web/demo start` ; le chemin utilisé est mémorisé localement. Les commandes sont prévues pour macOS et Linux avec Bash et `ps` ; Windows natif n'a pas été vérifié.
 
-## Commandes depuis la racine du dépôt
+## Voir les pages avec des données fictives
 
 ```sh
-./web/dev start    # démarre le serveur en arrière-plan ou confirme qu'il tourne
-./web/dev status   # indique si le serveur est prêt
-./web/dev reload   # arrête puis redémarre le serveur
-./web/dev restart  # alias de reload
-./web/dev stop     # arrête uniquement le serveur lancé par ces commandes
-./web/dev logs     # affiche le dernier journal de démarrage
+./web/demo start
+./web/demo status
+./web/demo restart
+./web/demo stop
 ```
 
-Le serveur écoute uniquement sur `127.0.0.1:3000`. Les changements de fichiers sont rechargés automatiquement par Next.js ; utiliser `reload` en cas de changement de configuration ou si nécessaire. Les informations de processus et journaux sont locaux, dans `web/.local-dev/`, ignoré par Git.
+La commande démarre l'émulateur Firestore local sur le port 8080, crée un club et des événements fictifs dans le projet `demo-assodarts-web`, puis lance le web sur `127.0.0.1:3000`. Elle n'utilise aucun projet Firebase réel. Les données sont éphémères et réinitialisées au redémarrage de l'émulateur.
 
-Si le port 3000 est déjà pris par un autre processus, `start` et `restart` le signalent sans le tuer. Arrêter ce service par son propre moyen, puis relancer. Si une commande est interrompue brutalement pendant une opération, un verrou `web/.local-dev/command.lock` peut rester : vérifier que son PID ne correspond pas à une commande `web/dev` en cours avant de le supprimer.
+- [Vitrine](http://localhost:3000/)
+- [Club fictif](http://localhost:3000/?club=club-a)
+- [Agenda](http://localhost:3000/agenda?club=club-a)
+- [Événement](http://localhost:3000/e/tournoi-decouverte?club=club-a)
+- [Espace responsables provisoire](http://admin.localhost:3000/)
 
-## Pages
+Le navigateur peut aussi utiliser `club-a.localhost:3000` si les sous-domaines `.localhost` sont résolus. Le paramètre `?club=club-a` est un mode de secours local et fonctionne aussi sur l'agenda et les détails. L'inscription et les résultats ne sont pas encore disponibles. Le port 8080 ou 3000 occupé par un processus étranger doit être libéré par son propriétaire : les scripts ne l'arrêtent pas.
 
-- http://localhost:3000/ — vitrine provisoire ;
-- http://test-club.localhost:3000/ — page provisoire d'un club ;
-- http://admin.localhost:3000/ — page provisoire d'administration.
+## Serveur web seul
 
-http://localhost:3000/c/test-club redirige vers le sous-domaine du club. Si la résolution de `*.localhost` échoue, utiliser `http://localhost:3000/?club=test-club` pour la page club, ou ajouter les noms nécessaires au fichier hosts, par exemple `127.0.0.1 test-club.localhost admin.localhost`. Ce paramètre ne fonctionne que sur localhost.
+```sh
+./web/dev start
+./web/dev status
+./web/dev reload
+./web/dev restart
+./web/dev stop
+./web/dev logs
+```
 
-`ROOT_DOMAIN` est fixé à `localhost` par le gestionnaire local. Aucun projet ni identifiant Firebase n'est nécessaire pour ces pages ; l'authentification et les émulateurs ne sont pas encore intégrés au parcours web. Ces commandes sont prévues pour macOS et Linux avec Bash et `ps` ; Windows natif n'a pas été vérifié.
+`./web/dev` gère uniquement Next.js ; pour voir les données de démonstration et préserver la configuration de l'émulateur lors d'un redémarrage, utiliser `./web/demo`. Les journaux et PID locaux sont dans `web/.local-dev/`, ignoré par Git. En cas d'interruption brutale, vérifier le PID avant de supprimer un éventuel verrou `command.lock` périmé.
 
 ## Tester les domaines personnalisés sur émulateur
 
@@ -49,4 +56,4 @@ Avec Java 21, Firebase CLI 15.35.0 et les dépendances web installées, depuis `
 firebase emulators:exec --project demo-assodarts-rules --only firestore 'npm --prefix ../web run test:domain'
 ```
 
-Le test utilise le port 3101, crée puis supprime une correspondance de démonstration `domains/club.example` et vérifie 200/404. Il refuse un projet non `demo-` ou un émulateur absent, et ne tue pas les processus occupant le port. Le document serveur attendu contient `clubId` sous forme UUID ; le contenu réel du club sera défini en phase 2.
+Le test utilise le port 3101 et une correspondance fictive `domains/club.example`. La route de domaine personnalisé affiche encore un placeholder : son intégration aux pages publiques reste à réaliser. Voir [DEPLOY.md](../docs/web/DEPLOY.md).

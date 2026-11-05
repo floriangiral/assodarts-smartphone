@@ -1,6 +1,6 @@
 # Plan des pages web
 
-Plan proposé après analyse des écrans iOS et du cahier des charges ; la livraison suit les phases de [SUIVI.md](SUIVI.md). Le contenu commercial et les décisions produit restent à valider. Aucun parcours n'est considéré livré avant ses preuves et son rapport de phase.
+Plan proposé après analyse des écrans iOS et du cahier des charges ; les pages publiques club, agenda et événement sont désormais implémentées et testables localement ; la livraison suit les phases de [SUIVI.md](SUIVI.md). Le contenu commercial et les décisions produit restent à valider. Aucun parcours n'est considéré livré avant ses preuves et son rapport de phase.
 
 ## Sources existantes
 
@@ -8,7 +8,7 @@ Plan proposé après analyse des écrans iOS et du cahier des charges ; la livra
 - Agenda et réponses des membres : `EventsView.swift`, création : `NewEventSheet.swift` ; les réponses existantes sont privées et écrites par iOS dans `event_registrations`.
 - Rôles `admin`, `board`, `member` : `backend/firestore.rules` et `backend/functions/src/shared/auth.ts`. L'accès administrateur plateforme utilise `platform_admins`.
 - Identité visuelle : `ios-assodarts/Assodarts/Utilities/Theme.swift` ; bleu marine, orange, vert, surfaces claires et variantes sombres.
-- Les données `clubs` et `events` sont privées. Les pages publiques devront utiliser des projections dédiées et ne jamais exposer les profils ou inscriptions privées.
+- Les données `clubs` et `events` sont privées. Les pages publiques utilisent des projections dédiées et ne jamais exposer les profils ou inscriptions privées.
 
 ## Pages prévues
 

@@ -34,21 +34,19 @@ Cette commande utilise un projet `demo-` et les règles locales. Elle ne déploi
 
 Le projet staging peut aussi être alimenté par `backend/scripts/seed-staging.js` : examiner les options du script et la cible avant toute exécution. Il s'agit d'une action sur un projet réel, distincte des émulateurs.
 
-## Web local provisoire
+## Web local
 
-Le dossier `web/` contient des pages de substitution, sans connexion ni données Firebase. Avec Node 26 et `nvm`, depuis la racine :
+Les pages publiques lisent des projections Firestore. Pour les essayer sans données réelles, installer Node 26, Java 21 et les dépendances, puis lancer la démonstration :
 
 ```sh
 cd web && nvm install && nvm use && npm ci --ignore-scripts && cd ..
-./web/dev start
-./web/dev status
-./web/dev reload
-./web/dev stop
+./web/demo start
+./web/demo status
+./web/demo restart
+./web/demo stop
 ```
 
-La vitrine est disponible sur `http://localhost:3000/` et les pages de substitution sur `http://test-club.localhost:3000/` et `http://admin.localhost:3000/`. Le gestionnaire n'arrête que son propre processus ; un service étranger occupant le port 3000 est laissé intact. Pour les journaux, la résolution des sous-domaines et les limites, voir [web/README.md](web/README.md). Pour l’émulateur App Hosting, arrêter `./web/dev` puis, depuis `backend/` avec Node 26 et Java 21 : `firebase emulators:exec --project demo-assodarts-rules --only apphosting,firestore 'curl -fsS http://localhost:5002/'`. Redémarrer ensuite avec `./web/dev start`.
-
-Le lockfile web utilise le registre npm public ; l'installation a réussi localement. Le lockfile `shared/` contient encore des URL d'un registre privé et bloque la CI publique : voir [le suivi](docs/SUIVI-CHANTIERS.md).
+La vitrine est sur http://localhost:3000/ et le club fictif sur http://localhost:3000/?club=club-a. La commande utilise l'émulateur Firestore et ne modifie aucun projet réel. Le serveur seul reste disponible avec `./web/dev` ; pour le détail des pages, prérequis et ports, voir [web/README.md](web/README.md). Le lockfile `shared/` utilise le registre npm public.
 
 ## CI et environnements
 

@@ -12,9 +12,9 @@ Voir aussi le [suivi général](../SUIVI-CHANTIERS.md) pour les échecs CI const
 
 ## À terminer avant la production
 
-- [ ] Migrer les déploiements des clés de comptes de service vers Workload Identity Federation/OIDC, en séparant les identités et les rôles staging/production, puis supprimer les anciennes clés après validation. La configuration IAM Google Cloud n'a pas été modifiée.
+- [ ] Migrer les déploiements des clés de comptes de service vers Workload Identity Federation/OIDC, en séparant les identités et les rôles staging/production, puis supprimer les anciennes clés après validation. Des comptes et droits techniques ont été configurés pour App Hosting staging ; la migration OIDC et la revue des privilèges restent à faire.
 - [ ] Vérifier régulièrement les permissions des collaborateurs et les protections des branches.
-- [ ] Valider le job web Linux sur le squelette désormais versionné ; ajouter Playwright et traiter les vulnérabilités avant déploiement.
+- [ ] Confirmer les contrôles web Linux sur le commit courant ; ajouter Playwright et traiter les vulnérabilités avant déploiement.
 - [ ] Examiner les alertes GitHub Secret Scanning historiques sur des clés Google et vérifier les restrictions effectives de ces clés, sans les présumer secrètes ni les fermer automatiquement.
 - [ ] Traiter les alertes Dependabot ouvertes sur la branche par défaut. Les correctifs sur `develop` n'ont pas été fusionnés dans `main`.
 - [ ] Vérifier en staging les droits IAM, le comportement de l'approbation et la correspondance des SHA ; aucun déploiement réel ni simulation de contournement de production n'a été effectué.

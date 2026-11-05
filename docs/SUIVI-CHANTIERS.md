@@ -1,16 +1,16 @@
 # Suivi des chantiers Assodarts
 
-Dernière vérification : **5 novembre 2026**, sur `develop` au commit `2092e82` avant ce changement documentaire. Ce fichier distingue les constats vérifiés des intentions. Une case cochée représente un résultat vérifié, pas une promesse ; les résultats distants peuvent évoluer.
+Dernière vérification : **5 novembre 2026**, sur `develop` au commit `207dd93` avant ce changement documentaire. Ce fichier distingue les constats vérifiés des intentions. Une case cochée représente un résultat vérifié, pas une promesse ; les résultats distants peuvent évoluer.
 
 ## Situation générale
 
 | Chantier | État | Référence |
 | --- | --- | --- |
-| Web multi-club | Phase 1 commencée, aucune des cinq phases terminée. `web/` est versionné comme squelette ; ses fonctionnalités restent incomplètes. | [Suivi web](web/SUIVI.md) |
+| Web multi-club | Phases 1 et 2 en cours : socle, projections et premières pages publiques ; aucune phase terminée. | [Suivi web](web/SUIVI.md) |
 | CI et déploiement | Protections GitHub et changements de workflows en place sur `develop` ; CI non verte au dernier contrôle ; nouvelles règles non encore fusionnées vers release/main. | [Sécurité CI](web/SECURITE-CI.md) |
 | Sécurité Firebase | Premiers tests de règles sur émulateurs ; migration OIDC, audit IAM et couverture complète encore ouverts. | [Architecture](ARCHITECTURE.md) |
 | Structure du dépôt | Audit effectué ; refactorisations proposées, non réalisées. | [Améliorations](#structure-et-maintenance) |
-| Instance web locale | Pages de substitution testées dans l'espace de travail local ; ne constitue ni une fonctionnalité métier ni un déploiement. | [Configuration locale](../SETUP.md#web-local-provisoire) |
+| Instance web locale | Démonstration locale avec données fictives et émulateur Firestore ; ne constitue pas un déploiement. | [Configuration locale](../SETUP.md#web-local-provisoire) |
 
 PR ouverte : [#77, develop vers release-v0.1](https://github.com/floriangiral/assodarts-smartphone/pull/77), en brouillon au dernier contrôle. Aucun merge ni déploiement production n'a été effectué dans ce chantier. Le propriétaire garde ces décisions.
 
@@ -25,9 +25,9 @@ PR ouverte : [#77, develop vers release-v0.1](https://github.com/floriangiral/as
 
 - [x] Vérification GitHub effectuée : environnement `production` limité à `main`, approbation `floriangiral`, contournement administrateur désactivé ; auto-approbation autorisée pour que le propriétaire puisse déclencher et approuver.
 - [x] Protections des branches `main` et `release-*`, scan de secrets GitHub et protection au push configurés. Les changements de workflows sont sur `develop` et n'ont pas encore été fusionnés dans les branches de livraison.
-- [ ] Migrer les clés de comptes de service vers Workload Identity Federation/OIDC, avec comptes, restrictions et rôles IAM distincts staging/production. Tester puis retirer les anciennes clés ; aucun changement IAM n'a été réalisé.
+- [ ] Migrer les clés de comptes de service vers Workload Identity Federation/OIDC, avec comptes, restrictions et rôles IAM distincts staging/production. Tester puis retirer les anciennes clés ; les comptes techniques et droits nécessaires à App Hosting staging ont été configurés, la migration OIDC reste à faire.
 - [ ] Vérifier les deux alertes historiques [#1](https://github.com/floriangiral/assodarts-smartphone/security/secret-scanning/1) et [#2](https://github.com/floriangiral/assodarts-smartphone/security/secret-scanning/2) : elles concernent des clés Google dont la validité est inconnue. Vérifier leur nature, leurs restrictions et leur usage avant de décider d'une rotation ou d'une clôture.
-- [ ] Étendre les tests Firestore et Storage aux scénarios métier, aux données privées et aux futures projections ; toute modification des règles exige des tests autorisés et refusés sur émulateur. Les premiers tests locaux couvrent l'isolation entre clubs et les photos, pas toute la sécurité.
+- [ ] Étendre les tests Firestore et Storage aux scénarios métier, aux données privées et aux futures projections ; toute modification des règles exige des tests autorisés et refusés sur émulateur. Les tests couvrent aussi les nouvelles projections publiques ; ils ne couvrent pas toute la sécurité métier.
 - [ ] Tester les garde-fous staging et la correspondance de SHA en situation réelle, sans lancer de production. Contrôler le journal Firebase versionné et l'historique avant toute opération de nettoyage.
 - [ ] Confirmer l’audit web sur le commit final : un override gRPC 1.14.7 supprime les alertes élevées localement, 8 alertes modérées demeurent. La substitution utilisée pour le web et les tests Functions doit être réévaluée à chaque mise à jour Firebase.
 
@@ -42,11 +42,11 @@ PR ouverte : [#77, develop vers release-v0.1](https://github.com/floriangiral/as
 ## Structure et maintenance
 
 - [ ] Clarifier les contrats des documents entre `backend/types.ts`, Functions, règles et `RemoteModels.swift` ; ajouter des tests de compatibilité sans confondre `authUid` et `memberId`.
-- [ ] Produire un package partagé réellement utilisable dans l'archive de déploiement Functions et par le web ; tester ses formats de modules et sa disponibilité en émulation et en CI.
+- [ ] Valider en Cloud Build la dépendance locale du web vers `shared/` ; les Functions intègrent une copie synchronisée du schéma, contrôlée au build et au lint.
 - [ ] Découper progressivement le grand `RemoteRepository.swift` et `AppStore+Backend.swift` par domaine, sous tests, sans modifier les comportements iOS.
 - [ ] Consolider les vérifications de rôles dupliquées uniquement après avoir documenté leurs différences et ajouté des tests de droits.
 - [ ] Vérifier et mettre à jour les informations utiles des [archives historiques](archives/README-historique.md) avant de les réutiliser ; elles contiennent des instructions dépassées.
-- [ ] Étendre les analyses et la couverture à web/shared, mesurer les coûts CI, et maintenir les dépendances les plus récentes **compatibles et testées**. Node 26 est ciblé pour web/shared ; Node 24 pour les Functions à cause de la prise en charge Firebase CLI constatée au 5 novembre 2026. Réévaluer cette limite.
+- [ ] Étendre les analyses et la couverture à web/shared, mesurer les coûts CI, et maintenir les dépendances les plus récentes **compatibles et testées**. Node 26 est utilisé pour le développement web ; Node 24 est utilisé pour les Functions et le backend App Hosting staging, dernier runtime versionné proposé avec mises à jour de sécurité au 5 novembre 2026. Réévaluer cette limite.
 - [ ] Le site, les règles et le déploiement demandent des vérifications de sécurité, accessibilité, mobile et performance appropriées. Aucun score Lighthouse ni déploiement App Hosting n'a encore été prouvé.
 
 ## Suivi des demandes et décisions de notre échange
@@ -55,4 +55,4 @@ PR ouverte : [#77, develop vers release-v0.1](https://github.com/floriangiral/as
 - Les versions récentes sont une préférence explicite ; une incompatibilité vérifiée doit être signalée plutôt que forcée silencieusement.
 - La sécurité est prioritaire ; le propriétaire contrôle merges et production. Pas de branche de fonctionnalité, rebase ni force-push sur les branches partagées.
 - Les conflits avec l'existant doivent être documentés avec preuves ; les choix produit restent ouverts, avec les valeurs par défaut indiquées quand elles existent.
-- L'utilisateur a demandé une instance web locale, une CI économe pour le web et les travaux de préproduction, puis cette documentation. L'instance locale a été démarrée et testée ; le squelette et son gestionnaire local sont versionnés. La CI iOS a été ajustée, validation distante finale encore attendue.
+- L'utilisateur a demandé une instance web locale, une CI économe pour le web et les travaux de préproduction, puis cette documentation. L'instance locale avec émulateur et données fictives a été démarrée et testée ; les commandes de démonstration sont versionnées. La CI iOS a été ajustée, validation distante finale encore attendue.

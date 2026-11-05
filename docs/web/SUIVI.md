@@ -1,8 +1,8 @@
 # Suivi du site web multi-club
 
-Dernière vérification : **5 novembre 2026**, `develop` au commit `2092e82` avant cette mise à jour documentaire. Référence des exigences : [CAHIER-DES-CHARGES.md](CAHIER-DES-CHARGES.md). Plan des pages : [PLAN-PAGES.md](PLAN-PAGES.md). État global et sécurité : [SUIVI-CHANTIERS.md](../SUIVI-CHANTIERS.md).
+Dernière vérification : **5 novembre 2026**, `develop` au commit `207dd93` avant cette mise à jour documentaire. Référence des exigences : [CAHIER-DES-CHARGES.md](CAHIER-DES-CHARGES.md). Plan des pages : [PLAN-PAGES.md](PLAN-PAGES.md). État global et sécurité : [SUIVI-CHANTIERS.md](../SUIVI-CHANTIERS.md).
 
-**Aucune phase n'est terminée.** Les cases non cochées incluent les tâches qui n'ont pas été réalisées ou dont la preuve manque. Les valeurs par défaut ci-dessous sont des intentions du cahier des charges, pas des fonctionnalités déjà appliquées.
+**Aucune phase n'est terminée.** Les cases non cochées incluent les tâches qui n'ont pas été réalisées ou dont la preuve manque. Les valeurs par défaut effectivement appliquées et celles encore en attente sont précisées dans les rapports de phase.
 
 ## Principes transverses
 
@@ -11,47 +11,33 @@ Dernière vérification : **5 novembre 2026**, `develop` au commit `2092e82` ava
 - [ ] Utiliser App Router Next.js, TypeScript strict, Tailwind/shadcn, Firebase Admin serveur pour le public et SDK navigateur pour l'admin, messages français centralisés, Zod partagé, Vitest, Playwright et Local Emulator Suite.
 - [ ] Garder les secrets dans Secret Manager ; les clés Firebase des clients sont des identifiants publics. Aucun secret ne doit figurer dans le dépôt ou en clair dans `apphosting.yaml`.
 - [ ] Fournir les preuves de tests, builds, émulateurs et déploiements pertinentes ; toute modification de règles exige des tests de refus et d'autorisation.
-- [ ] Produire pour chaque phase `RAPPORT-PHASE-N.md` avec les sept rubriques demandées dans le cahier des charges. Aucun de ces rapports n'existe encore ; ne pas les créer comme rapports de phase finie avant validation.
+- [ ] Produire pour chaque phase `RAPPORT-PHASE-N.md` avec les sept rubriques demandées dans le cahier des charges. Les rapports des phases 1 et 2 existent et décrivent des phases en cours, sans les déclarer terminées.
 - [ ] Commits atomiques sur `develop`, PR `develop → release-*`, sans rebase ni force-push sur les branches partagées. Le propriétaire garde les merges et la production.
 
 ## Phase 1 — socle, hôtes et staging
 
-**État : partiel, non terminé.** L'audit initial et le schéma de slug ont été commités. Un squelette web est versionné avec un gestionnaire local ; il n'a pas été déployé.
+**État : partiel, non terminé.** Voir [RAPPORT-PHASE-1.md](RAPPORT-PHASE-1.md) pour les preuves historiques et leur actualisation.
 
-### Réalisé ou observé
-
-- [x] Audit initial : [AUDIT-INITIAL.md](AUDIT-INITIAL.md), qui contient aussi des constatations historiques datées.
-- [x] `shared/src/index.ts` propose `clubSlugSchema`, une liste réservée et `slugify` ; 46 tests Vitest ont réussi localement. Le web le consomme ; l’intégration des Functions reste à établir.
-- [x] Le squelette local `web/` contient des pages de substitution, un résolveur d'hôtes, des fichiers Firebase et des configurations App Hosting provisoires. En local, vitrine, club et admin ont répondu HTTP 200 ; `/c/test-club` a répondu 301 vers le sous-domaine. Aucun parcours métier n'a été validé.
-- [x] Lors de l'ajustement local, le lockfile web a été orienté vers le registre npm public et `npm ci --ignore-scripts` a réussi. Le lockfile est désormais versionné avec le squelette.
-- [x] Un job web Linux est défini dans `quality.yml` quand le dossier est suivi et concerné. Il a été sauté lors du run historique observé avant l’intégration du web ; aucun run web réussi n’est encore prouvé.
-
-### Reste à faire
-
-- [ ] Confirmer la CI après correction du lockfile `shared/`, de la dépendance gRPC web et des versions CodeQL. Shared, règles, scan et Functions ont réussi sur `59b56ba` ; le run web a échoué sur une URL de registre privé corrigée depuis. Vérifier le commit final et le run iOS.
-- [ ] Valider en CI le socle web versionné : lint, typage, tests, build, audit npm, Prettier et mode sombre. shadcn/Tailwind a été initialisé ; la vérification visuelle et les tests E2E restent à réaliser.
-- [ ] Valider l’intégration du package partagé au build App Hosting et définir son intégration à l’archive déployée des Functions. Le web consomme déjà le schéma de slug partagé ; les Functions ne le consomment pas encore.
-- [ ] Confirmer en CI et staging le routage racine/www, admin, slug, 301, redirection admin et domaines personnalisés. Le middleware ne lit pas Firestore ; la page serveur utilise `domains/{host}: {clubId: UUID}`, teste inconnu → 404 et conserve un placeholder. Vérifier les en-têtes de proxy et le lien futur avec les projections publiques.
-- [ ] Ajouter la résolution serveur slug → club avec cache lorsque les données nécessaires existeront. En phase 1, ne pas créer prématurément `club_slugs` ni de Function métier.
-- [ ] Documenter et tester un mode local de secours quand `*.localhost` ne se résout pas ; compléter les tests de toutes les règles d'hôtes, slugs réservés, Unicode et erreurs.
-- [ ] Compléter 404 générique et 404 club, messages FR centralisés, initialisation Firebase serveur unique et client paresseuse ; valider que rien ne déclenche de lecture réelle par accident.
-- [ ] Valider `DEPLOY.md`, les configurations App Hosting et les workflows staging/production sur un backend réel. Les workflows sont définis ; aucun rollout n’a encore été prouvé. Désactiver les rollouts App Hosting automatiques s’ils contournent la CI.
-- [ ] Préparer les domaines et secrets ; vérifier l'Auth autorisée uniquement sur les hôtes admin et localhost. Le propriétaire réalise ou valide les opérations de console/DNS requises. Aucune preuve de backend App Hosting ni de déploiement staging n'existe actuellement.
-- [ ] Exécuter les builds et tests web et Functions, les vérifications locales HTTP, les contrôles CI et la checklist staging ; créer `RAPPORT-PHASE-1.md` avec les résultats et les éventuels blocages manuels.
+- [x] Audit initial, squelette Next.js, routage d'hôtes, schéma de slug, configuration Firebase, commandes locales, premiers tests et rapport documentés.
+- [x] Backend App Hosting `assodarts-web-staging` créé dans `europe-west4`, dépôt lié, environnement `staging`, Node 24 et rollouts automatiques désactivés ; variables GitHub staging configurées.
+- [x] Résolution des slugs et intégration du schéma aux Functions réalisées depuis, en phase 2 ; le web dispose d'un mode local de secours et d'une démonstration avec émulateur.
+- [ ] Vérifier la CI complète sur le commit final, notamment SonarQube et les contrôles iOS applicables. Les derniers runs observés sur `caf0965` étaient en échec ; un run push sur `207dd93` a échoué au job SonarQube.
+- [ ] Valider le premier rollout staging par la CI sur la branche release, les permissions de l'identité de déploiement et la présence de `shared/` au build Cloud. Le backend existe, mais aucun site staging déployé n'a été prouvé.
+- [ ] Configurer et vérifier domaines, certificats, en-têtes de proxy et domaines autorisés Auth ; raccorder les domaines personnalisés aux pages publiques.
+- [ ] Vérifier l'accessibilité et le mode sombre, compléter l'internationalisation et les tests de parcours ; suivre l'override gRPC et la migration `middleware` vers `proxy`.
 
 ## Phase 2 — pages publiques et projections
 
-**État : en cours. Voir [RAPPORT-PHASE-2.md](RAPPORT-PHASE-2.md) pour les éléments réalisés, les preuves et les points bloquants.**
+**État : en cours.** Voir [RAPPORT-PHASE-2.md](RAPPORT-PHASE-2.md) pour les preuves et les écarts.
 
-- [ ] Auditer précisément les événements, catégories, tournois, résultats et règles existants ; décider si une page de résultats est techniquement exploitable.
-- [ ] Créer `clubs_public` et `events_public` avec seuls champs publics, triggers de projection et backfill idempotent. Les lectures publiques doivent être limitées aux documents publiés ; aucune écriture client. Tester autorisations et refus.
-- [ ] Ajouter au document source `visibility: public | members` ; **décision à valider, défaut demandé pour l'existant : `members`**.
-- [ ] Créer `club_slugs/{slug}` et `setClubSlug` avec droits existants, validation partagée, transaction d'unicité, alias et redirection 301. Proposer un slug à la création d'un club sans modifier l'ID UUID ; analyser l'impact de `createClub` et sur iOS.
-- [ ] Décision à valider : conservation des alias ; défaut demandé **indéfinie** pour protéger les QR codes. Tester collisions concurrentes, réservés, alias et droits.
-- [ ] Résoudre slug, alias et publication côté serveur avec cache et invalidation ; défaut demandé de revalidation temporelle 60 s. Revalidation à la demande protégée ou dette explicitée.
-- [ ] Réaliser pages club, agenda et événement ; la page résultats seulement si les données le permettent. Vitrine provisoire, métadonnées, canonicals, sitemap/robots par hôte, Open Graph événement, données structurées, `noindex` staging.
-- [ ] Vérifier mobile, clavier, libellés, contrastes ; mesurer Lighthouse mobile ≥ 90 en performance, accessibilité et SEO sur la page événement.
-- [ ] Exécuter un backfill sur émulateur avec deux clubs et des événements publics/privés ; prouver rendu serveur, alias et 404 ; rédiger `RAPPORT-PHASE-2.md`.
+- [x] Audit des événements et des résultats : les résultats nominatifs ne sont pas publiés, aucune page résultats n'a été créée.
+- [x] Projections `clubs_public` et `events_public`, triggers, backfill limité à l'émulateur et tests de règles. La visibilité absente vaut `members` ; la publication du club est explicite.
+- [x] Registre de slugs, callable avec contrôle des rôles et unicité transactionnelle, proposition à la création du club et alias conservés indéfiniment par défaut. Concurrence, refus et alias vérifiés sur émulateur ; la redirection serveur est actuellement 308, au lieu du 301 demandé.
+- [x] Pages club, agenda et événement ; vitrine provisoire, canonicals, sitemap, robots, image Open Graph et JSON-LD. Tests HTTP locaux et démonstration fictive disponibles.
+- [ ] Migrer les clubs existants et préparer un backfill réel sûr ; compléter les tests de création de club et des triggers émulés.
+- [ ] Résoudre l'écart 308/301, intégrer les domaines personnalisés et ajouter la revalidation à la demande ; le cache de résolution est actuellement de 60 secondes.
+- [ ] Finaliser les contenus et messages, les formats des données publiques et un contact commercial vérifié.
+- [ ] Tester accessibilité, mobile et Lighthouse ; confirmer `noindex` et fonctionnalités sur le premier rollout staging.
 
 ## Phase 3 — inscriptions publiques et mails
 
@@ -94,8 +80,8 @@ Paiement en ligne des événements et facturation des abonnements restent hors d
 
 ## Actions manuelles à préparer
 
-- [ ] Créer les backends Firebase App Hosting staging et production, lier le dépôt et sélectionner le bon environnement/runtime ; désactiver les déploiements automatiques qui contournent la CI. Valider le support effectif des versions Next et Node au moment de la création.
+- [ ] Valider le premier rollout du backend staging créé ; préparer séparément le backend de production et son environnement, uniquement avec validation du propriétaire.
 - [ ] Déclarer staging `staging.assodarts.app`, `admin.staging.assodarts.app`, `*.staging.assodarts.app` ; production `assodarts.app`, `www.assodarts.app`, `admin.assodarts.app`, `*.assodarts.app`. Suivre les instructions Firebase de validation de domaine et de certificats.
 - [ ] Préserver les enregistrements DNS explicites (dont DKIM/SPF Resend) : ils ne doivent pas être supprimés à cause du générique.
 - [ ] Configurer les domaines autorisés Firebase Auth pour les hôtes admin et localhost, les secrets et leurs droits, App Check, IAM/OIDC et les validateurs GitHub ; ne jamais saisir de secret dans Git.
-- [ ] Vérifier les étapes réelles et les autorisations avant tout déploiement ; le propriétaire conserve la validation production. Les commandes détaillées et leur preuve doivent être rédigées dans `DEPLOY.md` lors de la phase 1.
+- [ ] Vérifier les étapes réelles et les autorisations avant tout déploiement ; le propriétaire conserve la validation production. Les commandes et preuves disponibles sont dans `DEPLOY.md`.

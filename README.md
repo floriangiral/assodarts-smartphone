@@ -9,8 +9,8 @@ Assodarts est une application iOS SwiftUI et un backend Firebase pour la gestion
 | `ios-assodarts/` | Application SwiftUI, modèles, interface, intégration Firebase et tests Xcode. |
 | `backend/` | Configuration Firebase, règles Firestore et Storage, index, scripts et description manuelle des documents dans `types.ts`. |
 | `backend/functions/` | Cloud Functions Node/TypeScript, intégrations Stripe, Resend et FCM, tests Jest et tests des règles sur émulateur. |
-| `shared/` | Première validation Zod des slugs et tests Vitest ; pas encore intégrée aux applications. |
-| `web/` | Squelette Next.js versionné, encore incomplet et non déployable ; commandes locales dans `web/README.md`. |
+| `shared/` | Validation Zod des slugs et tests Vitest ; utilisée par le web et copiée dans les Functions avec vérification de synchronisation. |
+| `web/` | Site Next.js en cours : pages publiques et démonstration locale ; commandes dans `web/README.md`. |
 | `.github/` | Workflows GitHub Actions, Dependabot et politique de sécurité. |
 | `docs/` | Suivi des chantiers, architecture, sécurité et cahier des charges web. |
 
