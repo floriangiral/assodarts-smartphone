@@ -41,7 +41,7 @@ Dernière vérification : **5 novembre 2026**, `develop` au commit `2092e82` ava
 
 ## Phase 2 — pages publiques et projections
 
-**État : non commencée.**
+**État : en cours. Voir [RAPPORT-PHASE-2.md](RAPPORT-PHASE-2.md) pour les éléments réalisés, les preuves et les points bloquants.**
 
 - [ ] Auditer précisément les événements, catégories, tournois, résultats et règles existants ; décider si une page de résultats est techniquement exploitable.
 - [ ] Créer `clubs_public` et `events_public` avec seuls champs publics, triggers de projection et backfill idempotent. Les lectures publiques doivent être limitées aux documents publiés ; aucune écriture client. Tester autorisations et refus.

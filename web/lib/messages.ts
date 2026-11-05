@@ -1,7 +1,11 @@
 export const messages = {
   title: "Assodarts",
   tagline: "Le club, réuni autour des fléchettes.",
-  marketing: "Un espace pour organiser la vie de votre club et retrouver ses événements.",
+  marketing:
+    "Un espace pour organiser la vie de votre club et retrouver ses événements.",
+  marketingTrial: "Découvrez Assodarts avec 14 jours d’essai gratuit.",
+  marketingFeatures:
+    "Membres, événements et vie du club réunis dans un même espace.",
   preview: "Site en préparation",
   club: "Page du club",
   clubPlaceholder: "Cet espace est en cours de préparation.",

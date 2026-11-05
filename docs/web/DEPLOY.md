@@ -55,3 +55,20 @@ firebase emulators:exec --project demo-assodarts-rules --only firestore 'npm --p
 ```
 
 Le test crée puis supprime dans l'émulateur `domains/club.example` contenant un `clubId` UUID. Un domaine présent renvoie le placeholder, un domaine absent renvoie 404. Il ne crée rien dans Firebase réel. Le cycle de vie de ces correspondances et le lien avec les pages publiées restent à définir en phase 2.
+
+### Vérifier les premières pages publiques de phase 2
+
+Les pages réelles nécessitent Firestore et des projections publiées ; le placeholder d'un slug arbitraire n'est plus une preuve de fonctionnement. Depuis `backend/`, avec Java 21, Node 24 et Firebase CLI installés :
+
+```sh
+npm --prefix functions run build
+firebase emulators:exec --project demo-assodarts-rules --only firestore,storage 'npm --prefix functions run test:rules && cd functions && node scripts/test-public-emulator.cjs'
+```
+
+Pour le test HTTP, construire d'abord le web avec Node 26 (`cd web && npm ci && npm run build`), arrêter `./web/dev` si le port 3000 est occupé, puis depuis `backend/` :
+
+```sh
+firebase emulators:exec --project demo-assodarts-rules --only firestore 'cd ../web && node scripts/test-public-pages.mjs'
+```
+
+Ce test nécessite Node 26 sur le PATH, crée des données uniquement dans l'émulateur et démarre temporairement le serveur Next sur le port 3000. Redémarrer ensuite `./web/dev start`. Le script `backend/functions/scripts/backfill-public.cjs` refuse de s'exécuter sans `FIRESTORE_EMULATOR_HOST` ; ne pas l'utiliser pour une migration de production. Les limites connues sont dans [RAPPORT-PHASE-2.md](RAPPORT-PHASE-2.md).
