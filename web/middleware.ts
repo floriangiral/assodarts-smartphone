@@ -3,6 +3,9 @@ import { clubSlugSchema } from "@assodarts/shared";
 import { resolveHost, resolveRequest } from "./lib/routing/resolveHost";
 
 export function middleware(request: NextRequest) {
+  if (/\.(?:png|jpe?g|gif|webp|avif|svg|ico|woff2?|ttf)$/i.test(request.nextUrl.pathname))
+    return NextResponse.next();
+
   const root = process.env.ROOT_DOMAIN || "localhost";
   const host = resolveHost(
     request.headers.get("x-forwarded-host"),
