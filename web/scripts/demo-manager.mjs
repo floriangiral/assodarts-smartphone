@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
 import {
   closeSync,
@@ -96,6 +97,7 @@ async function stopEmulator() {
 }
 async function start() {
   mkdirSync(dir, { recursive: true, mode: 0o700 });
+  const demoPassword = `${randomBytes(24).toString("base64url")}A1!`;
   let state = readState();
   if (alive(state) && !(await ready())) {
     await stopEmulator();
@@ -160,11 +162,12 @@ async function start() {
     NEXT_PUBLIC_FIREBASE_PROJECT_ID: project,
     NEXT_PUBLIC_FIREBASE_EMULATORS: "true",
     NEXT_PUBLIC_FIREBASE_EMULATOR_HOST: "127.0.0.1",
+    DEMO_AUTH_PASSWORD: demoPassword,
   };
   command(process.execPath, [join(webDir, "scripts/seed-demo.mjs")], env);
   command(join(webDir, "dev"), ["restart"], env);
   console.log(
-    "\nPages :\n  Vitrine : http://localhost:3000/\n  Club : http://localhost:3000/?club=club-a\n  Agenda : http://localhost:3000/agenda?club=club-a\n  Événement : http://localhost:3000/e/tournoi-decouverte?club=club-a\n  Espace club : http://admin.localhost:3000/\n\nComptes locaux (mot de passe commun : DartsDemo123!) :\n  Membre : membre@demo.assodarts.test\n  Bureau : bureau@demo.assodarts.test\n  Admin du club : admin@demo.assodarts.test\n  Développeur plateforme : developpeur@demo.assodarts.test",
+    `\nPages :\n  Vitrine : http://localhost:3000/\n  Club : http://localhost:3000/?club=club-a\n  Agenda : http://localhost:3000/agenda?club=club-a\n  Événement : http://localhost:3000/e/tournoi-decouverte?club=club-a\n  Espace club : http://admin.localhost:3000/\n\nComptes locaux (mot de passe temporaire : ${demoPassword}) :\n  Membre : membre@demo.assodarts.test\n  Bureau : bureau@demo.assodarts.test\n  Admin du club : admin@demo.assodarts.test\n  Développeur plateforme : developpeur@demo.assodarts.test`,
   );
 }
 const action = process.argv[2] || "start";

@@ -19,12 +19,15 @@ initializeApp({ projectId: "demo-assodarts-web" });
 const auth = getAuth();
 const db = getFirestore();
 const clubId = "11111111-1111-4111-8111-111111111111";
+const demoPassword = process.env.DEMO_AUTH_PASSWORD;
+if (!demoPassword || demoPassword.length < 8) {
+  throw new Error("DEMO_AUTH_PASSWORD must be provided by ./web/demo.");
+}
 const members = [
   {
     id: "22222222-2222-4222-8222-222222222222",
     uid: "demo-member-uid",
     email: "membre@demo.assodarts.test",
-    password: "DartsDemo123!",
     firstName: "Alex",
     lastName: "Martin",
     role: "member",
@@ -35,7 +38,6 @@ const members = [
     id: "33333333-3333-4333-8333-333333333333",
     uid: "demo-board-uid",
     email: "bureau@demo.assodarts.test",
-    password: "DartsDemo123!",
     firstName: "Camille",
     lastName: "Durand",
     role: "board",
@@ -46,7 +48,6 @@ const members = [
     id: "44444444-4444-4444-8444-444444444444",
     uid: "demo-admin-uid",
     email: "admin@demo.assodarts.test",
-    password: "DartsDemo123!",
     firstName: "Morgan",
     lastName: "Petit",
     role: "admin",
@@ -57,14 +58,13 @@ const members = [
 const platformAdmin = {
   uid: "demo-platform-admin-uid",
   email: "developpeur@demo.assodarts.test",
-  password: "DartsDemo123!",
   firstName: "Sam",
   lastName: "Demo",
 };
 for (const user of [...members, platformAdmin]) {
   const credentials = {
     email: user.email,
-    password: user.password,
+    password: demoPassword,
     displayName: `${user.firstName} ${user.lastName}`,
     emailVerified: true,
   };

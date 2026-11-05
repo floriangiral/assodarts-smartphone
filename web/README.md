@@ -37,12 +37,12 @@ Le navigateur peut aussi utiliser `club-a.localhost:3000` si les sous-domaines `
 
 | Profil | E-mail | Mot de passe |
 | --- | --- | --- |
-| Membre | `membre@demo.assodarts.test` | `DartsDemo123!` |
-| Bureau | `bureau@demo.assodarts.test` | `DartsDemo123!` |
-| Admin du club | `admin@demo.assodarts.test` | `DartsDemo123!` |
-| Développeur plateforme | `developpeur@demo.assodarts.test` | `DartsDemo123!` |
+| Membre | `membre@demo.assodarts.test` |
+| Bureau | `bureau@demo.assodarts.test` |
+| Admin du club | `admin@demo.assodarts.test` |
+| Développeur plateforme | `developpeur@demo.assodarts.test` |
 
-Ces identifiants fonctionnent uniquement avec `./web/demo` et l'émulateur local; ne les réutilisez jamais en staging ou production. Les inscriptions publiques et la page résultats ne sont pas disponibles. Les ports 8080, 9099 ou 3000 occupés par un processus étranger doivent être libérés par son propriétaire : les scripts ne l'arrêtent pas.
+Le mot de passe temporaire, régénéré à chaque démarrage, est affiché par `./web/demo start`. Ces identifiants fonctionnent uniquement avec `./web/demo` et les émulateurs locaux; ne les réutilisez jamais en staging ou production. Les inscriptions publiques et la page résultats ne sont pas disponibles. Les ports 8080, 9099 ou 3000 occupés par un processus étranger doivent être libérés par son propriétaire : les scripts ne l'arrêtent pas.
 
 `./web/demo` fournit une clé cliente factice et connecte explicitement le navigateur aux émulateurs; aucune clé réelle n'est nécessaire pour parcourir les rôles.
 

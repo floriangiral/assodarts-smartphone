@@ -525,6 +525,11 @@ jobs:
                 echo "Codemagic build ended with status $status: $CODEMAGIC_BUILD_URL"
                 exit 1
                 ;;
+              *)
+                echo "CODEMAGIC_BUILD_STATUS=unknown" >> "$GITHUB_ENV"
+                echo "Unexpected Codemagic build status: ${status:-empty}"
+                exit 1
+                ;;
             esac
             sleep 20
           done

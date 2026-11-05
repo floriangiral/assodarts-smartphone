@@ -52,6 +52,15 @@ import { messages } from "@/lib/messages";
 type TabId = "home" | "news" | "events" | "members" | "tournaments";
 type AdminSession = Extract<ClubSessionResult, { kind: "club-member" }>;
 type DialogType = "event" | "announcement" | "tournament" | "entry" | null;
+type CreationDialogType = Exclude<DialogType, null>;
+
+type DialogContext = {
+  fields: FormData;
+  club: ClubAccess;
+  memberId: string;
+  role: ClubAccess["role"];
+  workspace: ClubWorkspaceData | null;
+};
 
 const tabs: Array<{ id: TabId; label: string; icon: LucideIcon }> = [
   { id: "home", label: messages.adminWorkspace.tabs.home, icon: Home },
@@ -325,64 +334,15 @@ function ClubWorkspace({
     if (!club || !dialog) return;
     setSaving(true);
     setDialogError("");
-    const fields = new FormData(event.currentTarget);
     try {
-      if (dialog === "event") {
-        const startsAt = new Date(String(fields.get("startsAt")));
-        if (Number.isNaN(startsAt.getTime())) throw new Error("invalid-date");
-        await createClubEvent(club.id, session.memberId, role, {
-          title: String(fields.get("title") ?? ""),
-          category: String(fields.get("category") ?? "entrainement"),
-          startsAt,
-          location: String(fields.get("location") ?? ""),
-          description: String(fields.get("description") ?? ""),
-          visibility: fields.get("visibility") === "public" ? "public" : "members",
-        });
-        setMessage(copy.eventCreated);
-      } else if (dialog === "announcement") {
-        // DECISION: Web announcements publish without push notifications until delivery is implemented here.
-        await createClubAnnouncement(club.id, session.memberId, role, {
-          title: String(fields.get("title") ?? ""),
-          body: String(fields.get("body") ?? ""),
-          isPinned: fields.get("isPinned") === "on",
-          notify: false,
-        });
-        setMessage(copy.announcementPublished);
-      } else if (dialog === "tournament") {
-        const date = new Date(String(fields.get("date")));
-        if (Number.isNaN(date.getTime())) throw new Error("invalid-date");
-        await createClubTournament(club.id, role, {
-          name: String(fields.get("name") ?? ""),
-          date,
-          location: String(fields.get("location") ?? ""),
-          markerIds: fields.getAll("markerIds").filter((value): value is string => typeof value === "string"),
-        });
-        setMessage(copy.tournamentCreated);
-      } else {
-        const tournamentId = String(fields.get("tournamentId") ?? "");
-        if (!workspace?.tournaments.some((item) => item.id === tournamentId)) {
-          throw new Error("tournament-not-found");
-        }
-        const tournament = workspace.tournaments.find((item) => item.id === tournamentId);
-        if (!tournament) throw new Error("tournament-not-found");
-        await recordTournamentResult(
-          club.id,
-          tournamentId,
-          session.memberId,
-          role,
-          tournament.markerIds.includes(session.memberId),
-          {
-            tableau: String(fields.get("tableau") ?? ""),
-            tour: String(fields.get("tour") ?? ""),
-            playerA: String(fields.get("playerA") ?? ""),
-            playerB: String(fields.get("playerB") ?? ""),
-            scoreA: Number(fields.get("scoreA") ?? 0),
-            scoreB: Number(fields.get("scoreB") ?? 0),
-            note: String(fields.get("note") ?? ""),
-          },
-        );
-        setMessage(copy.resultRecorded);
-      }
+      const notice = await persistDialog(dialog, {
+        fields: new FormData(event.currentTarget),
+        club,
+        memberId: session.memberId,
+        role,
+        workspace,
+      });
+      setMessage(notice);
       setMessageError(false);
       setDialog(null);
       setRefreshVersion((value) => value + 1);
@@ -534,6 +494,94 @@ function ClubWorkspace({
       )}
     </div>
   );
+}
+
+async function persistDialog(
+  type: CreationDialogType,
+  context: DialogContext,
+): Promise<string> {
+  const handlers: Record<CreationDialogType, (value: DialogContext) => Promise<string>> = {
+    event: saveEventDialog,
+    announcement: saveAnnouncementDialog,
+    tournament: saveTournamentDialog,
+    entry: saveResultDialog,
+  };
+  return handlers[type](context);
+}
+
+async function saveEventDialog({ fields, club, memberId, role }: DialogContext) {
+  const startsAt = new Date(formString(fields, "startsAt"));
+  if (Number.isNaN(startsAt.getTime())) throw new Error("invalid-date");
+  await createClubEvent(club.id, memberId, role, {
+    title: formString(fields, "title"),
+    category: formString(fields, "category") || "entrainement",
+    startsAt,
+    location: formString(fields, "location"),
+    description: formString(fields, "description"),
+    visibility: formString(fields, "visibility") === "public" ? "public" : "members",
+  });
+  return messages.adminWorkspace.eventCreated;
+}
+
+async function saveAnnouncementDialog({ fields, club, memberId, role }: DialogContext) {
+  // DECISION: Web announcements publish without push notifications until delivery is implemented here.
+  await createClubAnnouncement(club.id, memberId, role, {
+    title: formString(fields, "title"),
+    body: formString(fields, "body"),
+    isPinned: fields.get("isPinned") === "on",
+    notify: false,
+  });
+  return messages.adminWorkspace.announcementPublished;
+}
+
+async function saveTournamentDialog({ fields, club, role }: DialogContext) {
+  const date = new Date(formString(fields, "date"));
+  if (Number.isNaN(date.getTime())) throw new Error("invalid-date");
+  const markerIds = fields.getAll("markerIds").filter(isFormString);
+  await createClubTournament(club.id, role, {
+    name: formString(fields, "name"),
+    date,
+    location: formString(fields, "location"),
+    markerIds,
+  });
+  return messages.adminWorkspace.tournamentCreated;
+}
+
+async function saveResultDialog({ fields, club, memberId, role, workspace }: DialogContext) {
+  const tournamentId = formString(fields, "tournamentId");
+  const tournament = workspace?.tournaments.find((item) => item.id === tournamentId);
+  if (!tournament) throw new Error("tournament-not-found");
+  await recordTournamentResult(
+    club.id,
+    tournamentId,
+    memberId,
+    role,
+    tournament.markerIds.includes(memberId),
+    {
+      tableau: formString(fields, "tableau"),
+      tour: formString(fields, "tour"),
+      playerA: formString(fields, "playerA"),
+      playerB: formString(fields, "playerB"),
+      scoreA: formNumber(fields, "scoreA"),
+      scoreB: formNumber(fields, "scoreB"),
+      note: formString(fields, "note"),
+    },
+  );
+  return messages.adminWorkspace.resultRecorded;
+}
+
+function formString(fields: FormData, name: string) {
+  const value = fields.get(name);
+  return typeof value === "string" ? value : "";
+}
+
+function formNumber(fields: FormData, name: string) {
+  const value = Number(formString(fields, name));
+  return Number.isFinite(value) ? value : 0;
+}
+
+function isFormString(value: FormDataEntryValue): value is string {
+  return typeof value === "string";
 }
 
 function ClubNavigation({ activeTab, onSelect }: { activeTab: TabId; onSelect: (tab: TabId) => void }) {
