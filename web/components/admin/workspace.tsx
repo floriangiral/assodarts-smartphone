@@ -887,16 +887,7 @@ function CreationDialog({
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   const copy = messages.adminWorkspace;
-  const eventDialog = type === "event";
-  const announcementDialog = type === "announcement";
-  const tournamentDialog = type === "tournament";
-  const heading = eventDialog
-    ? copy.newEvent
-    : announcementDialog
-      ? copy.newAnnouncement
-      : tournamentDialog
-        ? copy.newTournament
-        : copy.recordResult;
+  const heading = creationDialogHeading(type, copy);
   return (
     <div className="fixed inset-0 z-50 grid place-items-end bg-[#101923]/55 p-0 sm:place-items-center sm:p-5" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <section aria-labelledby="creation-title" aria-modal="true" className="max-h-[92dvh] w-full overflow-y-auto rounded-t-2xl border border-border bg-surface p-5 shadow-2xl sm:max-w-xl sm:rounded-2xl sm:p-7" role="dialog">
@@ -905,66 +896,109 @@ function CreationDialog({
           <button aria-label={copy.cancel} className="focus-ring grid size-10 place-items-center rounded-full text-muted hover:bg-soft" onClick={onClose} type="button"><X aria-hidden="true" size={18} /></button>
         </div>
         <form className="mt-6 space-y-4" onSubmit={onSubmit}>
-          {eventDialog ? (
-            <>
-              <FormField label={copy.title} name="title" required />
-              <label className="block text-sm font-semibold" htmlFor="event-category">{copy.category}<select className="mt-2 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm font-normal text-ink" id="event-category" name="category"><option value="entrainement">{copy.training}</option><option value="competition">{copy.competition}</option><option value="reunion">{copy.meeting}</option><option value="convivial">{copy.social}</option></select></label>
-              <FormField label={copy.dateAndTime} name="startsAt" required type="datetime-local" />
-              <FormField label={copy.location} name="location" required />
-              <FormField label={copy.description} name="description" multiline />
-              <label className="block text-sm font-semibold" htmlFor="event-visibility">
-                {copy.visibility}
-                <select className="mt-2 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm font-normal text-ink" defaultValue="members" id="event-visibility" name="visibility">
-                  <option value="members">{copy.membersOnly}</option>
-                  <option value="public">{copy.public}</option>
-                </select>
-              </label>
-            </>
-          ) : announcementDialog ? (
-            <>
-              <FormField label={copy.title} name="title" required />
-              <FormField label={copy.message} name="body" required multiline />
-              <label className="flex min-h-11 items-center gap-3 text-sm font-medium"><input className="size-4 accent-[#1c3660]" name="isPinned" type="checkbox" />{copy.pinAnnouncement}</label>
-            </>
-          ) : tournamentDialog ? (
-            <>
-              <FormField label={copy.title} name="name" required />
-              <FormField label={copy.dateOnly} name="date" required type="date" />
-              <FormField label={copy.location} name="location" required />
-              <fieldset className="space-y-2">
-                <legend className="text-sm font-semibold">{copy.scorers}</legend>
-                <p className="text-xs leading-5 text-muted">{copy.scorersHelp}</p>
-                <div className="max-h-48 divide-y divide-border overflow-y-auto rounded-xl border border-border bg-background px-3">
-                  {members.map((member) => (
-                    <label className="flex min-h-11 items-center gap-3 text-sm" key={member.id}>
-                      <input className="size-4 accent-[#1c3660]" name="markerIds" type="checkbox" value={member.id} />
-                      <span>{member.firstName} {member.lastName}</span>
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
-            </>
-          ) : (
-            <>
-              <input name="tournamentId" type="hidden" value={tournament?.id ?? ""} />
-              {tournament && <p className="text-sm font-semibold text-muted">{tournament.name}</p>}
-              <FormField label={copy.draw} name="tableau" required />
-              <FormField label={copy.round} name="tour" />
-              <FormField label={copy.playerA} name="playerA" required />
-              <label className="block text-sm font-semibold" htmlFor="score-a">{copy.scoreA}<input className="mt-2 min-h-11 w-full rounded-xl border border-border bg-background px-4 text-sm text-ink" id="score-a" max={30} min={0} name="scoreA" type="number" defaultValue={0} /></label>
-              <FormField label={copy.playerB} name="playerB" required />
-              <label className="block text-sm font-semibold" htmlFor="score-b">{copy.scoreB}<input className="mt-2 min-h-11 w-full rounded-xl border border-border bg-background px-4 text-sm text-ink" id="score-b" max={30} min={0} name="scoreB" type="number" defaultValue={0} /></label>
-              <FormField label={copy.optionalNote} name="note" multiline />
-            </>
-          )}
+          {renderCreationFields(type, copy, members, tournament)}
           {error && <p className="text-sm font-medium text-[#c0362c]" role="alert">{error}</p>}
           <div className="flex justify-end gap-3 border-t border-border pt-4">
             <button className="focus-ring min-h-11 rounded-full px-4 text-sm font-semibold text-muted hover:bg-soft" onClick={onClose} type="button">{copy.cancel}</button>
-            <button className="focus-ring inline-flex min-h-11 items-center gap-2 rounded-full bg-navy px-5 text-sm font-bold text-white hover:bg-navy-deep disabled:opacity-60" disabled={isSaving} type="submit">{isSaving ? copy.save : eventDialog || tournamentDialog ? copy.create : announcementDialog ? copy.publish : copy.save}{!isSaving && <ArrowRight aria-hidden="true" size={16} />}</button>
+            <button className="focus-ring inline-flex min-h-11 items-center gap-2 rounded-full bg-navy px-5 text-sm font-bold text-white hover:bg-navy-deep disabled:opacity-60" disabled={isSaving} type="submit">{isSaving ? copy.save : creationActionLabel(type, copy)}{!isSaving && <ArrowRight aria-hidden="true" size={16} />}</button>
           </div>
         </form>
       </section>
     </div>
+  );
+}
+
+function creationDialogHeading(
+  type: CreationDialogType,
+  copy: typeof messages.adminWorkspace,
+): string {
+  switch (type) {
+    case "event":
+      return copy.newEvent;
+    case "announcement":
+      return copy.newAnnouncement;
+    case "tournament":
+      return copy.newTournament;
+    case "entry":
+      return copy.recordResult;
+  }
+}
+
+function creationActionLabel(
+  type: CreationDialogType,
+  copy: typeof messages.adminWorkspace,
+): string {
+  if (type === "event" || type === "tournament") return copy.create;
+  if (type === "announcement") return copy.publish;
+  return copy.save;
+}
+
+function renderCreationFields(
+  type: CreationDialogType,
+  copy: typeof messages.adminWorkspace,
+  members: ClubRosterMember[],
+  tournament?: ClubTournament,
+): ReactNode {
+  if (type === "event") {
+    return (
+      <>
+        <FormField label={copy.title} name="title" required />
+        <label className="block text-sm font-semibold" htmlFor="event-category">{copy.category}<select className="mt-2 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm font-normal text-ink" id="event-category" name="category"><option value="entrainement">{copy.training}</option><option value="competition">{copy.competition}</option><option value="reunion">{copy.meeting}</option><option value="convivial">{copy.social}</option></select></label>
+        <FormField label={copy.dateAndTime} name="startsAt" required type="datetime-local" />
+        <FormField label={copy.location} name="location" required />
+        <FormField label={copy.description} name="description" multiline />
+        <label className="block text-sm font-semibold" htmlFor="event-visibility">
+          {copy.visibility}
+          <select className="mt-2 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm font-normal text-ink" defaultValue="members" id="event-visibility" name="visibility">
+            <option value="members">{copy.membersOnly}</option>
+            <option value="public">{copy.public}</option>
+          </select>
+        </label>
+      </>
+    );
+  }
+  if (type === "announcement") {
+    return (
+      <>
+        <FormField label={copy.title} name="title" required />
+        <FormField label={copy.message} name="body" required multiline />
+        <label className="flex min-h-11 items-center gap-3 text-sm font-medium"><input className="size-4 accent-[#1c3660]" name="isPinned" type="checkbox" />{copy.pinAnnouncement}</label>
+      </>
+    );
+  }
+  if (type === "tournament") {
+    return (
+      <>
+        <FormField label={copy.title} name="name" required />
+        <FormField label={copy.dateOnly} name="date" required type="date" />
+        <FormField label={copy.location} name="location" required />
+        <fieldset className="space-y-2">
+          <legend className="text-sm font-semibold">{copy.scorers}</legend>
+          <p className="text-xs leading-5 text-muted">{copy.scorersHelp}</p>
+          <div className="max-h-48 divide-y divide-border overflow-y-auto rounded-xl border border-border bg-background px-3">
+            {members.map((member) => (
+              <label className="flex min-h-11 items-center gap-3 text-sm" key={member.id}>
+                <input className="size-4 accent-[#1c3660]" name="markerIds" type="checkbox" value={member.id} />
+                <span>{member.firstName} {member.lastName}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      </>
+    );
+  }
+  return (
+    <>
+      <input name="tournamentId" type="hidden" value={tournament?.id ?? ""} />
+      {tournament && <p className="text-sm font-semibold text-muted">{tournament.name}</p>}
+      <FormField label={copy.draw} name="tableau" required />
+      <FormField label={copy.round} name="tour" />
+      <FormField label={copy.playerA} name="playerA" required />
+      <label className="block text-sm font-semibold" htmlFor="score-a">{copy.scoreA}<input className="mt-2 min-h-11 w-full rounded-xl border border-border bg-background px-4 text-sm text-ink" id="score-a" max={30} min={0} name="scoreA" type="number" defaultValue={0} /></label>
+      <FormField label={copy.playerB} name="playerB" required />
+      <label className="block text-sm font-semibold" htmlFor="score-b">{copy.scoreB}<input className="mt-2 min-h-11 w-full rounded-xl border border-border bg-background px-4 text-sm text-ink" id="score-b" max={30} min={0} name="scoreB" type="number" defaultValue={0} /></label>
+      <FormField label={copy.optionalNote} name="note" multiline />
+    </>
   );
 }
 

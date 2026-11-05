@@ -95,63 +95,82 @@ async function stopEmulator() {
   }
   throw new Error("L'arrêt de l'émulateur n'est pas confirmé.");
 }
+function javaHome() {
+  return (
+    process.env.JAVA_HOME ||
+    (existsSync(javaFile) ? readFileSync(javaFile, "utf8").trim() : "")
+  );
+}
+
+function startEmulator(java) {
+  const javaBin = java ? join(java, "bin") : "";
+  const env = {
+    ...process.env,
+    PATH: [dirname(process.execPath), javaBin, "/usr/bin", "/bin"]
+      .filter(Boolean)
+      .join(":"),
+  };
+  const javaCommand = java ? join(java, "bin/java") : "/usr/bin/java";
+  if (
+    spawnSync(javaCommand, ["-version"], { env, stdio: "ignore" }).status !== 0
+  ) {
+    throw new Error(
+      "Java 21 est requis : configurez JAVA_HOME ou installez java dans /usr/bin.",
+    );
+  }
+  if (java) writeFileSync(javaFile, `${java}\n`, { mode: 0o600 });
+
+  const fd = openSync(logFile, "w", 0o600);
+  const child = spawn(
+    process.execPath,
+    [
+      realpathSync(join(dirname(process.execPath), "npx")),
+      "--yes",
+      "firebase-tools@15.35.0",
+      "emulators:start",
+      "--config",
+      join(backend, "firebase.json"),
+      "--only",
+      "auth,firestore",
+      "--project",
+      project,
+    ],
+    { cwd: dir, env, detached: true, stdio: ["ignore", fd, fd] },
+  );
+  closeSync(fd);
+  if (!child.pid) throw new Error("Impossible de lancer l'émulateur.");
+  const state = { pid: child.pid };
+  writeFileSync(stateFile, JSON.stringify(state) + "\n", { mode: 0o600 });
+  child.unref();
+  return state;
+}
+
+async function waitForEmulator(state) {
+  for (let i = 0; i < 300; i++) {
+    if (await ready()) return;
+    if (!alive(state))
+      throw new Error(`L'émulateur s'est arrêté ; voir ${logFile}.`);
+    await sleep(100);
+  }
+  throw new Error(`L'émulateur n'est pas prêt ; voir ${logFile}.`);
+}
+
+async function ensureEmulatorRunning() {
+  const state = readState();
+  if (alive(state) && (await ready())) return;
+  if (alive(state)) await stopEmulator();
+  if (!(await portsFree())) {
+    throw new Error(
+      "Le port 8080 ou 9099 est occupé par un autre processus ; libérez-le pour lancer la démonstration.",
+    );
+  }
+  await waitForEmulator(startEmulator(javaHome()));
+}
+
 async function start() {
   mkdirSync(dir, { recursive: true, mode: 0o700 });
   const demoPassword = `${randomBytes(24).toString("base64url")}A1!`;
-  let state = readState();
-  if (alive(state) && !(await ready())) {
-    await stopEmulator();
-    state = null;
-  }
-  if (!alive(state)) {
-    if (!(await portsFree()))
-      throw new Error(
-        "Le port 8080 ou 9099 est occupé par un autre processus ; libérez-le pour lancer la démonstration.",
-      );
-    const javaHome =
-      process.env.JAVA_HOME ||
-      (existsSync(javaFile) ? readFileSync(javaFile, "utf8").trim() : "");
-    const java = javaHome ? join(javaHome, "bin") : "";
-    const env = {
-      ...process.env,
-      PATH: [dirname(process.execPath), java, "/usr/bin", "/bin"].filter(Boolean).join(":"),
-    };
-    if (spawnSync(javaHome ? join(javaHome, "bin/java") : "/usr/bin/java", ["-version"], { env, stdio: "ignore" }).status !== 0)
-      throw new Error(
-        "Java 21 est requis : configurez JAVA_HOME ou installez java dans /usr/bin.",
-      );
-    if (javaHome) writeFileSync(javaFile, `${javaHome}\n`, { mode: 0o600 });
-    const fd = openSync(logFile, "w", 0o600);
-    const child = spawn(
-      process.execPath,
-      [
-        realpathSync(join(dirname(process.execPath), "npx")),
-        "--yes",
-        "firebase-tools@15.35.0",
-        "emulators:start",
-        "--config",
-        join(backend, "firebase.json"),
-        "--only",
-        "auth,firestore",
-        "--project",
-        project,
-      ],
-      { cwd: dir, env, detached: true, stdio: ["ignore", fd, fd] },
-    );
-    closeSync(fd);
-    if (!child.pid) throw new Error("Impossible de lancer l'émulateur.");
-    state = { pid: child.pid };
-    writeFileSync(stateFile, JSON.stringify(state) + "\n", { mode: 0o600 });
-    child.unref();
-    for (let i = 0; i < 300; i++) {
-      if (await ready()) break;
-      if (!alive(state))
-        throw new Error(`L'émulateur s'est arrêté ; voir ${logFile}.`);
-      await sleep(100);
-    }
-    if (!(await ready()))
-      throw new Error(`L'émulateur n'est pas prêt ; voir ${logFile}.`);
-  }
+  await ensureEmulatorRunning();
   const env = {
     ...process.env,
     GCLOUD_PROJECT: project,

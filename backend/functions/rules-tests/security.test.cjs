@@ -1,3 +1,4 @@
+const assert = require('node:assert/strict');
 const { test, before, after } = require('node:test');
 const { readFileSync } = require('node:fs');
 const { resolve } = require('node:path');
@@ -47,7 +48,8 @@ test('club data are isolated and require active membership', async () => {
 
 test('profile photos are scoped to members and only owners may upload', async () => {
   const storage = uid => env.authenticatedContext(uid).storage();
-  await assertSucceeds(getBytes(ref(storage('manager-a'), 'profile_photos/member-a')));
+  const photo = await assertSucceeds(getBytes(ref(storage('manager-a'), 'profile_photos/member-a')));
+  assert.equal(Buffer.from(photo).toString(), 'test');
   await assertFails(getBytes(ref(storage('manager-b'), 'profile_photos/member-a')));
   await assertFails(uploadString(ref(storage('manager-a'), 'profile_photos/member-a'), 'x', 'raw', {contentType:'image/png'}));
   await assertSucceeds(uploadString(ref(storage('member-a'), 'profile_photos/member-a'), 'x', 'raw', {contentType:'image/png'}));

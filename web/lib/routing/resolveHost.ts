@@ -30,27 +30,49 @@ export type RouteDecision =
   | { action: "redirect"; host: string; path: string }
   | { action: "custom"; host: string };
 
-export function resolveRequest(host: HostResolution, path: string, rootDomain: string): RouteDecision {
-  const root = normalizeHost(rootDomain);
-  if (host.kind === "custom") return { action: "custom", host: host.host };
-  if (host.kind === "marketing") {
-    const match = /^\/c\/([^/]+)(\/.*)?$/.exec(path);
-    if (match && clubSlugSchema.safeParse(match[1]).success) {
-      return { action: "redirect", host: `${match[1]}.${root}`, path: match[2] || "/" };
-    }
-    if (path === "/admin" || path.startsWith("/admin/")) {
-      return { action: "redirect", host: `admin.${root}`, path: path.slice(6) || "/" };
-    }
-    return { action: "next" };
+function resolveMarketingPath(path: string, root: string): RouteDecision {
+  const match = /^\/c\/([^/]+)(\/.*)?$/.exec(path);
+  if (match && clubSlugSchema.safeParse(match[1]).success) {
+    return { action: "redirect", host: `${match[1]}.${root}`, path: match[2] || "/" };
   }
-  if (host.kind === "admin") {
-    return path === "/admin" || path.startsWith("/admin/")
-      ? { action: "next" }
-      : { action: "rewrite", path: `/admin${path === "/" ? "" : path}` };
-  }
-  if (path === "/admin" || path.startsWith("/admin/")) {
+  if (isAdminPath(path)) {
     return { action: "redirect", host: `admin.${root}`, path: path.slice(6) || "/" };
   }
-  if (path === `/c/${host.slug}` || path.startsWith(`/c/${host.slug}/`)) return { action: "next" };
+  return { action: "next" };
+}
+
+function isAdminPath(path: string): boolean {
+  return path === "/admin" || path.startsWith("/admin/");
+}
+
+function resolveAdminPath(path: string): RouteDecision {
+  return isAdminPath(path)
+    ? { action: "next" }
+    : { action: "rewrite", path: `/admin${path === "/" ? "" : path}` };
+}
+
+function resolveClubPath(
+  host: Extract<HostResolution, { kind: "club" }>,
+  path: string,
+  root: string,
+): RouteDecision {
+  if (isAdminPath(path)) {
+    return { action: "redirect", host: `admin.${root}`, path: path.slice(6) || "/" };
+  }
+  if (path === `/c/${host.slug}` || path.startsWith(`/c/${host.slug}/`)) {
+    return { action: "next" };
+  }
   return { action: "rewrite", path: `/c/${host.slug}${path === "/" ? "" : path}` };
+}
+
+export function resolveRequest(
+  host: HostResolution,
+  path: string,
+  rootDomain: string,
+): RouteDecision {
+  const root = normalizeHost(rootDomain);
+  if (host.kind === "custom") return { action: "custom", host: host.host };
+  if (host.kind === "marketing") return resolveMarketingPath(path, root);
+  if (host.kind === "admin") return resolveAdminPath(path);
+  return resolveClubPath(host, path, root);
 }
