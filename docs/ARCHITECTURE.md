@@ -12,8 +12,8 @@ iOS SwiftUI ── Firebase Auth / Firestore / Storage ── Firebase
                                                         ├── Resend
                                                         └── FCM
 
-shared/ : validation de slugs isolée, encore non consommée
-web/    : squelette versionné, sans données réelles ; gestionnaire local dans web/dev
+shared/ : validation de slugs consommée par le web ; intégration Functions à établir
+web/    : pages provisoires, résolution de domaines serveur ; gestionnaire local dans web/dev
 ```
 
 Les documents sources et leurs règles sont dans `backend/firestore.rules`, `backend/storage.rules` et `backend/types.ts`. Ce dernier est une description TypeScript manuelle, pas une preuve que chaque lecture ou écriture est validée à l'exécution. Les modèles iOS et leurs conversions sont dans `ios-assodarts/Assodarts/Services/Firebase/RemoteModels.swift`.

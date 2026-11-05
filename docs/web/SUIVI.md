@@ -21,7 +21,7 @@ Dernière vérification : **5 novembre 2026**, `develop` au commit `2092e82` ava
 ### Réalisé ou observé
 
 - [x] Audit initial : [AUDIT-INITIAL.md](AUDIT-INITIAL.md), qui contient aussi des constatations historiques datées.
-- [x] `shared/src/index.ts` propose `clubSlugSchema`, une liste réservée et `slugify` ; 46 tests Vitest ont réussi localement. Le package n'est pas encore consommé par le web ou les Functions.
+- [x] `shared/src/index.ts` propose `clubSlugSchema`, une liste réservée et `slugify` ; 46 tests Vitest ont réussi localement. Le web le consomme ; l’intégration des Functions reste à établir.
 - [x] Le squelette local `web/` contient des pages de substitution, un résolveur d'hôtes, des fichiers Firebase et des configurations App Hosting provisoires. En local, vitrine, club et admin ont répondu HTTP 200 ; `/c/test-club` a répondu 301 vers le sous-domaine. Aucun parcours métier n'a été validé.
 - [x] Lors de l'ajustement local, le lockfile web a été orienté vers le registre npm public et `npm ci --ignore-scripts` a réussi. Le lockfile est désormais versionné avec le squelette.
 - [x] Un job web Linux est défini dans `quality.yml` quand le dossier est suivi et concerné. Il a été sauté lors du run historique observé avant l’intégration du web ; aucun run web réussi n’est encore prouvé.
@@ -35,7 +35,7 @@ Dernière vérification : **5 novembre 2026**, `develop` au commit `2092e82` ava
 - [ ] Ajouter la résolution serveur slug → club avec cache lorsque les données nécessaires existeront. En phase 1, ne pas créer prématurément `club_slugs` ni de Function métier.
 - [ ] Documenter et tester un mode local de secours quand `*.localhost` ne se résout pas ; compléter les tests de toutes les règles d'hôtes, slugs réservés, Unicode et erreurs.
 - [ ] Compléter 404 générique et 404 club, messages FR centralisés, initialisation Firebase serveur unique et client paresseuse ; valider que rien ne déclenche de lecture réelle par accident.
-- [ ] Créer `docs/web/DEPLOY.md`, les configurations App Hosting et, si nécessaire, les variantes staging/production. Configurer la CI pour déployer automatiquement staging sur `release-*`, et production seulement par `workflow_dispatch` protégé et approuvé. Désactiver les rollouts App Hosting automatiques s'ils contournent la CI.
+- [ ] Valider `DEPLOY.md`, les configurations App Hosting et les workflows staging/production sur un backend réel. Les workflows sont définis ; aucun rollout n’a encore été prouvé. Désactiver les rollouts App Hosting automatiques s’ils contournent la CI.
 - [ ] Préparer les domaines et secrets ; vérifier l'Auth autorisée uniquement sur les hôtes admin et localhost. Le propriétaire réalise ou valide les opérations de console/DNS requises. Aucune preuve de backend App Hosting ni de déploiement staging n'existe actuellement.
 - [ ] Exécuter les builds et tests web et Functions, les vérifications locales HTTP, les contrôles CI et la checklist staging ; créer `RAPPORT-PHASE-1.md` avec les résultats et les éventuels blocages manuels.
 

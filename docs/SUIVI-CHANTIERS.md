@@ -16,8 +16,8 @@ PR ouverte : [#77, develop vers release-v0.1](https://github.com/floriangiral/as
 
 ## P0 — rétablir une CI reproductible
 
-- [ ] Corriger `shared/package-lock.json` : les URL `resolved` pointent vers un registre d'entreprise inaccessible aux runners GitHub publics. Régénérer proprement avec le registre npm public, vérifier les intégrités et `npm ci` dans un environnement propre. Le lockfile web a été corrigé, testé localement et versionné ; le lockfile Functions utilise déjà le registre public.
-- [ ] Aligner les versions de `github/codeql-action/init` et `analyze` pour iOS et backend. Le run [41991299937](https://github.com/floriangiral/assodarts-smartphone/actions/runs/41991299937) a rapporté une configuration CodeQL 3.37.9 utilisée avec l'analyse 4.38.1 ; le contrôle échoue ensuite faute de SARIF. Épingler les deux actions à des SHA compatibles, puis prouver le résultat sur GitHub.
+- [ ] Confirmer sur le commit final la correction de `shared/package-lock.json` : les URL pointent désormais vers npm public et l’installation a réussi localement et sur le run GitHub `59b56ba`. Le lockfile web a été corrigé, testé localement et versionné ; le lockfile Functions utilise déjà le registre public.
+- [ ] Confirmer sur le commit final l’alignement de `github/codeql-action/init` et `analyze` pour iOS et backend. Le run [41991299937](https://github.com/floriangiral/assodarts-smartphone/actions/runs/41991299937) a rapporté une configuration CodeQL 3.37.9 utilisée avec l'analyse 4.38.1 ; le contrôle échoue ensuite faute de SARIF. Les deux actions sont désormais épinglées à v4.38.1 ; le job backend a réussi sur `59b56ba`, le run iOS final reste à vérifier.
 - [ ] Confirmer le succès des jobs requis sur le commit final et de la PR. Au dernier contrôle du [run 41992766869](https://github.com/floriangiral/assodarts-smartphone/actions/runs/41992766869), les tests de règles et le scan de secrets réussissaient, les jobs Functions et shared échouaient, iOS était encore en cours, et le job web était sauté car `web/` n'était alors pas versionné. Le run push correspondant était en attente. Ne pas appeler cette CI verte.
 - [ ] Revoir les alertes Dependabot de `main` après fusion éventuelle des correctifs : au dernier contrôle, 3 critiques, 2 élevées, 4 moyennes et 2 faibles étaient ouvertes. Ne pas supposer qu'elles décrivent les mêmes versions que `develop`.
 
@@ -29,7 +29,7 @@ PR ouverte : [#77, develop vers release-v0.1](https://github.com/floriangiral/as
 - [ ] Vérifier les deux alertes historiques [#1](https://github.com/floriangiral/assodarts-smartphone/security/secret-scanning/1) et [#2](https://github.com/floriangiral/assodarts-smartphone/security/secret-scanning/2) : elles concernent des clés Google dont la validité est inconnue. Vérifier leur nature, leurs restrictions et leur usage avant de décider d'une rotation ou d'une clôture.
 - [ ] Étendre les tests Firestore et Storage aux scénarios métier, aux données privées et aux futures projections ; toute modification des règles exige des tests autorisés et refusés sur émulateur. Les premiers tests locaux couvrent l'isolation entre clubs et les photos, pas toute la sécurité.
 - [ ] Tester les garde-fous staging et la correspondance de SHA en situation réelle, sans lancer de production. Contrôler le journal Firebase versionné et l'historique avant toute opération de nettoyage.
-- [ ] Résoudre l'audit des dépendances web avant déploiement ; `@firebase/firestore` impose une version gRPC signalée vulnérable dans le lockfile local. La substitution utilisée pour les tests Functions doit être réévaluée à chaque mise à jour.
+- [ ] Confirmer l’audit web sur le commit final : un override gRPC 1.14.7 supprime les alertes élevées localement, 8 alertes modérées demeurent. La substitution utilisée pour le web et les tests Functions doit être réévaluée à chaque mise à jour Firebase.
 
 ## CI, coûts et environnements
 
