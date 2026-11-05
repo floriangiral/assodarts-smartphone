@@ -24,19 +24,35 @@ const eventFields = [
   "status",
 ] as const;
 
-export async function projectClub(clubId: string): Promise<void> {
+async function projectDocument(
+  sourceCollection: "clubs" | "events",
+  targetCollection: "clubs_public" | "events_public",
+  id: string,
+  createProjection: (
+    data: FirebaseFirestore.DocumentData,
+  ) => Record<string, unknown>,
+): Promise<void> {
   const db = getFirestore();
   await db.runTransaction(async (tx) => {
-    const target = db.collection("clubs_public").doc(clubId);
+    const target = db.collection(targetCollection).doc(id);
     const [source, existing] = await Promise.all([
-      tx.get(db.collection("clubs").doc(clubId)),
+      tx.get(db.collection(sourceCollection).doc(id)),
       tx.get(target),
     ]);
     if (!source.exists) {
       tx.delete(target);
       return;
     }
-    const data = source.data() ?? {};
+    const result = createProjection(source.data() ?? {});
+    const previous = { ...existing.data() };
+    delete previous.updatedAt;
+    if (!existing.exists || !isDeepStrictEqual(previous, result))
+      tx.set(target, { ...result, updatedAt: FieldValue.serverTimestamp() });
+  });
+}
+
+export async function projectClub(clubId: string): Promise<void> {
+  return projectDocument("clubs", "clubs_public", clubId, (data) => {
     const profile =
       data.publicProfile && typeof data.publicProfile === "object"
         ? data.publicProfile
@@ -49,26 +65,12 @@ export async function projectClub(clubId: string): Promise<void> {
     };
     for (const key of profileFields)
       if (profile[key] !== undefined) result[key] = profile[key];
-    const previous = { ...existing.data() };
-    delete previous.updatedAt;
-    if (!existing.exists || !isDeepStrictEqual(previous, result))
-      tx.set(target, { ...result, updatedAt: FieldValue.serverTimestamp() });
+    return result;
   });
 }
 
 export async function projectEvent(eventId: string): Promise<void> {
-  const db = getFirestore();
-  await db.runTransaction(async (tx) => {
-    const target = db.collection("events_public").doc(eventId);
-    const [source, existing] = await Promise.all([
-      tx.get(db.collection("events").doc(eventId)),
-      tx.get(target),
-    ]);
-    if (!source.exists) {
-      tx.delete(target);
-      return;
-    }
-    const data = source.data() ?? {};
+  return projectDocument("events", "events_public", eventId, (data) => {
     // DECISION: missing visibility on existing events means members only.
     const result: Record<string, unknown> = {
       clubId: data.clubId,
@@ -76,10 +78,7 @@ export async function projectEvent(eventId: string): Promise<void> {
     };
     for (const key of eventFields)
       if (data[key] !== undefined) result[key] = data[key];
-    const previous = { ...existing.data() };
-    delete previous.updatedAt;
-    if (!existing.exists || !isDeepStrictEqual(previous, result))
-      tx.set(target, { ...result, updatedAt: FieldValue.serverTimestamp() });
+    return result;
   });
 }
 

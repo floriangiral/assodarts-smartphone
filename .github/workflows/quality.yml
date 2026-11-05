@@ -186,7 +186,6 @@ jobs:
         run: |
           python3 .github/scripts/summarize_codeql_sarif.py \
             "${{ github.workspace }}/codeql-results/ios-final" \
-            "${{ github.workspace }}/codeql-results/ios.sarif" \
             "iOS"
 
       - name: Upload iOS CodeQL SARIF
@@ -271,7 +270,6 @@ jobs:
         run: |
           python3 .github/scripts/summarize_codeql_sarif.py \
             "${{ github.workspace }}/codeql-results/backend-final" \
-            "${{ github.workspace }}/codeql-results/backend.sarif" \
             "Backend"
 
       - name: Upload backend CodeQL SARIF
