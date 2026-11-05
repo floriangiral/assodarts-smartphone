@@ -12,6 +12,15 @@ name: Quality
       - develop
       - "release-*"
   workflow_dispatch:
+    inputs:
+      deploy_staging:
+        description: Deploy the Firebase backend to staging after validation
+        type: boolean
+        default: false
+      distribute_ios:
+        description: Deploy staging and distribute the iOS build after validation
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -401,7 +410,7 @@ jobs:
     # il ne doit pas partir sur un commit qui fuite une clé.
     if: >-
       always() &&
-      (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/release-'))) &&
+      ((github.event_name == 'workflow_dispatch' && (inputs.deploy_staging || inputs.distribute_ios)) || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/release-'))) &&
       (needs.ios.result == 'success' || needs.ios.result == 'skipped') &&
       needs.backend.result == 'success' &&
       needs.shared.result == 'success' &&
@@ -423,7 +432,7 @@ jobs:
     # soient évalués au lieu de faire sauter le job d'office.
     if: >-
       always() &&
-      (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/release-') && needs.changes.outputs.ios == 'true')) &&
+      ((github.event_name == 'workflow_dispatch' && inputs.distribute_ios) || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/release-') && needs.changes.outputs.ios == 'true')) &&
       needs.ios.result == 'success' &&
       needs.backend.result == 'success' &&
       needs.shared.result == 'success' &&
