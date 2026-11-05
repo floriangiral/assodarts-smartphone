@@ -57,7 +57,7 @@ function applyRouteDecision(
   return NextResponse.rewrite(url);
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   if (isStaticAsset(request.nextUrl.pathname)) return NextResponse.next();
 
   const root = process.env.ROOT_DOMAIN || "localhost";
@@ -78,6 +78,7 @@ export function middleware(request: NextRequest) {
   }
   return applyRouteDecision(url, decision);
 }
+
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };
