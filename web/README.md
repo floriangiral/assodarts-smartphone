@@ -40,3 +40,13 @@ Si le port 3000 est déjà pris par un autre processus, `start` et `restart` le 
 http://localhost:3000/c/test-club redirige vers le sous-domaine du club. Si la résolution de `*.localhost` échoue, utiliser `http://localhost:3000/?club=test-club` pour la page club, ou ajouter les noms nécessaires au fichier hosts, par exemple `127.0.0.1 test-club.localhost admin.localhost`. Ce paramètre ne fonctionne que sur localhost.
 
 `ROOT_DOMAIN` est fixé à `localhost` par le gestionnaire local. Aucun projet ni identifiant Firebase n'est nécessaire pour ces pages ; l'authentification et les émulateurs ne sont pas encore intégrés au parcours web. Ces commandes sont prévues pour macOS et Linux avec Bash et `ps` ; Windows natif n'a pas été vérifié.
+
+## Tester les domaines personnalisés sur émulateur
+
+Avec Java 21, Firebase CLI 15.35.0 et les dépendances web installées, depuis `backend/` :
+
+```sh
+firebase emulators:exec --project demo-assodarts-rules --only firestore 'npm --prefix ../web run test:domain'
+```
+
+Le test utilise le port 3101, crée puis supprime une correspondance de démonstration `domains/club.example` et vérifie 200/404. Il refuse un projet non `demo-` ou un émulateur absent, et ne tue pas les processus occupant le port. Le document serveur attendu contient `clubId` sous forme UUID ; le contenu réel du club sera défini en phase 2.

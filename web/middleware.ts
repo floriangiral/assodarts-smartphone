@@ -16,7 +16,14 @@ export function middleware(request: NextRequest) {
     if (url.pathname === `/c/${localClub}`) return NextResponse.next();
   }
   const decision = resolveRequest(host, request.nextUrl.pathname, root);
-  if (decision.action === "custom") return new NextResponse(null, { status: 404 });
+  if (decision.action === "custom") {
+    // Only the server page reads Firestore; reject malformed hosts before routing.
+    if (!/^[a-z0-9.-]+$/.test(decision.host) || decision.host.length > 253) return new NextResponse(null, { status: 404 });
+    const prefix = `/domain/${decision.host}`;
+    if (url.pathname === prefix || url.pathname.startsWith(`${prefix}/`)) return NextResponse.next();
+    url.pathname = `${prefix}${url.pathname === "/" ? "" : url.pathname}`;
+    return NextResponse.rewrite(url);
+  }
   if (decision.action === "next") return NextResponse.next();
   url.pathname = decision.path;
   if (decision.action === "redirect") {

@@ -11,7 +11,8 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:domain": "node scripts/test-custom-domain.mjs"
   },
   "dependencies": {
     "@assodarts/shared": "file:../shared",
