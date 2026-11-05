@@ -1,6 +1,6 @@
 # Suivi du site web multi-club
 
-Dernière vérification : **5 novembre 2026**, `develop` au commit `2092e82` avant cette mise à jour documentaire. Référence des exigences : [CAHIER-DES-CHARGES.md](CAHIER-DES-CHARGES.md). État global et sécurité : [SUIVI-CHANTIERS.md](../SUIVI-CHANTIERS.md).
+Dernière vérification : **5 novembre 2026**, `develop` au commit `2092e82` avant cette mise à jour documentaire. Référence des exigences : [CAHIER-DES-CHARGES.md](CAHIER-DES-CHARGES.md). Plan des pages : [PLAN-PAGES.md](PLAN-PAGES.md). État global et sécurité : [SUIVI-CHANTIERS.md](../SUIVI-CHANTIERS.md).
 
 **Aucune phase n'est terminée.** Les cases non cochées incluent les tâches qui n'ont pas été réalisées ou dont la preuve manque. Les valeurs par défaut ci-dessous sont des intentions du cahier des charges, pas des fonctionnalités déjà appliquées.
 
