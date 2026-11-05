@@ -1,19 +1,56 @@
+import { clubSlugSchema } from "@assodarts/shared";
+
 export type HostResolution =
   | { kind: "marketing" }
   | { kind: "admin" }
   | { kind: "club"; slug: string }
   | { kind: "custom"; host: string };
 
-/** The caller must accept forwarded headers only from its trusted proxy. */
+export function normalizeHost(value: string): string {
+  return value.split(",")[0].trim().toLowerCase().replace(/:\d+$/, "");
+}
+
+/** Forwarded headers must be supplied by a trusted proxy. */
 export function resolveHost(forwardedHost: string | null, host: string | null, rootDomain: string): HostResolution {
-  const hostname = (forwardedHost || host || "").split(",")[0].trim().toLowerCase().replace(/:\d+$/, "");
-  const root = rootDomain.trim().toLowerCase().replace(/:\d+$/, "");
+  const hostname = normalizeHost(forwardedHost || host || "");
+  const root = normalizeHost(rootDomain);
   if (hostname === root || hostname === `www.${root}`) return { kind: "marketing" };
   if (hostname === `admin.${root}`) return { kind: "admin" };
   const suffix = `.${root}`;
   if (hostname.endsWith(suffix)) {
     const slug = hostname.slice(0, -suffix.length);
-    if (/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) && slug.length >= 3 && slug.length <= 40) return { kind: "club", slug };
+    if (clubSlugSchema.safeParse(slug).success) return { kind: "club", slug };
   }
   return { kind: "custom", host: hostname };
+}
+
+export type RouteDecision =
+  | { action: "next" }
+  | { action: "rewrite"; path: string }
+  | { action: "redirect"; host: string; path: string }
+  | { action: "custom"; host: string };
+
+export function resolveRequest(host: HostResolution, path: string, rootDomain: string): RouteDecision {
+  const root = normalizeHost(rootDomain);
+  if (host.kind === "custom") return { action: "custom", host: host.host };
+  if (host.kind === "marketing") {
+    const match = /^\/c\/([^/]+)(\/.*)?$/.exec(path);
+    if (match && clubSlugSchema.safeParse(match[1]).success) {
+      return { action: "redirect", host: `${match[1]}.${root}`, path: match[2] || "/" };
+    }
+    if (path === "/admin" || path.startsWith("/admin/")) {
+      return { action: "redirect", host: `admin.${root}`, path: path.slice(6) || "/" };
+    }
+    return { action: "next" };
+  }
+  if (host.kind === "admin") {
+    return path === "/admin" || path.startsWith("/admin/")
+      ? { action: "next" }
+      : { action: "rewrite", path: `/admin${path === "/" ? "" : path}` };
+  }
+  if (path === "/admin" || path.startsWith("/admin/")) {
+    return { action: "redirect", host: `admin.${root}`, path: path.slice(6) || "/" };
+  }
+  if (path === `/c/${host.slug}` || path.startsWith(`/c/${host.slug}/`)) return { action: "next" };
+  return { action: "rewrite", path: `/c/${host.slug}${path === "/" ? "" : path}` };
 }

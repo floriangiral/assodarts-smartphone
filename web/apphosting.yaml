@@ -2,3 +2,6 @@ env:
   - variable: ROOT_DOMAIN
     value: assodarts.app
     availability: [RUNTIME]
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: assodarts
+    availability: [BUILD, RUNTIME]

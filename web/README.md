@@ -37,6 +37,6 @@ Si le port 3000 est déjà pris par un autre processus, `start` et `restart` le 
 - http://test-club.localhost:3000/ — page provisoire d'un club ;
 - http://admin.localhost:3000/ — page provisoire d'administration.
 
-http://localhost:3000/c/test-club redirige vers le sous-domaine du club. Si la résolution de `*.localhost` échoue, ajouter localement les noms nécessaires au fichier hosts, par exemple `127.0.0.1 test-club.localhost admin.localhost`.
+http://localhost:3000/c/test-club redirige vers le sous-domaine du club. Si la résolution de `*.localhost` échoue, utiliser `http://localhost:3000/?club=test-club` pour la page club, ou ajouter les noms nécessaires au fichier hosts, par exemple `127.0.0.1 test-club.localhost admin.localhost`. Ce paramètre ne fonctionne que sur localhost.
 
 `ROOT_DOMAIN` est fixé à `localhost` par le gestionnaire local. Aucun projet ni identifiant Firebase n'est nécessaire pour ces pages ; l'authentification et les émulateurs ne sont pas encore intégrés au parcours web. Ces commandes sont prévues pour macOS et Linux avec Bash et `ps` ; Windows natif n'a pas été vérifié.
