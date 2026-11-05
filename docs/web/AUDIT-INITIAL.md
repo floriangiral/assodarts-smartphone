@@ -29,3 +29,9 @@ App Hosting prend en charge les domaines génériques ([Firebase](https://fireba
 - Functions : `npm run build` réussi ; `npm test -- --runInBand` : 23 suites, 227 tests réussis.
 - Schéma partagé : `npm test --prefix shared` : 46 tests réussis.
 - Aucune règle ni Function existante n'a été modifiée. L'app, le site, la CI distante, les émulateurs et le déploiement staging n'ont pas encore été validés.
+
+## Mise à jour des versions (5 novembre 2026)
+
+Node 26.13.0 est utilisé pour le web et le package partagé. Il est en aperçu dans Cloud Run ; la prise en charge effective et les mises à jour automatiques du runtime App Hosting restent à vérifier au moment de créer le backend. Le CLI Firebase 15.35.0 ne liste pas encore `nodejs26` pour les Functions. Celles-ci utilisent donc Node 24, dernière version prise en charge par ce CLI ; les workflows correspondants utilisent également Node 24. Ne pas déployer en production sans validation.
+
+Les dernières versions des dépendances ne sont pas toutes compatibles entre elles. `firebase-functions-test` 3.5.0 limite `firebase-admin` à la version 13 ; Stripe 23 change les types de l'intégration Connect et exige une migration spécifique ; TypeScript 7 n'est pas accepté par typescript-eslint et les plugins ESLint livrés avec Next n'acceptent pas encore ESLint 10. Le web utilise donc TypeScript 6 et ESLint 9 ; les Functions conservent TypeScript 5, firebase-admin 13 et Stripe 22. Ces contraintes sont à réévaluer lors de la migration. Le dossier web reste incomplet et ne doit pas être déployé.
