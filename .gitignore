@@ -12,3 +12,5 @@ ios-assodarts/Config/Firebase/*.plist
 __pycache__/
 *.pyc
 .spm-checkouts/
+
+/backend/firestore-debug.log
