@@ -307,6 +307,13 @@ jobs:
         working-directory: web
       - run: npm test
         working-directory: web
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - run: npm install --global --ignore-scripts firebase-tools@15.35.0
+      - run: firebase emulators:exec --project demo-assodarts-rules --only firestore 'npm --prefix ../web run test:domain'
+        working-directory: backend
       - run: npm run build
         working-directory: web
 
