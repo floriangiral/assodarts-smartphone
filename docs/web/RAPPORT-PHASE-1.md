@@ -6,7 +6,7 @@
 
 - Documentation : plan des pages dans `PLAN-PAGES.md`, procédure App Hosting dans `DEPLOY.md`.
 - CI : URLs npm publiques pour `shared/package-lock.json` ; alignement des actions CodeQL init/analyze sur v4.38.1 ; override ciblé gRPC web à 1.14.7 pour corriger les avis élevés existants ; jobs App Hosting staging et production manuelle définis.
-- Web : thème proche d'iOS, composants de base shadcn/Tailwind, messages centralisés, pages provisoires, routeur pur `resolveHost`/`resolveRequest`, schéma de slug partagé consommé par le web, paramètre local `?club=`.
+- Web : thème proche d'iOS, composants de base shadcn/Tailwind, messages centralisés, pages provisoires, routeur pur `resolveHost`/`resolveRequest`, schéma de slug partagé consommé par le web, paramètre local `?club=` et résolution serveur des domaines personnalisés dans `domains/{host}`.
 - Règles et Functions métier : aucune règle, collection ou Function métier modifiée pour cette phase.
 
 ## 2. Vérifications
@@ -14,13 +14,13 @@
 - Functions : build et 227 tests Jest réussis ; les tests de règles Firestore/Storage ont réussi sur émulateur dans le run GitHub du commit `59b56ba`.
 - Package partagé : installation propre, 46 tests Vitest réussis et audit npm sans vulnérabilité au niveau demandé.
 - Web : installation propre `npm ci`, lint, typage, 14 tests Vitest et build Next réussis ; `npm audit --audit-level=high` réussit avec 8 alertes modérées restantes. L’override gRPC 1.14.7 est à suivre.
-- HTTP local : vitrine, sous-domaine club et admin HTTP 200 ; URL canonique HTTP 301 ; `?club=test-club` HTTP 200 ; slug réservé HTTP 404 avec message club. L’existence des clubs valides n’est pas encore vérifiée.
+- HTTP local : vitrine, sous-domaine club et admin HTTP 200 ; URL canonique HTTP 301 ; `?club=test-club` HTTP 200 ; slug réservé HTTP 404 avec message club. L’existence des clubs valides n’est pas encore vérifiée. Sur émulateur Firestore, domaine connu HTTP 200 et domaine inconnu HTTP 404 (`npm run test:domain` via `firebase emulators:exec`).
 - CI GitHub : non déclarée verte ; les jobs du dernier run doivent être contrôlés sur le commit final. Aucun déploiement staging réussi n'a été observé.
 
 ## 3. Écarts et traitement
 
 - `events` et `clubs` sont privés ; phase 1 ne lit aucune donnée métier pour remplir les placeholders.
-- Le modèle existant ne contient pas de registre de slugs ni de schéma pour `domains/{host}`. La phase 1 interdit de créer `club_slugs` ou une Function métier. La résolution slug → clubId, le 404 club basé sur une existence réelle et les domaines personnalisés restent donc à concevoir/implémenter sans deviner le modèle ; les hôtes inconnus répondent actuellement 404. Proposition : définir `domains/{host}` et la relation avec les projections publiques lors de la phase 2, puis consulter cette collection côté serveur uniquement.
+- Le modèle existant ne contient ni registre de slugs ni schéma de domaine. La phase 1 interdit de créer `club_slugs` ou une Function métier. Une structure minimale serveur `domains/{host}: {clubId: UUID}` est utilisée pour la résolution des domaines ; elle ne crée aucune donnée en production et doit être intégrée aux projections phase 2. La résolution slug → clubId et le 404 d’un club valide mais inconnu attendent `club_slugs`.
 - `shared/` est consommé par le web via une dépendance locale empaquetée ; son intégration à l'archive déployable des Functions reste à démontrer avant usage par celles-ci. App Hosting avec dépendance hors de `web/` doit être validé dans Cloud Build.
 - Le CLI Firebase disponible n'accepte pas encore Node 26 pour les Functions ; Node 24 y est conservé. Le runtime web Node 26 et la version Next sur App Hosting doivent être vérifiés en staging.
 - Next.js signale que `middleware.ts` est déprécié au profit de `proxy.ts`. Le cahier des charges demande explicitement `middleware.ts` ; conserver provisoirement cette convention et planifier la migration avec tests de routage.
@@ -42,4 +42,4 @@ Les slugs sont définis une seule fois dans `shared/` et consommés côté web ;
 
 ## 7. Risques et dette
 
-CI finale et staging non prouvés ; backend App Hosting absent ; confiance des en-têtes de proxy à vérifier ; schéma et résolution des domaines personnalisés non définis ; résolution de clubs et 404 réels en attente de la phase 2 ; validation de l'override gRPC à suivre ; Node/Next récents potentiellement en aperçu chez App Hosting ; migration OIDC et alertes de sécurité historiques encore ouvertes.
+CI finale et staging non prouvés ; backend App Hosting absent ; confiance des en-têtes de proxy à vérifier ; gestion et publication futures des domaines personnalisés à définir ; résolution de clubs et 404 réels en attente de la phase 2 ; validation de l'override gRPC à suivre ; Node/Next récents potentiellement en aperçu chez App Hosting ; migration OIDC et alertes de sécurité historiques encore ouvertes.

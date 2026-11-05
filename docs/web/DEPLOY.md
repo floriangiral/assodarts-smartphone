@@ -35,3 +35,13 @@ firebase apphosting:rollouts:create --help
 ```
 
 La commande de rollout utilisée par les workflows est `firebase apphosting:rollouts:create BACKEND_ID --project PROJECT_ID --git-commit COMMIT_SHA --force --non-interactive`. Ne pas l'exécuter à la main pour contourner les contrôles ou l'approbation. Vérifier en particulier la réussite du build App Hosting et le contrat de résolution d'hôtes derrière le proxy.
+
+## Contrôle des domaines personnalisés en local
+
+Avec Java 21, Firebase CLI 15.35.0 et les dépendances web installées, depuis `backend/` :
+
+```sh
+firebase emulators:exec --project demo-assodarts-rules --only firestore 'npm --prefix ../web run test:domain'
+```
+
+Le test crée puis supprime dans l'émulateur `domains/club.example` contenant un `clubId` UUID. Un domaine présent renvoie le placeholder, un domaine absent renvoie 404. Il ne crée rien dans Firebase réel. Le cycle de vie de ces correspondances et le lien avec les pages publiées restent à définir en phase 2.
