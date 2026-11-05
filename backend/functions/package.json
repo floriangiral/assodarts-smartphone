@@ -2,7 +2,7 @@
   "name": "assodarts-functions",
   "private": true,
   "engines": {
-    "node": "22"
+    "node": "24"
   },
   "main": "lib/index.js",
   "scripts": {
@@ -15,18 +15,18 @@
   "dependencies": {
     "firebase-admin": "^13.10.0",
     "firebase-functions": "^7.4.0",
-    "resend": "^6.28.1",
-    "stripe": "^22.6.1"
+    "resend": "^6.37.0",
+    "stripe": "^22.6.2"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",
-    "@typescript-eslint/eslint-plugin": "^8.69.0",
-    "@typescript-eslint/parser": "^8.69.0",
-    "eslint": "^10.11.0",
+    "@typescript-eslint/eslint-plugin": "^8.72.1",
+    "@typescript-eslint/parser": "^8.72.1",
+    "eslint": "^10.14.0",
     "firebase-functions-test": "^3.5.0",
     "jest": "^30.5.2",
-    "prettier": "^3.9.8",
-    "ts-jest": "^29.4.12",
+    "prettier": "^3.9.10",
+    "ts-jest": "^29.4.15",
     "typescript": "^5.9.3"
   },
   "overrides": {
