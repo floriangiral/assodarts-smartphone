@@ -126,26 +126,64 @@ async function withLock(action) {
   }
 }
 
+async function showStatus() {
+  const current = state();
+  if (managed(current)) {
+    const ok = await ready();
+    console.log(
+      ok
+        ? `Serveur actif : http://localhost:${port}/ (PID ${current.pid}).`
+        : `Serveur présent mais pas prêt (PID ${current.pid}).`,
+    );
+    if (!ok) process.exitCode = 1;
+    return;
+  }
+
+  const portFree = await isPortFree();
+  console.log(
+    `Serveur arrêté${portFree ? "." : ` ; port ${port} occupé par un autre processus.`}`,
+  );
+  process.exitCode = 1;
+}
+
+function showLogs() {
+  try {
+    process.stdout.write(readFileSync(logPath, "utf8"));
+  } catch (error) {
+    if (error.code === "ENOENT") console.log("Aucun journal disponible.");
+    else throw error;
+  }
+}
+
 async function main() {
   const command = process.argv[2] ?? "status";
-  if (process.argv.length > 3) throw new Error("Usage : ./web/dev {start|stop|restart|reload|status|logs}");
-  if (command === "start") await withLock(start);
-  else if (command === "stop") await withLock(stop);
-  else if (command === "restart" || command === "reload") await withLock(async () => { await stop(); await start(); });
-  else if (command === "status") {
-    const current = state();
-    if (managed(current)) {
-      const ok = await ready();
-      console.log(ok ? `Serveur actif : http://localhost:${port}/ (PID ${current.pid}).` : `Serveur présent mais pas prêt (PID ${current.pid}).`);
-      if (!ok) process.exitCode = 1;
-    } else {
-      console.log(`Serveur arrêté${(await isPortFree()) ? "." : ` ; port ${port} occupé par un autre processus.`}`);
-      process.exitCode = 1;
-    }
-  } else if (command === "logs") {
-    try { process.stdout.write(readFileSync(logPath, "utf8")); }
-    catch (error) { if (error.code === "ENOENT") console.log("Aucun journal disponible."); else throw error; }
-  } else throw new Error("Usage : ./web/dev {start|stop|restart|reload|status|logs}");
+  if (process.argv.length > 3) {
+    throw new Error("Usage : ./web/dev {start|stop|restart|reload|status|logs}");
+  }
+
+  switch (command) {
+    case "start":
+      await withLock(start);
+      break;
+    case "stop":
+      await withLock(stop);
+      break;
+    case "restart":
+    case "reload":
+      await withLock(async () => {
+        await stop();
+        await start();
+      });
+      break;
+    case "status":
+      await showStatus();
+      break;
+    case "logs":
+      showLogs();
+      break;
+    default:
+      throw new Error("Usage : ./web/dev {start|stop|restart|reload|status|logs}");
+  }
 }
 
 main().catch((error) => { console.error(`Erreur : ${error.message}`); process.exitCode = 1; });

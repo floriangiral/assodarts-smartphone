@@ -12,6 +12,7 @@ const env = functionsTest();
 process.env.GCLOUD_PROJECT = projectId;
 const call = env.wrap(require('../lib/clubSlugs').setClubSlug);
 const request = (uid, clubId, slug) => ({ auth: uid ? {uid, token:{}} : undefined, data: {clubId, slug} });
+const compareSlugs = (left, right) => left.localeCompare(right);
 async function main() {
   const a = randomUUID(), b = randomUUID();
   const contestedSlug = `unique-${randomUUID().slice(0, 8)}`;
@@ -49,14 +50,14 @@ async function main() {
   const legacySlugs = [
     (await db.doc(`clubs/${legacyA}`).get()).data().slug,
     (await db.doc(`clubs/${legacyB}`).get()).data().slug,
-  ].sort();
-  assert.deepEqual(legacySlugs, [legacyBase, `${legacyBase}-2`].sort());
+  ].sort(compareSlugs);
+  assert.deepEqual(legacySlugs, [legacyBase, `${legacyBase}-2`].sort(compareSlugs));
   runSlugBackfill(['--apply']);
   assert.deepEqual(
     [
       (await db.doc(`clubs/${legacyA}`).get()).data().slug,
       (await db.doc(`clubs/${legacyB}`).get()).data().slug,
-    ].sort(),
+    ].sort(compareSlugs),
     legacySlugs,
   );
   const backfill = () => execFileSync(process.execPath, ['scripts/backfill-public.cjs'], {stdio:'inherit', env:process.env});
