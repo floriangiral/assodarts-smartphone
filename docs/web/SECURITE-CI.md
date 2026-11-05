@@ -1,5 +1,7 @@
 # Sécurité CI et déploiement — état au 5 novembre 2026
 
+Voir aussi le [suivi général](../SUIVI-CHANTIERS.md) pour les échecs CI constatés et les travaux en attente. Les changements de workflow sont sur `develop` et ne sont pas encore fusionnés dans les branches de livraison.
+
 - `main` et `release-v0.1` exigent une PR et les contrôles Functions, iOS, secrets, Sonar, schémas partagés et émulateurs. `develop` reste accessible en écriture directe. Une règle active applique les mêmes contrôles aux branches `release-*`, actuelles et futures.
 - L'environnement GitHub `production` exige une validation par `floriangiral`, est limité à `main` et interdit le contournement administrateur. L'auto-validation reste possible pour permettre à l'unique responsable de déclencher puis approuver lui-même.
 - Le déploiement manuel exige un run `Quality` réussi sur le SHA exact. Le staging automatique attend également les tests des règles et schémas ; les PR testent les règles sur un projet d'émulation sans identifiants cloud. La validation distante des règles en dry-run sur PR a été retirée.
@@ -12,7 +14,7 @@
 
 - [ ] Migrer les déploiements des clés de comptes de service vers Workload Identity Federation/OIDC, en séparant les identités et les rôles staging/production, puis supprimer les anciennes clés après validation. La configuration IAM Google Cloud n'a pas été modifiée.
 - [ ] Vérifier régulièrement les permissions des collaborateurs et les protections des branches.
-- [ ] Ajouter les jobs web et Playwright lorsque le dossier web sera prêt et commité ; traiter ses vulnérabilités avant déploiement.
+- [ ] Valider le job web Linux déjà défini lorsque le dossier web sera prêt et commité ; ajouter Playwright et traiter les vulnérabilités avant déploiement.
 - [ ] Examiner les alertes GitHub Secret Scanning historiques sur des clés Google et vérifier les restrictions effectives de ces clés, sans les présumer secrètes ni les fermer automatiquement.
 - [ ] Traiter les alertes Dependabot ouvertes sur la branche par défaut. Les correctifs sur `develop` n'ont pas été fusionnés dans `main`.
 - [ ] Vérifier en staging les droits IAM, le comportement de l'approbation et la correspondance des SHA ; aucun déploiement réel ni simulation de contournement de production n'a été effectué.

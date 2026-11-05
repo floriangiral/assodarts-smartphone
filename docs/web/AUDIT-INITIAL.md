@@ -1,6 +1,6 @@
 # Audit initial du chantier web
 
-État constaté sur `develop` au commit `16e160e`. Ce document est un état des lieux, pas un rapport de phase terminée.
+État constaté sur `develop` au commit `16e160e`. Ce document est un état des lieux historique, pas un rapport de phase terminée. Les passages sur Node 22 et l’absence de tests d’émulateur décrivent cet instant ; depuis, les Functions utilisent Node 24 et une première suite d’émulateurs existe. Pour l’état courant, consulter [SUIVI.md](SUIVI.md) et [SUIVI-CHANTIERS.md](../SUIVI-CHANTIERS.md).
 
 ## Dépôt et modèle
 
