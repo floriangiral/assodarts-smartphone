@@ -28,9 +28,9 @@ Dernière vérification : **5 novembre 2026**, `develop` au commit `2092e82` ava
 
 ### Reste à faire
 
-- [ ] Corriger la CI existante : lockfile `shared/` vers registre public et versions CodeQL cohérentes. Relancer et observer les checks de PR et de push.
-- [ ] Vérifier et compléter le socle web versionné, sans inclure `node_modules`, `.next`, secrets ou fichiers locaux. Vérifier les versions et dépendances, l'audit npm, ESLint, Prettier, mode sombre et initialisation shadcn.
-- [ ] Définir l'empaquetage et l'intégration réelle des schémas partagés entre web et Functions sans casser l'archive ou le build Firebase ; tester en CI et émulateur. La validation des slugs est actuellement répétée dans le middleware local et le package partagé.
+- [ ] Confirmer la CI après correction du lockfile `shared/`, de la dépendance gRPC web et des versions CodeQL. Shared, règles, scan et Functions ont réussi sur `59b56ba` ; le run web a échoué sur une URL de registre privé corrigée depuis. Vérifier le commit final et le run iOS.
+- [ ] Valider en CI le socle web versionné : lint, typage, tests, build, audit npm, Prettier et mode sombre. shadcn/Tailwind a été initialisé ; la vérification visuelle et les tests E2E restent à réaliser.
+- [ ] Valider l’intégration du package partagé au build App Hosting et définir son intégration à l’archive déployée des Functions. Le web consomme déjà le schéma de slug partagé ; les Functions ne le consomment pas encore.
 - [ ] Terminer le routage : racine et www, admin, slug club, 301 canonique, redirection admin, domaines inconnus via `domains/{host}` côté serveur, hôte et port normalisés. Le middleware ne doit pas interroger Firestore. Vérifier les en-têtes de proxy de confiance et éviter les boucles.
 - [ ] Ajouter la résolution serveur slug → club avec cache lorsque les données nécessaires existeront. En phase 1, ne pas créer prématurément `club_slugs` ni de Function métier.
 - [ ] Documenter et tester un mode local de secours quand `*.localhost` ne se résout pas ; compléter les tests de toutes les règles d'hôtes, slugs réservés, Unicode et erreurs.
