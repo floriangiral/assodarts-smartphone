@@ -352,8 +352,10 @@ jobs:
           java-version: "21"
       - run: npm ci --ignore-scripts
         working-directory: backend/functions
+      - run: npm run build
+        working-directory: backend/functions
       - run: npm install --global --ignore-scripts firebase-tools@15.35.0
-      - run: firebase emulators:exec --project demo-assodarts-rules --only firestore,storage 'npm --prefix functions run test:rules'
+      - run: firebase emulators:exec --project demo-assodarts-rules --only firestore,storage 'npm --prefix functions run test:rules && cd functions && node scripts/test-public-emulator.cjs'
         working-directory: backend
 
   secret-scan:

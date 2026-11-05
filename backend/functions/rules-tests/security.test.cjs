@@ -52,3 +52,27 @@ test('profile photos are scoped to members and only owners may upload', async ()
   await assertFails(uploadString(ref(storage('manager-a'), 'profile_photos/member-a'), 'x', 'raw', {contentType:'image/png'}));
   await assertSucceeds(uploadString(ref(storage('member-a'), 'profile_photos/member-a'), 'x', 'raw', {contentType:'image/png'}));
 });
+
+test('public projections require publication and are never writable by clients', async () => {
+  await env.withSecurityRulesDisabled(async context => {
+    const db = context.firestore();
+    await setDoc(doc(db, 'clubs_public', 'a'), { name: 'A', isPublished: true });
+    await setDoc(doc(db, 'clubs_public', 'b'), { name: 'B', isPublished: false });
+    await setDoc(doc(db, 'events_public', 'public-a'), { clubId: 'a', isPublished: true });
+    await setDoc(doc(db, 'events_public', 'private-a'), { clubId: 'a', isPublished: false });
+    await setDoc(doc(db, 'events_public', 'public-b'), { clubId: 'b', isPublished: true });
+    await setDoc(doc(db, 'club_slugs', 'club-a'), {clubId:'a', status:'active'});
+  });
+  const anonymous = env.unauthenticatedContext().firestore();
+  const manager = env.authenticatedContext('manager-a').firestore();
+  await assertSucceeds(getDoc(doc(anonymous, 'clubs_public', 'a')));
+  await assertFails(getDoc(doc(anonymous, 'clubs_public', 'b')));
+  await assertSucceeds(getDoc(doc(anonymous, 'events_public', 'public-a')));
+  await assertFails(getDoc(doc(anonymous, 'events_public', 'private-a')));
+  await assertFails(getDoc(doc(anonymous, 'events_public', 'public-b')));
+  await assertFails(getDoc(doc(anonymous, 'club_slugs', 'club-a')));
+  await assertFails(setDoc(doc(manager, 'events_public', 'injected'), {clubId:'a', isPublished:true}));
+  await assertFails(updateDoc(doc(manager, 'clubs', 'a'), {slug:'injected'}));
+  await assertFails(updateDoc(doc(manager, 'events', 'event-a'), {visibility:'invalid'}));
+  await assertSucceeds(updateDoc(doc(manager, 'events', 'event-a'), {visibility:'public'}));
+});

@@ -187,6 +187,7 @@ service cloud.firestore {
         'startsAt',
         'location',
         'category',
+        'visibility',
         'createdByMemberId'
       ];
     }
@@ -194,19 +195,22 @@ service cloud.firestore {
     function eventCreateIsValid() {
       return request.resource.data.keys().hasOnly(eventFields())
         && request.resource.data.clubId is string
-        && request.resource.data.createdByMemberId == currentMemberId(request.resource.data.clubId);
+        && request.resource.data.createdByMemberId == currentMemberId(request.resource.data.clubId)
+        && request.resource.data.get('visibility', 'members') in ['public', 'members'];
     }
 
     function eventUpdateIsValid() {
       return request.resource.data.keys().hasOnly(eventFields())
         && request.resource.data.clubId == resource.data.clubId
         && request.resource.data.createdByMemberId == resource.data.createdByMemberId
+        && request.resource.data.get('visibility', 'members') in ['public', 'members']
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'title',
           'description',
           'startsAt',
           'location',
-          'category'
+          'category',
+          'visibility'
         ]);
     }
 
@@ -323,7 +327,11 @@ service cloud.firestore {
       // Subscription fields are written by the Stripe Cloud Functions with the
       // Admin SDK, which bypasses these rules; an expired club can no longer
       // edit its own settings from the app.
-      allow write: if canWriteClubContent(clubId);
+      allow create: if canWriteClubContent(clubId)
+        && !request.resource.data.keys().hasAny(['slug']);
+      allow update: if canWriteClubContent(clubId)
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['slug']);
+      allow delete: if canWriteClubContent(clubId);
 
       match /contribution_seasons/{seasonId} {
         allow read: if isActiveMember(clubId) || isPlatformAdmin();
@@ -399,6 +407,22 @@ service cloud.firestore {
       allow update: if canWriteClubContent(resource.data.clubId)
         && eventUpdateIsValid();
       allow delete: if canWriteClubContent(resource.data.clubId);
+    }
+
+    // Projections are written by trusted server code only.
+    match /clubs_public/{clubId} {
+      allow read: if resource.data.isPublished == true;
+      allow write: if false;
+    }
+
+    match /events_public/{eventId} {
+      allow read: if resource.data.isPublished == true
+        && get(/databases/$(database)/documents/clubs_public/$(resource.data.clubId)).data.isPublished == true;
+      allow write: if false;
+    }
+
+    match /club_slugs/{slug} {
+      allow read, write: if false;
     }
 
     match /event_registrations/{registrationId} {

@@ -47,3 +47,5 @@ export {
   createCoupon,
   deleteCoupon,
 } from "./platformAdmin";
+export { onPublicClubWritten, onPublicEventWritten } from "./publicProjections";
+export { setClubSlug } from "./clubSlugs";
