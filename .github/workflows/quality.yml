@@ -16,6 +16,7 @@ name: Quality
 permissions:
   contents: read
   actions: read
+  pull-requests: read
 
 # Cancel obsolete PR runs, but never interrupt a deployment on push or dispatch.
 concurrency:
@@ -35,6 +36,10 @@ jobs:
     outputs:
       ios: ${{ steps.filter.outputs.ios }}
       backend: ${{ steps.filter.outputs.backend }}
+      web: ${{ steps.filter.outputs.web }}
+      shared: ${{ steps.filter.outputs.shared }}
+      web_exists: ${{ steps.web_present.outputs.value }}
+      duplicate_ios_push: ${{ steps.duplicate.outputs.value }}
     steps:
       - name: Check out source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -46,16 +51,45 @@ jobs:
           filters: |
             ios:
               - 'ios-assodarts/**'
-              - '.github/workflows/quality.yml'
+              - 'codemagic.yaml'
             backend:
               - 'backend/**'
+            web:
+              - 'web/**'
+            shared:
+              - 'shared/**'
+
+      - name: Check whether web is present
+        id: web_present
+        run: |
+          if test -f web/package.json; then echo 'value=true' >> "$GITHUB_OUTPUT"; else echo 'value=false' >> "$GITHUB_OUTPUT"; fi
+
+      # An existing PR checks the same SHA; avoid paying for a second macOS job.
+      # If GitHub cannot be queried, run the job rather than silently skipping it.
+      - name: Detect duplicate iOS push checks
+        id: duplicate
+        if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if prs=$(gh api --method GET "repos/$GITHUB_REPOSITORY/pulls" -f state=open -f "head=$GITHUB_REPOSITORY_OWNER:$GITHUB_REF_NAME" -f per_page=100); then
+            if echo "$prs" | jq -e --arg sha "$GITHUB_SHA" 'any(.[]; .head.sha == $sha and (.base.ref == "main" or .base.ref == "develop" or (.base.ref | startswith("release-"))))' > /dev/null; then
+              echo 'value=true' >> "$GITHUB_OUTPUT"
+            else
+              echo 'value=false' >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo 'Could not check for a duplicate PR; running the iOS job.'
+            echo 'value=false' >> "$GITHUB_OUTPUT"
+          fi
 
   ios:
     name: iOS build, test, lint, and SAST
     needs: changes
-    # NOUVEAU : ne tourne plus que si un fichier iOS (ou ce workflow lui-même) a changé.
-    # workflow_dispatch garde toujours la possibilité de forcer le run manuellement.
-    if: needs.changes.outputs.ios == 'true' || github.event_name == 'workflow_dispatch'
+    # Always run on explicit dispatch; PRs cover duplicate develop push checks.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (needs.changes.outputs.ios == 'true' && needs.changes.outputs.duplicate_ios_push != 'true')
     runs-on: macos-15
     # 30 min ne suffisaient pas : la résolution SPM à froid coûte ~17 min à elle
     # seule, avant même la compilation instrumentée par CodeQL.
@@ -239,6 +273,34 @@ jobs:
           path: ${{ github.workspace }}/codeql-results/backend.sarif
           retention-days: 30
 
+  web:
+    name: Web quality
+    needs: changes
+    if: >-
+      needs.changes.outputs.web_exists == 'true' &&
+      (needs.changes.outputs.web == 'true' || needs.changes.outputs.shared == 'true' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "26"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci --ignore-scripts
+        working-directory: web
+      - run: npm audit --audit-level=high
+        working-directory: web
+      - run: npm run lint
+        working-directory: web
+      - run: npm run typecheck
+        working-directory: web
+      - run: npm test
+        working-directory: web
+      - run: npm run build
+        working-directory: web
+
   shared:
     name: Shared schemas quality
     runs-on: ubuntu-latest
@@ -344,9 +406,10 @@ jobs:
       needs.backend.result == 'success' &&
       needs.shared.result == 'success' &&
       needs.rules.result == 'success' &&
+      (needs.web.result == 'success' || needs.web.result == 'skipped') &&
       needs.secret-scan.result == 'success' &&
       needs.sonarqube.result == 'success'
-    needs: [changes, ios, backend, shared, rules, sonarqube, secret-scan]
+    needs: [changes, ios, backend, web, shared, rules, sonarqube, secret-scan]
     uses: ./.github/workflows/deploy-firebase.yml
     with:
       environment: staging
@@ -360,15 +423,16 @@ jobs:
     # soient évalués au lieu de faire sauter le job d'office.
     if: >-
       always() &&
-      (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/release-'))) &&
-      (needs.ios.result == 'success' || needs.ios.result == 'skipped') &&
+      (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/release-') && needs.changes.outputs.ios == 'true')) &&
+      needs.ios.result == 'success' &&
       needs.backend.result == 'success' &&
       needs.shared.result == 'success' &&
       needs.rules.result == 'success' &&
+      (needs.web.result == 'success' || needs.web.result == 'skipped') &&
       needs.secret-scan.result == 'success' &&
       needs.sonarqube.result == 'success' &&
       needs.deploy-firestore-staging.result == 'success'
-    needs: [changes, ios, backend, shared, rules, sonarqube, deploy-firestore-staging, secret-scan]
+    needs: [changes, ios, backend, web, shared, rules, sonarqube, deploy-firestore-staging, secret-scan]
     runs-on: ubuntu-latest
     environment: staging
     timeout-minutes: 30

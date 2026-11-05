@@ -25,6 +25,7 @@ on:
 permissions:
   contents: read
   actions: read
+  pull-requests: read
 
 concurrency:
   group: firebase-${{ inputs.environment }}
@@ -61,6 +62,17 @@ jobs:
           echo "$runs" | jq -e --arg sha "$GITHUB_SHA" '[.workflow_runs[] | select(.head_sha == $sha and .event == "push" and .conclusion == "success")] | length > 0' > /dev/null || {
             echo "No successful push Quality run for this exact commit"; exit 1
           }
+          # A develop push may intentionally skip iOS when the same SHA has an
+          # open PR. Require that PR's full Quality run before manual deployment.
+          if [ "$GITHUB_REF" = refs/heads/develop ]; then
+            prs=$(gh api --method GET "repos/$GITHUB_REPOSITORY/pulls" -f state=open -f "head=$GITHUB_REPOSITORY_OWNER:$GITHUB_REF_NAME" -f per_page=100)
+            if echo "$prs" | jq -e --arg sha "$GITHUB_SHA" 'any(.[]; .head.sha == $sha and (.base.ref == "main" or .base.ref == "develop" or (.base.ref | startswith("release-"))))' > /dev/null; then
+              pr_runs=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/quality.yml/runs?head_sha=$GITHUB_SHA&event=pull_request&status=success&per_page=100")
+              echo "$pr_runs" | jq -e --arg sha "$GITHUB_SHA" --argjson prs "$prs" '[.workflow_runs[] | select(.head_sha == $sha and .event == "pull_request" and .conclusion == "success") | .pull_requests[]?.number as $number | select(any($prs[]; .number == $number and .head.sha == $sha and (.base.ref == "main" or .base.ref == "develop" or (.base.ref | startswith("release-")))))] | length > 0' > /dev/null || {
+                echo "No successful PR Quality run for this exact commit"; exit 1
+              }
+            fi
+          fi
 
       - name: Validate deployment configuration
         run: |
