@@ -32,7 +32,8 @@ after(async () => { if (env) await env.cleanup(); });
 test('club data are isolated and require active membership', async () => {
   const db = uid => env.authenticatedContext(uid).firestore();
   await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), 'clubs', 'a')));
-  await assertSucceeds(getDoc(doc(db('manager-a'), 'events', 'event-a')));
+  const ownEvent = await assertSucceeds(getDoc(doc(db('manager-a'), 'events', 'event-a')));
+  assert.equal(ownEvent.data().title, 'a');
   await assertSucceeds(updateDoc(doc(db('manager-a'), 'events', 'event-a'), {title: 'updated'}));
   await assertFails(getDoc(doc(db('manager-a'), 'events', 'event-b')));
   await assertFails(updateDoc(doc(db('manager-a'), 'events', 'event-b'), {title: 'blocked'}));
@@ -69,9 +70,11 @@ test('public projections require publication and are never writable by clients',
   });
   const anonymous = env.unauthenticatedContext().firestore();
   const manager = env.authenticatedContext('manager-a').firestore();
-  await assertSucceeds(getDoc(doc(anonymous, 'clubs_public', 'a')));
+  const publishedClub = await assertSucceeds(getDoc(doc(anonymous, 'clubs_public', 'a')));
+  assert.equal(publishedClub.data().isPublished, true);
   await assertFails(getDoc(doc(anonymous, 'clubs_public', 'b')));
-  await assertSucceeds(getDoc(doc(anonymous, 'events_public', 'public-a')));
+  const publishedEvent = await assertSucceeds(getDoc(doc(anonymous, 'events_public', 'public-a')));
+  assert.equal(publishedEvent.data().clubId, 'a');
   await assertFails(getDoc(doc(anonymous, 'events_public', 'private-a')));
   await assertFails(getDoc(doc(anonymous, 'events_public', 'public-b')));
   await assertFails(getDoc(doc(anonymous, 'club_slugs', 'club-a')));

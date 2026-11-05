@@ -39,7 +39,10 @@ jobs:
           test "$FIREBASE_PROJECT_ID" = 'assodarts' || { echo 'Unexpected production project'; exit 1; }
           test -n "$APPHOSTING_BACKEND_ID" || { echo 'Configure production APPHOSTING_BACKEND_ID'; exit 1; }
           test -n "$FIREBASE_SERVICE_ACCOUNT" || { echo 'Configure production Firebase credentials'; exit 1; }
-          case "$APPHOSTING_BACKEND_ID" in *[!a-z0-9-]*|'') echo 'Invalid backend ID'; exit 1 ;; esac
+          case "$APPHOSTING_BACKEND_ID" in
+            *[!a-z0-9-]*|'') echo 'Invalid backend ID'; exit 1 ;;
+            *) ;;
+          esac
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: backend/functions/.nvmrc
