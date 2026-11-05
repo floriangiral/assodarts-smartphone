@@ -98,9 +98,8 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       (needs.changes.outputs.ios == 'true' && needs.changes.outputs.duplicate_ios_push != 'true')
     runs-on: macos-15
-    # 30 min ne suffisaient pas : la résolution SPM à froid coûte ~17 min à elle
-    # seule, avant même la compilation instrumentée par CodeQL.
-    timeout-minutes: 45
+    # Cold SPM resolution, instrumented compilation, tests and CodeQL need separate time budgets.
+    timeout-minutes: 60
     permissions:
       contents: read
       actions: read
@@ -147,12 +146,26 @@ jobs:
           -scheme Assodarts
           -clonedSourcePackagesDirPath .spm-checkouts
 
+      - name: Prepare iOS simulator
+        timeout-minutes: 5
+        run: |
+          device=$(xcrun simctl list devices available --json | jq -c '[.devices[][] | select(.isAvailable == true and .name == "iPhone 16")] | first')
+          udid=$(jq -r '.udid // empty' <<< "$device")
+          test -n "$udid" || { echo "::error::No available iPhone 16 simulator"; exit 1; }
+          if [ "$(jq -r '.state' <<< "$device")" != Booted ]; then
+            xcrun simctl boot "$udid"
+          fi
+          xcrun simctl bootstatus "$udid" -b
+          echo "IOS_SIMULATOR_UDID=$udid" >> "$GITHUB_ENV"
+
       - name: Build and test
+        timeout-minutes: 35
         run: >-
           xcodebuild test
           -project ios-assodarts/Assodarts.xcodeproj
           -scheme Assodarts
-          -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest'
+          -destination "platform=iOS Simulator,id=$IOS_SIMULATOR_UDID"
+          -parallel-testing-enabled NO
           -clonedSourcePackagesDirPath .spm-checkouts
           -enableCodeCoverage YES
           -resultBundlePath TestResults.xcresult
@@ -169,6 +182,7 @@ jobs:
           retention-days: 1
 
       - name: Upload CodeQL results
+        id: codeql_ios
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         uses: github/codeql-action/analyze@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
         with:
@@ -178,8 +192,9 @@ jobs:
           post-processed-sarif-path: ${{ github.workspace }}/codeql-results/ios-final
 
       - name: Summarize iOS CodeQL results
+        id: summarize_ios
         if: >-
-          always() &&
+          !cancelled() && steps.codeql_ios.outcome == 'success' &&
           (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         run: |
           python3 .github/scripts/summarize_codeql_sarif.py \
@@ -187,7 +202,7 @@ jobs:
             "iOS"
 
       - name: Upload iOS CodeQL SARIF
-        if: always()
+        if: "!cancelled() && steps.codeql_ios.outcome == 'success'"
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: codeql-sarif-ios
@@ -253,6 +268,7 @@ jobs:
           retention-days: 1
 
       - name: Upload CodeQL results
+        id: codeql_backend
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         uses: github/codeql-action/analyze@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
         with:
@@ -262,8 +278,9 @@ jobs:
           post-processed-sarif-path: ${{ github.workspace }}/codeql-results/backend-final
 
       - name: Summarize backend CodeQL results
+        id: summarize_backend
         if: >-
-          always() &&
+          !cancelled() && steps.codeql_backend.outcome == 'success' &&
           (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         run: |
           python3 .github/scripts/summarize_codeql_sarif.py \
@@ -271,7 +288,7 @@ jobs:
             "Backend"
 
       - name: Upload backend CodeQL SARIF
-        if: always()
+        if: "!cancelled() && steps.codeql_backend.outcome == 'success'"
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: codeql-sarif-backend
@@ -330,6 +347,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Test CodeQL SARIF summarizer
+        run: python3 -m unittest discover -s .github/scripts -p 'test_*.py'
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "26"
