@@ -41,17 +41,21 @@ function alive(s) {
     ps.stdout.includes(project)
   );
 }
-function portFree() {
+function portAvailable(port) {
   return new Promise((done) => {
     const s = net.createServer();
     s.once("error", () => done(false));
-    s.listen(8080, "127.0.0.1", () => s.close(() => done(true)));
+    s.listen(port, "127.0.0.1", () => s.close(() => done(true)));
   });
 }
-function ready() {
+async function portsFree() {
+  const states = await Promise.all([8080, 9099].map(portAvailable));
+  return states.every(Boolean);
+}
+function endpointReady(port) {
   return new Promise((done) => {
     const r = http.get(
-      { hostname: "127.0.0.1", port: 8080, path: "/", timeout: 1000 },
+      { hostname: "127.0.0.1", port, path: "/", timeout: 1000 },
       (res) => {
         res.resume();
         done(true);
@@ -60,6 +64,10 @@ function ready() {
     r.on("error", () => done(false));
     r.on("timeout", () => r.destroy());
   });
+}
+async function ready() {
+  const states = await Promise.all([8080, 9099].map(endpointReady));
+  return states.every(Boolean);
 }
 function command(program, args, env) {
   const r = spawnSync(program, args, { cwd: webDir, env, stdio: "inherit" });
@@ -78,7 +86,7 @@ async function stopEmulator() {
     throw new Error("Groupe d'émulateur inattendu ; arrêt refusé.");
   process.kill(-state.pid, "SIGTERM");
   for (let i = 0; i < 100; i++) {
-    if (!alive(state) && (await portFree())) {
+    if (!alive(state) && (await portsFree())) {
       unlinkSync(stateFile);
       return;
     }
@@ -89,10 +97,14 @@ async function stopEmulator() {
 async function start() {
   mkdirSync(dir, { recursive: true, mode: 0o700 });
   let state = readState();
+  if (alive(state) && !(await ready())) {
+    await stopEmulator();
+    state = null;
+  }
   if (!alive(state)) {
-    if (!(await portFree()))
+    if (!(await portsFree()))
       throw new Error(
-        "Le port 8080 est occupé par un autre processus ; libérez-le pour lancer la démonstration.",
+        "Le port 8080 ou 9099 est occupé par un autre processus ; libérez-le pour lancer la démonstration.",
       );
     const javaHome =
       process.env.JAVA_HOME ||
@@ -118,7 +130,7 @@ async function start() {
         "--config",
         join(backend, "firebase.json"),
         "--only",
-        "firestore",
+        "auth,firestore",
         "--project",
         project,
       ],
@@ -142,11 +154,17 @@ async function start() {
     ...process.env,
     GCLOUD_PROJECT: project,
     FIRESTORE_EMULATOR_HOST: "127.0.0.1:8080",
+    FIREBASE_AUTH_EMULATOR_HOST: "127.0.0.1:9099",
+    NEXT_PUBLIC_FIREBASE_API_KEY: "demo-assodarts-web-api-key",
+    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: `${project}.firebaseapp.com`,
+    NEXT_PUBLIC_FIREBASE_PROJECT_ID: project,
+    NEXT_PUBLIC_FIREBASE_EMULATORS: "true",
+    NEXT_PUBLIC_FIREBASE_EMULATOR_HOST: "127.0.0.1",
   };
   command(process.execPath, [join(webDir, "scripts/seed-demo.mjs")], env);
   command(join(webDir, "dev"), ["restart"], env);
   console.log(
-    "\nPages :\n  Vitrine : http://localhost:3000/\n  Club : http://localhost:3000/?club=club-a\n  Agenda : http://localhost:3000/agenda?club=club-a\n  Événement : http://localhost:3000/e/tournoi-decouverte?club=club-a\n  Responsables : http://admin.localhost:3000/",
+    "\nPages :\n  Vitrine : http://localhost:3000/\n  Club : http://localhost:3000/?club=club-a\n  Agenda : http://localhost:3000/agenda?club=club-a\n  Événement : http://localhost:3000/e/tournoi-decouverte?club=club-a\n  Espace club : http://admin.localhost:3000/\n\nComptes locaux (mot de passe commun : DartsDemo123!) :\n  Membre : membre@demo.assodarts.test\n  Bureau : bureau@demo.assodarts.test\n  Admin du club : admin@demo.assodarts.test\n  Développeur plateforme : developpeur@demo.assodarts.test",
   );
 }
 const action = process.argv[2] || "start";
@@ -165,7 +183,7 @@ try {
     const state = readState();
     console.log(
       alive(state) && (await ready())
-        ? `Émulateur actif (PID ${state.pid}).`
+        ? `Émulateurs Auth et Firestore actifs (PID ${state.pid}).`
         : "Émulateur arrêté.",
     );
     command(join(webDir, "dev"), ["status"], process.env);
