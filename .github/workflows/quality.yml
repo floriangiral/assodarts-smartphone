@@ -15,14 +15,12 @@ name: Quality
 
 permissions:
   contents: read
+  actions: read
 
-# NOUVEAU : annule automatiquement tout run en cours sur la même branche/PR
-# dès qu'un nouveau push arrive. Évite de payer pour des runs devenus obsolètes
-# avant même d'avoir fini (gain quasi gratuit, surtout précieux sur le job
-# macOS facturé 10x).
+# Cancel obsolete PR runs, but never interrupt a deployment on push or dispatch.
 concurrency:
   group: quality-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   # NOUVEAU : détecte quels dossiers ont changé pour éviter de lancer le job
@@ -41,10 +39,6 @@ jobs:
       - name: Check out source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      # NOTE : action non pinnée par SHA ici (contrairement au reste du workflow).
-      # Si tu veux garder la même discipline de pinning que le reste du fichier,
-      # récupère le SHA exact de la release dorny/paths-filter que tu choisis
-      # et remplace le tag @v3 par ce SHA, comme pour les autres actions ci-dessous.
       - name: Detect changed paths
         id: filter
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
@@ -245,6 +239,45 @@ jobs:
           path: ${{ github.workspace }}/codeql-results/backend.sarif
           retention-days: 30
 
+  shared:
+    name: Shared schemas quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "26"
+          cache: npm
+          cache-dependency-path: shared/package-lock.json
+      - run: npm ci --ignore-scripts
+        working-directory: shared
+      - run: npm audit --audit-level=high
+        working-directory: shared
+      - run: npm test
+        working-directory: shared
+
+  rules:
+    name: Firebase rules emulator tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: backend/functions/package-lock.json
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - run: npm ci --ignore-scripts
+        working-directory: backend/functions
+      - run: npm install --global --ignore-scripts firebase-tools@15.35.0
+      - run: firebase emulators:exec --project demo-assodarts-rules --only firestore,storage 'npm --prefix functions run test:rules'
+        working-directory: backend
+
   secret-scan:
     name: Secret scan
     runs-on: ubuntu-latest
@@ -286,7 +319,6 @@ jobs:
         with:
           name: backend-coverage
           path: .
-        continue-on-error: true
 
       - name: Scan with SonarQube
         uses: SonarSource/sonarqube-scan-action@ba9859eae8dd6bd29e412f25ddbbef3d032000f4 # v8.2.2
@@ -310,9 +342,11 @@ jobs:
       (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/release-'))) &&
       (needs.ios.result == 'success' || needs.ios.result == 'skipped') &&
       needs.backend.result == 'success' &&
+      needs.shared.result == 'success' &&
+      needs.rules.result == 'success' &&
       needs.secret-scan.result == 'success' &&
-      (needs.sonarqube.result == 'success' || needs.sonarqube.result == 'skipped')
-    needs: [changes, ios, backend, sonarqube, secret-scan]
+      needs.sonarqube.result == 'success'
+    needs: [changes, ios, backend, shared, rules, sonarqube, secret-scan]
     uses: ./.github/workflows/deploy-firebase.yml
     with:
       environment: staging
@@ -329,10 +363,12 @@ jobs:
       (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/release-'))) &&
       (needs.ios.result == 'success' || needs.ios.result == 'skipped') &&
       needs.backend.result == 'success' &&
+      needs.shared.result == 'success' &&
+      needs.rules.result == 'success' &&
       needs.secret-scan.result == 'success' &&
-      (needs.sonarqube.result == 'success' || needs.sonarqube.result == 'skipped') &&
+      needs.sonarqube.result == 'success' &&
       needs.deploy-firestore-staging.result == 'success'
-    needs: [changes, ios, backend, sonarqube, deploy-firestore-staging, secret-scan]
+    needs: [changes, ios, backend, shared, rules, sonarqube, deploy-firestore-staging, secret-scan]
     runs-on: ubuntu-latest
     environment: staging
     timeout-minutes: 30
@@ -345,7 +381,7 @@ jobs:
             --request POST https://api.codemagic.io/builds \
             --header "Content-Type: application/json" \
             --header "x-auth-token: $CODEMAGIC_API_TOKEN" \
-            --data "$(jq -nc --arg appId "$CODEMAGIC_APP_ID" --arg branch "$GITHUB_REF_NAME" '{appId: $appId, workflowId: "ios-staging-distribute", branch: $branch}')")
+            --data "$(jq -nc --arg appId "$CODEMAGIC_APP_ID" --arg branch "$GITHUB_REF_NAME" --arg sha "$GITHUB_SHA" '{appId: $appId, workflowId: "ios-staging-distribute", branch: $branch, environment: {variables: {EXPECTED_GITHUB_SHA: $sha}}}')")
           build_id=$(jq -r '.buildId // empty' <<< "$response")
           test -n "$build_id" || { echo "Codemagic did not return buildId: $response"; exit 1; }
           echo "CODEMAGIC_BUILD_ID=$build_id" >> "$GITHUB_ENV"
@@ -392,6 +428,6 @@ jobs:
               echo "- Codemagic build: $CODEMAGIC_BUILD_URL"
             fi
             if [ "${CODEMAGIC_BUILD_STATUS:-}" = "finished" ]; then
-              echo "- Distributed via TestFlight, group beta-clubs"
+              echo "- Distributed via TestFlight, group beta-clubs-ext"
             fi
           } >> "$GITHUB_STEP_SUMMARY"

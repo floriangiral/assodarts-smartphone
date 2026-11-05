@@ -38,21 +38,8 @@ def main():
     files = sorted(sarif_dir.rglob("*.sarif"))
 
     if not files:
-        print(f"CodeQL {label}: no SARIF file produced; treating as zero alerts")
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(
-            json.dumps(
-                {
-                    "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
-                    "version": "2.1.0",
-                    "runs": [],
-                },
-                indent=2,
-            )
-            + "\n",
-            encoding="utf-8",
-        )
-        return 0
+        print(f"CodeQL {label}: no SARIF file produced; failing closed", file=sys.stderr)
+        return 1
 
     runs = []
     version = "2.1.0"

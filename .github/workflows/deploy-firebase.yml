@@ -1,13 +1,9 @@
 # Deployments run either manually (Actions > Deploy Firebase Backend > Run workflow)
 # or as the first stage of the staging pipeline, called by quality.yml.
-# PRs only validate Firestore rules and indexes with Firebase's dry-run mode.
+# Pull requests validate rules locally without cloud credentials in quality.yml.
 name: Deploy Firebase Backend
 
 on:
-  pull_request:
-    paths:
-      - backend/firestore.rules
-      - backend/firestore.indexes.json
   workflow_dispatch:
     inputs:
       environment:
@@ -28,6 +24,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: firebase-${{ inputs.environment }}
@@ -38,60 +35,9 @@ env:
   FIREBASE_TOOLS_VERSION: "15.35.0"
 
 jobs:
-  validate-firestore:
-    name: Validate Firestore rules and indexes
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    environment: staging
-    timeout-minutes: 10
-    env:
-      FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
-      GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/firebase-service-account.json
-    steps:
-      - name: Check out source
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: "24"
-
-      - name: Validate deployment configuration
-        run: |
-          test -n "$FIREBASE_PROJECT_ID" || { echo "FIREBASE_PROJECT_ID is not configured"; exit 1; }
-          test -n "$FIREBASE_SERVICE_ACCOUNT" || { echo "FIREBASE_SERVICE_ACCOUNT is not configured"; exit 1; }
-          PROJECT_ID=$(printf '%s' "$FIREBASE_PROJECT_ID" | tr -d '[:space:]')
-          case "$PROJECT_ID" in
-            *[!a-z0-9-]*|'') echo "FIREBASE_PROJECT_ID is invalid"; exit 1 ;;
-          esac
-          echo "FIREBASE_PROJECT_ID=$PROJECT_ID" >> "$GITHUB_ENV"
-        env:
-          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-
-      - name: Write service account credentials
-        run: |
-          echo "$FIREBASE_SERVICE_ACCOUNT" > "$GOOGLE_APPLICATION_CREDENTIALS"
-          chmod 600 "$GOOGLE_APPLICATION_CREDENTIALS"
-        env:
-          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-
-      - name: Install Firebase CLI
-        run: npm install --global --ignore-scripts firebase-tools@$FIREBASE_TOOLS_VERSION
-
-      - name: Validate Firestore rules and indexes
-        working-directory: backend
-        run: firebase deploy --only firestore:rules,firestore:indexes --project "$FIREBASE_PROJECT_ID" --non-interactive --dry-run
-
-      - name: Remove service account credentials
-        if: always()
-        run: rm -f "$GOOGLE_APPLICATION_CREDENTIALS"
-
   deploy:
     name: Deploy Firestore rules and Cloud Functions
-    # Couvre workflow_dispatch et workflow_call : dans un workflow appelé,
-    # github.event_name reste celui de l'appelant (`push`), jamais
-    # `workflow_call`. Seul le déclencheur pull_request doit rester en dry-run.
-    if: github.event_name != 'pull_request'
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && inputs.environment == 'staging' && startsWith(github.ref, 'refs/heads/release-'))
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     timeout-minutes: 15
@@ -101,6 +47,20 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Require successful quality checks for the selected commit
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_ENVIRONMENT: ${{ inputs.environment }}
+        run: |
+          if [ "$TARGET_ENVIRONMENT" = production ] && [ "$GITHUB_REF" != refs/heads/main ]; then
+            echo "Production requires the main branch"; exit 1
+          fi
+          runs=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/quality.yml/runs?head_sha=$GITHUB_SHA&event=push&status=success&per_page=100")
+          echo "$runs" | jq -e --arg sha "$GITHUB_SHA" '[.workflow_runs[] | select(.head_sha == $sha and .event == "push" and .conclusion == "success")] | length > 0' > /dev/null || {
+            echo "No successful push Quality run for this exact commit"; exit 1
+          }
 
       - name: Validate deployment configuration
         run: |
