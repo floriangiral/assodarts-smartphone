@@ -1,6 +1,7 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { requireClubAdmin } from "./shared/auth";
+import { createOrReuseCheckoutSession } from "./shared/checkoutSession";
 import {
   functionsBaseUrl,
   stripeClient,
@@ -71,11 +72,14 @@ export const stripeCreateClubSubscriptionCheckout = onCall(
 
     let customerId = club.stripeCustomerId as string | undefined;
     if (!customerId) {
-      const customer = await stripe.customers.create({
-        email: request.auth.token.email,
-        name: club.name,
-        metadata: { club_id: clubId },
-      });
+      const customer = await stripe.customers.create(
+        {
+          email: request.auth.token.email,
+          name: club.name,
+          metadata: { club_id: clubId },
+        },
+        { idempotencyKey: `club-customer-${clubId}` },
+      );
       customerId = customer.id;
       await clubRef.set(
         {
@@ -92,35 +96,32 @@ export const stripeCreateClubSubscriptionCheckout = onCall(
       : undefined;
 
     const base = functionsBaseUrl();
-    const session = await stripe.checkout.sessions.create({
-      mode: "subscription",
-      customer: customerId,
-      line_items: [
-        {
-          quantity: 1,
-          price_data: {
-            currency: "eur",
-            unit_amount: tierPriceCents(tier),
-            recurring: { interval: "year" },
-            product_data: {
-              name: `Assodarts — abonnement ${tier.id}`,
+    const session = await createOrReuseCheckoutSession(
+      clubRef,
+      stripe,
+      {
+        mode: "subscription",
+        customer: customerId,
+        line_items: [
+          {
+            quantity: 1,
+            price_data: {
+              currency: "eur",
+              unit_amount: tierPriceCents(tier),
+              recurring: { interval: "year" },
+              product_data: {
+                name: `Assodarts — abonnement ${tier.id}`,
+              },
             },
           },
-        },
-      ],
-      discounts,
-      subscription_data: { metadata: { club_id: clubId, tier_id: tier.id } },
-      metadata: { club_id: clubId, tier_id: tier.id },
-      success_url: `${base}/stripeReturn?state=subscribed`,
-      cancel_url: `${base}/stripeReturn?state=subscription_cancelled`,
-    });
-
-    await clubRef.set(
-      {
-        stripeCheckoutSessionId: session.id,
-        updatedAt: FieldValue.serverTimestamp(),
+        ],
+        discounts,
+        subscription_data: { metadata: { club_id: clubId, tier_id: tier.id } },
+        metadata: { club_id: clubId, tier_id: tier.id },
+        success_url: `${base}/stripeReturn?state=subscribed`,
+        cancel_url: `${base}/stripeReturn?state=subscription_cancelled`,
       },
-      { merge: true },
+      `club-subscription-${clubId}`,
     );
 
     return { url: session.url, sessionId: session.id };
