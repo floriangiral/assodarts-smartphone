@@ -2,7 +2,7 @@ const { test, before, after } = require('node:test');
 const { readFileSync } = require('node:fs');
 const { resolve } = require('node:path');
 const { initializeTestEnvironment, assertFails, assertSucceeds } = require('@firebase/rules-unit-testing');
-const { doc, getDoc, setDoc, updateDoc } = require('firebase/firestore');
+const { doc, getDoc, setDoc, updateDoc, serverTimestamp } = require('firebase/firestore');
 const { ref, uploadString, getBytes } = require('firebase/storage');
 
 let env;
@@ -62,6 +62,8 @@ test('public projections require publication and are never writable by clients',
     await setDoc(doc(db, 'events_public', 'private-a'), { clubId: 'a', isPublished: false });
     await setDoc(doc(db, 'events_public', 'public-b'), { clubId: 'b', isPublished: true });
     await setDoc(doc(db, 'club_slugs', 'club-a'), {clubId:'a', status:'active'});
+    await setDoc(doc(db, 'platform_announcements', 'all'), { audience: 'all', title: 'All members' });
+    await setDoc(doc(db, 'platform_announcements', 'admins'), { audience: 'admins', title: 'Committee only' });
   });
   const anonymous = env.unauthenticatedContext().firestore();
   const manager = env.authenticatedContext('manager-a').firestore();
@@ -71,8 +73,27 @@ test('public projections require publication and are never writable by clients',
   await assertFails(getDoc(doc(anonymous, 'events_public', 'private-a')));
   await assertFails(getDoc(doc(anonymous, 'events_public', 'public-b')));
   await assertFails(getDoc(doc(anonymous, 'club_slugs', 'club-a')));
+  await assertFails(getDoc(doc(anonymous, 'platform_announcements', 'all')));
+  await assertFails(getDoc(doc(manager, 'platform_announcements', 'all')));
+  await assertFails(getDoc(doc(env.authenticatedContext('platform').firestore(), 'platform_announcements', 'admins')));
   await assertFails(setDoc(doc(manager, 'events_public', 'injected'), {clubId:'a', isPublished:true}));
   await assertFails(updateDoc(doc(manager, 'clubs', 'a'), {slug:'injected'}));
   await assertFails(updateDoc(doc(manager, 'events', 'event-a'), {visibility:'invalid'}));
   await assertSucceeds(updateDoc(doc(manager, 'events', 'event-a'), {visibility:'public'}));
+});
+
+test('members can only mark their own notifications as read', async () => {
+  await env.withSecurityRulesDisabled(async context => {
+    await setDoc(doc(context.firestore(), 'notifications', 'notification-a'), {
+      clubId: 'a', memberId: 'member-manager-a', title: 'Payment update', body: 'Details', readAt: null,
+    });
+  });
+  const owner = env.authenticatedContext('manager-a').firestore();
+  const otherMember = env.authenticatedContext('member-a').firestore();
+  const notification = doc(owner, 'notifications', 'notification-a');
+  await assertFails(updateDoc(notification, { title: 'Forged notification' }));
+  await assertFails(updateDoc(notification, { memberId: 'member-member-a', readAt: serverTimestamp() }));
+  await assertSucceeds(updateDoc(notification, { readAt: serverTimestamp() }));
+  await assertFails(updateDoc(notification, { readAt: null }));
+  await assertFails(updateDoc(doc(otherMember, 'notifications', 'notification-a'), { readAt: serverTimestamp() }));
 });

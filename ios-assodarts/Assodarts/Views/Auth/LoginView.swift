@@ -259,6 +259,8 @@ struct LoginView: View {
 
             withAnimation(.easeInOut(duration: 0.2)) {
                 errorMessage = result
+                infoMessage = store.authNotice
+                store.authNotice = nil
                 isSubmitting = false
             }
         }

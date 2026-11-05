@@ -119,8 +119,6 @@ export const acceptInvitation = onCall(async (request) => {
 
   const email = request.auth.token.email as string | undefined;
   if (!email) return { joinedClubId: null };
-  await requireNotPlatformAdmin(request.auth.uid);
-
   const db = getFirestore();
   const invitationSnapshots = await Promise.all(
     ["pending", "accepted"].map((status) =>
@@ -142,6 +140,10 @@ export const acceptInvitation = onCall(async (request) => {
     });
 
   if (invitationDocs.length === 0) return { joinedClubId: null };
+  if (request.auth.token.email_verified !== true) {
+    return { joinedClubId: null, verificationRequired: true };
+  }
+  await requireNotPlatformAdmin(request.auth.uid);
 
   const memberSnapshot = await db
     .collection("members")

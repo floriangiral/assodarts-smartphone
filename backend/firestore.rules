@@ -391,8 +391,7 @@ service cloud.firestore {
     }
 
     match /platform_announcements/{announcementId} {
-      allow read: if isSignedIn();
-      allow write: if false;
+      allow read, write: if false;
     }
 
     match /coupons/{couponId} {
@@ -492,7 +491,11 @@ service cloud.firestore {
     }
 
     match /notifications/{notificationId} {
-      allow read, update, delete: if isOwnMember(resource.data.clubId, resource.data.memberId);
+      allow read, delete: if isOwnMember(resource.data.clubId, resource.data.memberId);
+      allow update: if isOwnMember(resource.data.clubId, resource.data.memberId)
+        && resource.data.readAt == null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readAt'])
+        && request.resource.data.readAt == request.time;
       // Created only by Cloud Function triggers (Admin SDK).
       allow create: if false;
     }

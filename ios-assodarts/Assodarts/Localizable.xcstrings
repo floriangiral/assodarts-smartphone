@@ -225,6 +225,22 @@
         }
       }
     },
+    "verify_your_email_before_accepting_the_invitation": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un lien de vérification vous a été envoyé. Vérifiez votre adresse, puis reconnectez-vous pour rejoindre le club."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A verification link has been sent. Verify your email, then sign in again to join the club."
+          }
+        }
+      }
+    },
     "a_valid_iban_and_bic_are_required": {
       "localizations": {
         "fr": {
