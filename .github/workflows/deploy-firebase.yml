@@ -46,6 +46,7 @@ jobs:
     timeout-minutes: 15
     env:
       FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+      WEB_REVALIDATION_URL: ${{ vars.WEB_REVALIDATION_URL }}
       GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/firebase-service-account.json
     steps:
       - name: Check out source
@@ -80,6 +81,11 @@ jobs:
         run: |
           test -n "$FIREBASE_PROJECT_ID" || { echo "FIREBASE_PROJECT_ID is not configured"; exit 1; }
           test -n "$FIREBASE_SERVICE_ACCOUNT" || { echo "FIREBASE_SERVICE_ACCOUNT is not configured"; exit 1; }
+          if [ "$TARGET_ENVIRONMENT" = staging ]; then
+            test "$WEB_REVALIDATION_URL" = 'https://assodarts-web-staging--assodarts-staging.europe-west4.hosted.app/api/revalidate' || {
+              echo "Configure the staging WEB_REVALIDATION_URL GitHub variable"; exit 1;
+            }
+          fi
           PROJECT_ID=$(printf '%s' "$FIREBASE_PROJECT_ID" | tr -d '[:space:]')
           case "$PROJECT_ID" in
             *[!a-z0-9-]*|'') echo "FIREBASE_PROJECT_ID is invalid"; exit 1 ;;
@@ -87,6 +93,7 @@ jobs:
           echo "FIREBASE_PROJECT_ID=$PROJECT_ID" >> "$GITHUB_ENV"
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          TARGET_ENVIRONMENT: ${{ inputs.environment }}
 
       - name: Set up Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -128,6 +135,11 @@ jobs:
       - name: Build Cloud Functions
         working-directory: backend/functions
         run: npm run build
+
+      - name: Configure web revalidation URL parameter
+        if: env.WEB_REVALIDATION_URL != ''
+        run: |
+          printf 'WEB_REVALIDATION_URL=%s\n' "$WEB_REVALIDATION_URL" > "backend/functions/.env.$FIREBASE_PROJECT_ID"
 
       - name: Deploy Firestore rules and indexes
         working-directory: backend

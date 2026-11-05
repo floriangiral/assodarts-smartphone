@@ -14,6 +14,8 @@ const call = env.wrap(require('../lib/clubSlugs').setClubSlug);
 const request = (uid, clubId, slug) => ({ auth: uid ? {uid, token:{}} : undefined, data: {clubId, slug} });
 async function main() {
   const a = randomUUID(), b = randomUUID();
+  const contestedSlug = `unique-${randomUUID().slice(0, 8)}`;
+  const replacementSlug = `nouveau-${randomUUID().slice(0, 8)}`;
   for (const [id, uid, published] of [[a,'a',true], [b,'b',false]]) {
     await db.collection('clubs').doc(id).set({name: `Club ${uid}`, secret: 'never public', publicProfile: {isPublished: published, city:'Paris'}});
     await db.collection('memberships').doc(`${id}_${uid}`).set({clubId:id, authUid:uid, role:'admin', status:'active'});
@@ -23,13 +25,40 @@ async function main() {
   await assert.rejects(call(request(null,a,'club-a')));
   await assert.rejects(call(request('b',a,'club-a')));
   await assert.rejects(call(request('a',a,'admin')));
-  const competing = await Promise.allSettled([call(request('a',a,'unique-club')), call(request('b',b,'unique-club'))]);
+  const competing = await Promise.allSettled([call(request('a',a,contestedSlug)), call(request('b',b,contestedSlug))]);
   assert.equal(competing.filter(x => x.status === 'fulfilled').length, 1);
   const winner = competing[0].status === 'fulfilled' ? a : b;
   const uid = winner === a ? 'a' : 'b';
-  await call(request(uid,winner,'nouveau-club'));
-  assert.equal((await db.doc('club_slugs/unique-club').get()).data().status, 'alias');
-  assert.equal((await db.doc('club_slugs/nouveau-club').get()).data().status, 'active');
+  await call(request(uid,winner,replacementSlug));
+  assert.equal((await db.doc(`club_slugs/${contestedSlug}`).get()).data().status, 'alias');
+  assert.equal((await db.doc(`club_slugs/${replacementSlug}`).get()).data().status, 'active');
+  const legacyA = randomUUID(), legacyB = randomUUID();
+  const legacyBase = `club-commun-${randomUUID().slice(0, 6)}`;
+  await Promise.all([
+    db.doc(`clubs/${legacyA}`).set({ name: legacyBase.replace(/-/g, ' ') }),
+    db.doc(`clubs/${legacyB}`).set({ name: legacyBase.replace(/-/g, ' ') }),
+  ]);
+  const runSlugBackfill = (args = []) => execFileSync(
+    process.execPath,
+    ['scripts/backfill-club-slugs.cjs', ...args],
+    { encoding: 'utf8', env: process.env },
+  );
+  assert.match(runSlugBackfill(), /Dry run/);
+  assert.equal((await db.doc(`clubs/${legacyA}`).get()).data().slug, undefined);
+  runSlugBackfill(['--apply']);
+  const legacySlugs = [
+    (await db.doc(`clubs/${legacyA}`).get()).data().slug,
+    (await db.doc(`clubs/${legacyB}`).get()).data().slug,
+  ].sort();
+  assert.deepEqual(legacySlugs, [legacyBase, `${legacyBase}-2`].sort());
+  runSlugBackfill(['--apply']);
+  assert.deepEqual(
+    [
+      (await db.doc(`clubs/${legacyA}`).get()).data().slug,
+      (await db.doc(`clubs/${legacyB}`).get()).data().slug,
+    ].sort(),
+    legacySlugs,
+  );
   const backfill = () => execFileSync(process.execPath, ['scripts/backfill-public.cjs'], {stdio:'inherit', env:process.env});
   backfill();
   const before = (await db.doc(`clubs_public/${a}`).get()).updateTime;
@@ -39,6 +68,6 @@ async function main() {
   assert.equal((await db.doc(`events_public/private-a`).get()).data().isPublished, false);
   assert.equal((await db.doc(`events_public/public-a`).get()).data().secret, undefined);
   assert.equal((await db.doc(`clubs_public/${b}`).get()).data().isPublished, false);
-  console.log('Projection backfill and slug authorization, alias and concurrency: passed');
+  console.log('Projection/slug backfills, dry-run, collision, idempotency, alias, authorization and concurrency: passed');
 }
 main().then(() => {env.cleanup();}).catch(error => { console.error(error); process.exitCode = 1; env.cleanup(); });

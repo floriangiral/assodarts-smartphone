@@ -1,6 +1,12 @@
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
+import { defineSecret, defineString } from "firebase-functions/params";
 import { isDeepStrictEqual } from "node:util";
+
+const webRevalidationSecret = defineSecret("WEB_REVALIDATION_SECRET");
+const webRevalidationUrl = defineString("WEB_REVALIDATION_URL", {
+  default: "",
+});
 
 // Only explicitly entered public profile fields are copied; never spread source documents.
 const profileFields = [
@@ -82,11 +88,45 @@ export async function projectEvent(eventId: string): Promise<void> {
   });
 }
 
+export async function revalidatePublicPages(
+  clubId: string,
+  eventIds: string[] = [],
+  url = webRevalidationUrl.value(),
+  secretOverride?: string,
+): Promise<void> {
+  if (!url) return;
+  const secret = secretOverride ?? webRevalidationSecret.value();
+  if (!secret) return;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${secret}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ clubId, eventIds }),
+  });
+  if (!response.ok) {
+    throw new Error(`Web revalidation failed with status ${response.status}`);
+  }
+}
+
 export const onPublicClubWritten = onDocumentWritten(
-  "clubs/{clubId}",
-  async (event) => projectClub(event.params.clubId),
+  { document: "clubs/{clubId}", secrets: [webRevalidationSecret] },
+  async (event) => {
+    const clubId = event.params.clubId;
+    await projectClub(clubId);
+    await revalidatePublicPages(clubId);
+  },
 );
 export const onPublicEventWritten = onDocumentWritten(
-  "events/{eventId}",
-  async (event) => projectEvent(event.params.eventId),
+  { document: "events/{eventId}", secrets: [webRevalidationSecret] },
+  async (event) => {
+    const eventId = event.params.eventId;
+    const clubId =
+      event.data?.after.data()?.clubId ?? event.data?.before.data()?.clubId;
+    await projectEvent(eventId);
+    if (typeof clubId === "string") {
+      await revalidatePublicPages(clubId, [eventId]);
+    }
+  },
 );

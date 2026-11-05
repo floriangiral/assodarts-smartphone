@@ -34,9 +34,14 @@ Dernière vérification : **5 novembre 2026**, `develop` au commit `4bd47b2` ava
 - [x] Projections `clubs_public` et `events_public`, triggers, backfill limité à l'émulateur et tests de règles. La visibilité absente vaut `members` ; la publication du club est explicite.
 - [x] Registre de slugs, callable avec contrôle des rôles et unicité transactionnelle, proposition à la création du club et alias conservés indéfiniment par défaut. Concurrence, refus et alias vérifiés sur émulateur ; la redirection serveur est actuellement 308, au lieu du 301 demandé.
 - [x] Pages club, agenda et événement ; vitrine provisoire, canonicals, sitemap, robots, image Open Graph et JSON-LD. Tests HTTP locaux et démonstration fictive disponibles.
-- [x] Rafraîchissement responsive du thème et des vues publiques, navigation commune, page d'état responsable honnête, asset de marque disponible sur les hôtes club. Lint, typecheck, 15 tests, build et contrôles navigateur locaux réussis ; détails dans [RAPPORT-PHASE-2.md](RAPPORT-PHASE-2.md). Lighthouse et staging restent à vérifier.
-- [ ] Migrer les clubs existants et préparer un backfill réel sûr ; compléter les tests de création de club et des triggers émulés.
-- [ ] Résoudre l'écart 308/301, intégrer les domaines personnalisés et ajouter la revalidation à la demande ; le cache de résolution est actuellement de 60 secondes.
+- [x] Rafraîchissement responsive du thème et des vues publiques, navigation commune, page d'état responsable honnête, asset de marque disponible sur les hôtes club. Lint, typecheck, 28 tests, build et contrôles navigateur locaux réussis ; détails dans [RAPPORT-PHASE-2.md](RAPPORT-PHASE-2.md). Lighthouse et staging restent à vérifier.
+- [x] Préparer `backend/functions/scripts/backfill-club-slugs.cjs`, paginé, transactionnel, emulator-only et dry-run par défaut; test de dry-run, collision, suffixe et idempotence sur émulateur. L'attribution réelle des clubs existants reste à exécuter après revue/autorisation.
+- [x] Intégrer le rendu custom-domain sur le profil, l'agenda, l'événement, `robots.txt` et `sitemap.xml`; test HTTP émulé vérifiant club publié 200, événement, club non publié et hôte inconnu en 404.
+- [x] Afficher les médias et liens sociaux HTTPS du profil public, ainsi que catégories et dates de fin événement quand disponibles, sur sous-domaines et domaines custom.
+- [x] Ajouter `/api/revalidate` protégé par secret partagé et cache public d'événements tagué à 60 secondes.
+- [x] Appeler l'endpoint depuis les triggers de projection via `WEB_REVALIDATION_URL` et `WEB_REVALIDATION_SECRET`; URL GitHub staging configurée, secret staging créé et accès App Hosting accordé. Le workflow matérialise l'URL dans un `.env.<projectId>` temporaire pour Firebase Functions.
+- [ ] Valider l'appel des triggers sur le backend staging après rollout; aucun déploiement n'a encore activé cette intégration.
+- [ ] Résoudre l'écart 308/301 : Next `permanentRedirect` renvoie 308; un 301 exige un mécanisme compatible avec l'interdiction de lecture Firestore dans le middleware. Vérifier les alias après changement rapide.
 - [ ] Finaliser les contenus et messages, les formats des données publiques et un contact commercial vérifié.
 - [ ] Tester accessibilité, mobile et Lighthouse ; confirmer `noindex` et fonctionnalités sur le premier rollout staging.
 

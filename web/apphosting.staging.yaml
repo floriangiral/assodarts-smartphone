@@ -14,6 +14,9 @@ env:
   - variable: NEXT_PUBLIC_FIREBASE_APP_ID
     value: 1:189674137376:web:7817b7e16fcd9e4e91d945
     availability: [BUILD, RUNTIME]
+  - variable: WEB_REVALIDATION_SECRET
+    secret: projects/assodarts-staging/secrets/WEB_REVALIDATION_SECRET/versions/latest
+    availability: [RUNTIME]
   - variable: APPHOSTING_DEFAULT_HOST
     value: assodarts-web-staging--assodarts-staging.europe-west4.hosted.app
     availability: [BUILD, RUNTIME]

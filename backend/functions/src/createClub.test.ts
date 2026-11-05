@@ -17,6 +17,7 @@ const mockMemberDoc = { exists: true, id: "m1" };
 const mockClubGet = jest.fn();
 const mockMembershipSet = jest.fn();
 const mockMemberSet = jest.fn();
+const unavailableSlugs = new Set<string>();
 let createdClubId = "";
 let platformAdminExists = false;
 const mockRunTransaction = jest.fn(async (updateFn) =>
@@ -25,6 +26,11 @@ const mockRunTransaction = jest.fn(async (updateFn) =>
       if (ref.path === `clubs/${createdClubId}`) return { exists: false };
       if (ref.path === "members/m1")
         return { exists: true, data: () => ({ clubId: null }) };
+      if (ref.path?.startsWith("club_slugs/")) {
+        return {
+          exists: unavailableSlugs.has(ref.path.slice("club_slugs/".length)),
+        };
+      }
       return { exists: false };
     },
     set: (ref: { path?: string }, value: unknown) => {
@@ -94,6 +100,16 @@ describe("createClub", () => {
         name: "Demo Club",
         displayName: "Demo Club",
       }),
+    );
+  });
+
+  it("allocates the next numeric slug when the suggested slug is already taken", async () => {
+    unavailableSlugs.add("demo-club");
+
+    await wrapped(makeRequest({ name: "Demo Club" }, "u1"));
+
+    expect(mockClubGet).toHaveBeenCalledWith(
+      expect.objectContaining({ slug: "demo-club-2" }),
     );
   });
 

@@ -9,39 +9,51 @@ type ClubIdentity = {
   slug: string;
   city?: string;
   contactEmail?: string;
+  logoUrl?: string;
 };
 
 export function Shell({
   children,
   club,
+  customDomain = false,
 }: {
   children: ReactNode;
   club?: ClubIdentity;
+  customDomain?: boolean;
 }) {
   const localClubQuery =
-    club && process.env.ROOT_DOMAIN === "localhost"
+    club && !customDomain && process.env.ROOT_DOMAIN === "localhost"
       ? `?club=${encodeURIComponent(club.slug)}`
       : "";
 
   return (
     <div className="min-h-screen">
       <header className="border-b border-border bg-surface/90 backdrop-blur">
-        <div className="mx-auto flex min-h-18 max-w-7xl items-center justify-between gap-6 px-5 sm:px-8">
+        <div className="mx-auto flex min-h-18 max-w-7xl items-center justify-between gap-3 px-5 sm:gap-6 sm:px-8">
           <Link
             aria-label={club ? `${club.name}, accueil` : messages.title}
             className="focus-ring flex shrink-0 items-center gap-3 rounded-sm"
             href={club ? `/${localClubQuery}` : "/"}
           >
-            <Image
-              alt=""
-              aria-hidden="true"
-              className="size-10 rounded-xl"
-              height={40}
-              priority
-              src="/assodarts-mark.png"
-              unoptimized
-              width={40}
-            />
+            {club?.logoUrl ? (
+              <span
+                aria-label={`${messages.clubPage.logoLabel} ${club.name}`}
+                className="size-10 shrink-0 rounded-lg bg-cover bg-center"
+                role="img"
+                style={{ backgroundImage: `url("${club.logoUrl}")` }}
+              />
+            ) : (
+              <Image
+                alt=""
+                aria-hidden="true"
+                className="size-10 rounded-xl"
+                height={40}
+                priority
+                src="/assodarts-mark.png"
+                unoptimized
+                width={40}
+              />
+            )}
             <span className="text-[15px] font-bold">
               {club?.name ?? messages.title}
             </span>

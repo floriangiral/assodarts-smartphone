@@ -22,6 +22,10 @@ La création assistée est disponible avec `firebase apphosting:backends:create 
 - [ ] Suivre la validation et les enregistrements DNS affichés par Firebase pour chaque backend et attendre les certificats. Préserver les enregistrements explicites, notamment DKIM/SPF Resend : ne pas les supprimer au profit du générique.
 - [ ] Firebase Auth : autoriser uniquement les hôtes admin concernés et `localhost` pour le web. Les sous-domaines de club n'ont pas besoin d'Auth.
 - [x] Configuration publique de l'app Web staging ajoutée à `apphosting.staging.yaml` (`NEXT_PUBLIC_FIREBASE_API_KEY`, `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`, `NEXT_PUBLIC_FIREBASE_APP_ID`). Ces valeurs sont intégrées au bundle Next au build; la clé n'est pas un compte de service et ne donne pas accès aux données sans Firebase Auth et les règles Firestore.
+- [x] `WEB_REVALIDATION_URL` est défini dans l'environnement GitHub staging; `WEB_REVALIDATION_SECRET` a été créé dans Secret Manager staging et l'accès App Hosting a été accordé. La référence du secret est dans `apphosting.staging.yaml`.
+- [x] Le workflow Functions écrit temporairement `.env.assodarts-staging` à partir de la variable non secrète `WEB_REVALIDATION_URL`; ce fichier n'est pas commité. Les triggers l'utilisent après projection et lient `WEB_REVALIDATION_SECRET`.
+- [ ] Après le rollout, vérifier que les triggers Functions peuvent lire le secret et qu'un événement source invalide ses caches via `/api/revalidate` (attendu HTTP 200).
+- [ ] Après le premier rollout staging, vérifier que les triggers Functions ont accès au secret et qu'un événement source invalide ses caches via `/api/revalidate` (attendu HTTP 200).
 - [ ] Pour la production, enregistrer une app Web dans `assodarts`, puis configurer ses propres valeurs `NEXT_PUBLIC_FIREBASE_*` dans `apphosting.production.yaml`. Ne pas réutiliser les valeurs staging.
 - [ ] Avant une phase nécessitant des secrets, les créer dans Secret Manager, accorder l'accès au compte du backend et ajouter uniquement des références dans `apphosting.yaml`. Aucun secret n'est requis par le squelette phase 1 ; ne pas créer de fausse référence bloquante.
 
@@ -58,7 +62,7 @@ Avec Java 21, Firebase CLI 15.35.0 et les dépendances web installées, depuis `
 firebase emulators:exec --project demo-assodarts-rules --only firestore 'npm --prefix ../web run test:domain'
 ```
 
-Le test crée puis supprime dans l'émulateur `domains/club.example` contenant un `clubId` UUID. Un domaine présent renvoie le placeholder, un domaine absent renvoie 404. Il ne crée rien dans Firebase réel. Le cycle de vie de ces correspondances et le lien avec les pages publiées restent à définir en phase 2.
+Le test crée puis supprime dans l'émulateur `domains/club.example` contenant un `clubId` UUID. Il vérifie les pages publiées du domaine custom (profil, agenda, événement, robots et sitemap) ainsi que les réponses 404 pour un domaine inconnu ou un club non publié. Il ne crée rien dans Firebase réel.
 
 ### Vérifier les premières pages publiques de phase 2
 
@@ -75,7 +79,7 @@ Pour le test HTTP, construire d'abord le web avec Node 26 (`cd web && npm ci && 
 firebase emulators:exec --project demo-assodarts-rules --only firestore 'cd ../web && node scripts/test-public-pages.mjs'
 ```
 
-Ce test nécessite Node 26 sur le PATH, crée des données uniquement dans l'émulateur et démarre temporairement le serveur Next sur le port 3000. Redémarrer ensuite `./web/dev start`. Le script `backend/functions/scripts/backfill-public.cjs` refuse de s'exécuter sans `FIRESTORE_EMULATOR_HOST` ; ne pas l'utiliser pour une migration de production. Les limites connues sont dans [RAPPORT-PHASE-2.md](RAPPORT-PHASE-2.md).
+Ce test nécessite Node 26 sur le PATH, crée des données uniquement dans l'émulateur et démarre temporairement le serveur Next sur le port 3000. Redémarrer ensuite `./web/dev start`. Le script `backend/functions/scripts/backfill-public.cjs` refuse de s'exécuter sans `FIRESTORE_EMULATOR_HOST`; `backfill-club-slugs.cjs` est limité aux projets `demo-*` et démarre en dry-run. Aucun des deux ne doit servir directement à une migration production. Les limites connues sont dans [RAPPORT-PHASE-2.md](RAPPORT-PHASE-2.md).
 
 ## Démonstration locale des rôles et pages
 

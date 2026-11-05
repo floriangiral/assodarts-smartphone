@@ -76,6 +76,9 @@ export const messages = {
     training: "Les entraînements",
     contact: "Une question ? Contactez le club.",
     address: "Lieu de pratique",
+    socialNetworks: "Réseaux sociaux",
+    logoLabel: "Logo de",
+    coverLabel: "Photo de couverture de",
     noDescription: "Retrouvez ici les informations et les prochains rendez-vous du club.",
   },
   agendaPage: {
@@ -90,6 +93,8 @@ export const messages = {
     date: "Date et heure",
     location: "Lieu",
     about: "À propos de l’événement",
+    categories: "Catégories de l’événement",
+    endsAt: "Fin :",
     registrationTitle: "Participer à l’événement",
     registrationUnavailable:
       "Les inscriptions en ligne ne sont pas encore disponibles. Contactez le club pour connaître les modalités.",

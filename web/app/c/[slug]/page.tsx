@@ -34,9 +34,20 @@ export default async function Club({ params }: Props) {
   return (
     <Shell club={club}>
       <div className="mx-auto max-w-7xl px-5 py-10 sm:px-8 sm:py-16">
-        <section className="relative overflow-hidden rounded-2xl border border-border bg-surface px-6 py-10 text-ink shadow-sm sm:px-10 sm:py-14">
-          <div aria-hidden="true" className="absolute -right-10 -top-20 size-72 rounded-full border border-border sm:size-96" />
-          <div aria-hidden="true" className="absolute -right-2 top-0 size-56 rounded-full border border-orange/30 sm:size-72" />
+        <section className="relative overflow-hidden rounded-lg border border-border bg-surface px-6 py-10 text-ink shadow-sm sm:px-10 sm:py-14">
+          {club.coverUrl ? (
+            <div
+              aria-label={`${messages.clubPage.coverLabel} ${club.name}`}
+              className="absolute inset-0 bg-cover bg-center opacity-20"
+              role="img"
+              style={{ backgroundImage: `url("${club.coverUrl}")` }}
+            />
+          ) : (
+            <>
+              <div aria-hidden="true" className="absolute -right-10 -top-20 size-72 rounded-full border border-border sm:size-96" />
+              <div aria-hidden="true" className="absolute -right-2 top-0 size-56 rounded-full border border-orange/30 sm:size-72" />
+            </>
+          )}
           <div className="relative max-w-3xl">
             <p className="text-xs font-bold uppercase text-orange">
               {messages.clubPage.eyebrow}{club.city ? ` · ${club.city}` : ""}
@@ -164,6 +175,25 @@ export default async function Club({ params }: Props) {
                   <Mail aria-hidden="true" size={16} />
                   {club.contactEmail}
                 </a>
+              </section>
+            )}
+            {club.socialLinks.length > 0 && (
+              <section className="border-t border-border pt-6">
+                <h2 className="font-display text-2xl">{messages.clubPage.socialNetworks}</h2>
+                <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
+                  {club.socialLinks.map((link) => (
+                    <li key={link.label}>
+                      <a
+                        className="focus-ring rounded-sm text-sm font-semibold text-navy hover:underline"
+                        href={link.url}
+                        rel="noreferrer"
+                        target="_blank"
+                      >
+                        {link.label}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
               </section>
             )}
           </aside>

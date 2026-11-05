@@ -41,6 +41,7 @@ export default async function Event({ params }: Props) {
     "@type": "Event",
     name: event.title,
     ...(event.date && { startDate: event.date.toISOString() }),
+    ...(event.endsAt && { endDate: event.endsAt.toISOString() }),
     ...(event.location && {
       location: { "@type": "Place", name: event.location },
     }),
@@ -71,10 +72,22 @@ export default async function Event({ params }: Props) {
             <h1 className="font-display mt-4 max-w-4xl text-4xl leading-tight sm:text-6xl">
               {event.title}
             </h1>
+            {(event.category || event.categories.length > 0) && (
+              <ul aria-label={messages.eventPage.categories} className="mt-5 flex flex-wrap gap-2">
+                {[event.category, ...event.categories]
+                  .filter((category, index, values) => category && values.indexOf(category) === index)
+                  .map((category) => (
+                    <li className="rounded-sm bg-green-soft px-3 py-1 text-xs font-bold text-green" key={category}>
+                      {category}
+                    </li>
+                  ))}
+              </ul>
+            )}
             <div className="mt-8 flex flex-wrap gap-x-7 gap-y-3 border-y border-border py-5 text-sm font-semibold">
               <span className="flex items-center gap-2 text-green">
                 <CalendarDays aria-hidden="true" size={17} />
                 {formatDate(event.date)}
+                {event.endsAt && ` – ${formatDate(event.endsAt)}`}
               </span>
               {event.location && (
                 <span className="flex items-center gap-2 text-muted">
@@ -102,6 +115,11 @@ export default async function Event({ params }: Props) {
             <p className="mt-3 text-sm font-semibold leading-6">
               {formatDate(event.date)}
             </p>
+            {event.endsAt && (
+              <p className="mt-1 text-sm leading-6 text-muted">
+                {messages.eventPage.endsAt} {formatDate(event.endsAt)}
+              </p>
+            )}
             {event.location && (
               <div className="mt-6 border-t border-border pt-5">
                 <div className="flex items-center gap-2 text-green">
