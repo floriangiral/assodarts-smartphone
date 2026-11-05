@@ -1,16 +1,16 @@
 # Suivi des chantiers Assodarts
 
-Dernière vérification : **5 novembre 2026**, sur `develop` au commit `207dd93` avant ce changement documentaire. Ce fichier distingue les constats vérifiés des intentions. Une case cochée représente un résultat vérifié, pas une promesse ; les résultats distants peuvent évoluer.
+Dernière vérification : **5 novembre 2026**, sur `develop` au commit `4bd47b2` avant ce changement documentaire. Ce fichier distingue les constats vérifiés des intentions. Une case cochée représente un résultat vérifié, pas une promesse ; les résultats distants peuvent évoluer.
 
 ## Situation générale
 
 | Chantier | État | Référence |
 | --- | --- | --- |
-| Web multi-club | Pages publiques disponibles et phase 4 partiellement implémentée avec profils Auth locaux; staging non déployé et aucune phase terminée. | [Suivi web](web/SUIVI.md) |
-| CI et déploiement | Protections GitHub et changements de workflows en place sur `develop` ; CI non verte au dernier contrôle ; nouvelles règles non encore fusionnées vers release/main. | [Sécurité CI](web/SECURITE-CI.md) |
+| Web multi-club | Pages publiques et démo locale Auth/Firestore disponibles; phase 4 partielle; staging non déployé et phases 1–5 non clôturées. | [Suivi web](web/SUIVI.md) |
+| CI et déploiement | Push Quality de `4bd47b2` réussi pour les jobs exécutés; SonarCloud passe, PR Quality attend encore iOS; changes non fusionnés vers `release-v0.1`. | [Sécurité CI](web/SECURITE-CI.md) |
 | Sécurité Firebase | Premiers tests de règles sur émulateurs ; migration OIDC, audit IAM et couverture complète encore ouverts. | [Architecture](ARCHITECTURE.md) |
 | Structure du dépôt | Audit effectué ; refactorisations proposées, non réalisées. | [Améliorations](#structure-et-maintenance) |
-| Instance web locale | Démonstration avec Auth/Firestore Emulators, comptes de rôle fictifs et données locales; ne constitue pas un déploiement. | [Configuration locale](../SETUP.md#web-local) |
+| Instance web locale | Auth/Firestore Emulators avec quatre comptes de rôle; domaines public/admin et redirection canonique vérifiés localement; ce n'est pas un déploiement. | [Configuration locale](../SETUP.md#web-local) |
 
 PR ouverte : [#77, develop vers release-v0.1](https://github.com/floriangiral/assodarts-smartphone/pull/77), en brouillon au dernier contrôle. Aucun merge ni déploiement production n'a été effectué dans ce chantier. Le propriétaire garde ces décisions.
 

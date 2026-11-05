@@ -1,6 +1,6 @@
 # Suivi du site web multi-club
 
-Dernière vérification : **5 novembre 2026**, `develop` au commit `207dd93` avant cette mise à jour documentaire. Référence des exigences : [CAHIER-DES-CHARGES.md](CAHIER-DES-CHARGES.md). Plan des pages : [PLAN-PAGES.md](PLAN-PAGES.md). État global et sécurité : [SUIVI-CHANTIERS.md](../SUIVI-CHANTIERS.md).
+Dernière vérification : **5 novembre 2026**, `develop` au commit `4bd47b2` avant cette mise à jour documentaire. Référence des exigences : [CAHIER-DES-CHARGES.md](CAHIER-DES-CHARGES.md). Plan des pages : [PLAN-PAGES.md](PLAN-PAGES.md). État global et sécurité : [SUIVI-CHANTIERS.md](../SUIVI-CHANTIERS.md).
 
 **Aucune phase n'est terminée.** Les cases non cochées incluent les tâches qui n'ont pas été réalisées ou dont la preuve manque. Les valeurs par défaut effectivement appliquées et celles encore en attente sont précisées dans les rapports de phase.
 
@@ -21,10 +21,10 @@ Dernière vérification : **5 novembre 2026**, `develop` au commit `207dd93` ava
 - [x] Audit initial, squelette Next.js, routage d'hôtes, schéma de slug, configuration Firebase, commandes locales, premiers tests et rapport documentés.
 - [x] Backend App Hosting `assodarts-web-staging` créé dans `europe-west4`, dépôt lié, environnement `staging`, Node 24 et rollouts automatiques désactivés ; variables GitHub staging configurées.
 - [x] Résolution des slugs et intégration du schéma aux Functions réalisées depuis, en phase 2 ; le web dispose d'un mode local de secours et d'une démonstration avec émulateur.
-- [ ] Vérifier la CI complète sur le commit final, notamment SonarQube et les contrôles iOS applicables. Les derniers runs observés sur `caf0965` étaient en échec ; un run push sur `207dd93` a échoué au job SonarQube.
+- [ ] Confirmer la CI complète de la PR sur le SHA final. Le run push de `4bd47b2` est vert pour les jobs exécutés; iOS a été sauté car le même SHA est couvert par la PR. Dans le run PR consulté, SonarCloud, Web, Functions, règles, schémas et secret scan passent; le job iOS est encore en cours au dernier contrôle. Attendre la conclusion du run PR avant de clôturer.
 - [ ] Valider le premier rollout staging par la CI sur la branche release, les permissions de l'identité de déploiement et la présence de `shared/` au build Cloud. Le backend existe, mais aucun site staging déployé n'a été prouvé.
-- [ ] Configurer et vérifier domaines, certificats, en-têtes de proxy et domaines autorisés Auth ; raccorder les domaines personnalisés aux pages publiques.
-- [ ] Vérifier l'accessibilité et le mode sombre, compléter l'internationalisation et les tests de parcours ; suivre l'override gRPC et la migration `middleware` vers `proxy`.
+- [ ] Configurer et vérifier domaines, certificats, en-têtes de proxy et domaines autorisés Auth; raccorder les domaines personnalisés aux pages publiques. DNS, certificats et headers App Hosting nécessitent la console/la zone DNS.
+- [ ] Mesurer l'accessibilité et Lighthouse, compléter l'internationalisation et les tests de parcours; le thème web reste clair comme l'app iOS. Suivre l'override gRPC et la migration `middleware` vers `proxy`.
 
 ## Phase 2 — pages publiques et projections
 

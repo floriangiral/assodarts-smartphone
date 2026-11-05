@@ -1,5 +1,9 @@
 # Rapport de phase 1 — en cours, non validée
 
+## État actuel — 5 novembre 2026
+
+Les vérifications locales de routage, build staging simulé et qualité sont désormais documentées ci-dessous; la phase reste **non clôturée** tant que la PR/CI complète, le premier rollout staging, DNS/domaines Auth et le smoke test en ligne ne sont pas prouvés. Voir l'addendum de clôture à la fin de ce rapport et [SUIVI.md](SUIVI.md).
+
 Les sections 1 à 7 ci-dessous constituent un instantané historique de la phase 1 ; les éléments réalisés depuis, notamment les slugs et le backend staging, sont précisés dans l’actualisation à la fin et dans le suivi courant. Ce rapport ne déclare pas la phase terminée. La checklist et les contraintes détaillées restent dans [SUIVI.md](SUIVI.md), le déploiement dans [DEPLOY.md](DEPLOY.md).
 
 ## 1. Réalisations
@@ -45,6 +49,25 @@ Les slugs sont définis une seule fois dans `shared/` et consommés côté web ;
 
 À la date de l’audit initial : CI finale et staging non prouvés ; backend App Hosting alors absent ; confiance des en-têtes de proxy à vérifier ; gestion et publication futures des domaines personnalisés à définir ; résolution de clubs et 404 réels en attente de la phase 2 ; validation de l'override gRPC à suivre ; Node/Next récents potentiellement en aperçu chez App Hosting ; migration OIDC et alertes de sécurité historiques encore ouvertes.
 
-## Actualisation — backend staging
+## Actualisation — vérifications phase 1 (5 novembre 2026)
 
-Le backend `assodarts-web-staging` a été créé dans `assodarts-staging` (`europe-west4`) et relié au dépôt, environnement `staging`, runtime Node 24 et rollouts automatiques désactivés. Les variables GitHub staging sont configurées. Le premier rollout reste à faire après validation de la CI sur la branche release ; la CI examinée signale un échec SonarQube. Le staging n'est donc pas encore prouvé en ligne. Voir [DEPLOY.md](DEPLOY.md).
+### Vérifié en local
+
+- Suite web : lint, typecheck, 24 tests Vitest, audit `npm audit --audit-level=high` (8 alertes modérées) et build de production réussis.
+- Schémas partagés : 46 tests; Cloud Functions : lint, build et 227 tests réussis après synchronisation de la copie `club-slug.ts`.
+- Workflow : `quality.yml` parse; le run push de `4bd47b2` est vert pour les jobs exécutés (iOS sauté car la PR vérifie le même SHA). Sur le run PR, SonarCloud, Web, Functions, règles, schémas et secret scan passent; iOS est encore en cours au dernier contrôle. Le nouveau run PR doit terminer avant de clôturer la gate.
+- Routage local : vitrine, club et admin répondent HTTP 200; `/c/club-a/agenda` redirige HTTP 301 vers `club-a.localhost`; test domaine connu 200/inconnu 404 réussi sur émulateur (`npm run test:domain`).
+- Build de staging simulé : `ROOT_DOMAIN=staging.assodarts.app` génère bien `noindex, nofollow`.
+- Auth Emulator + Firestore Emulator locaux : membre, bureau, admin club et développeur plateforme se connectent; identifiants fictifs décrits dans `web/README.md`. Les comptes restent dans `demo-assodarts-web`.
+
+### Restant avant clôture
+
+- La PR `develop → release-v0.1` et le merge relèvent du propriétaire. La phase ne sera pas marquée terminée tant que le run Quality du SHA courant n'est pas entièrement vert.
+- Le déploiement App Hosting staging n'a pas été effectué : il exige un push release après la gate. Le backend et la configuration Firebase Web publique existent, mais le build Cloud (dont l'inclusion de `shared/`) et le premier smoke test en ligne ne sont pas prouvés.
+- Domaine/certificat staging, DNS, en-têtes réellement reçus derrière App Hosting et domaines autorisés Auth doivent être vérifiés dans la console Firebase.
+- Lighthouse et audit d'accessibilité, validation du comportement `noindex` sur l'URL staging et migration `middleware` → `proxy` restent ouverts. La phase 2 conserve également ses éléments ouverts dans `RAPPORT-PHASE-2.md`.
+- Aucun déploiement production n'a été lancé; une action ou approbation manuelle reste sous le contrôle du propriétaire.
+
+### Backend staging
+
+Le backend `assodarts-web-staging` existe dans `assodarts-staging` (`europe-west4`), est relié au dépôt et utilise Node 24 avec les rollouts automatiques désactivés. Les variables GitHub et la configuration Firebase Web publique de staging sont présentes. Le premier rollout reste à faire après merge de la PR et push sur `release-v0.1`; voir [DEPLOY.md](DEPLOY.md).
