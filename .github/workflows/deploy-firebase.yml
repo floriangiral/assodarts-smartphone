@@ -24,8 +24,6 @@ on:
 
 permissions:
   contents: read
-  actions: read
-  pull-requests: read
 
 concurrency:
   group: firebase-${{ inputs.environment }}
@@ -38,6 +36,10 @@ env:
 jobs:
   deploy:
     name: Deploy Firestore rules and Cloud Functions
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && inputs.environment == 'staging' && startsWith(github.ref, 'refs/heads/release-'))
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}

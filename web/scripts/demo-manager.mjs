@@ -5,6 +5,7 @@ import {
   mkdirSync,
   openSync,
   readFileSync,
+  realpathSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
@@ -30,7 +31,7 @@ function readState() {
 }
 function alive(s) {
   if (!Number.isInteger(s?.pid) || s.pid < 2) return false;
-  const ps = spawnSync("ps", ["-p", String(s.pid), "-o", "args="], {
+  const ps = spawnSync("/bin/ps", ["-p", String(s.pid), "-o", "args="], {
     encoding: "utf8",
   });
   return (
@@ -70,7 +71,7 @@ async function stopEmulator() {
     if (existsSync(stateFile)) unlinkSync(stateFile);
     return;
   }
-  const pgid = spawnSync("ps", ["-p", String(state.pid), "-o", "pgid="], {
+  const pgid = spawnSync("/bin/ps", ["-p", String(state.pid), "-o", "pgid="], {
     encoding: "utf8",
   }).stdout.trim();
   if (pgid !== String(state.pid))
@@ -99,17 +100,18 @@ async function start() {
     const java = javaHome ? join(javaHome, "bin") : "";
     const env = {
       ...process.env,
-      PATH: java ? `${java}:${process.env.PATH}` : process.env.PATH,
+      PATH: [dirname(process.execPath), java, "/usr/bin", "/bin"].filter(Boolean).join(":"),
     };
-    if (spawnSync("java", ["-version"], { env, stdio: "ignore" }).status !== 0)
+    if (spawnSync(javaHome ? join(javaHome, "bin/java") : "/usr/bin/java", ["-version"], { env, stdio: "ignore" }).status !== 0)
       throw new Error(
-        "Java 21 est requis : configurez JAVA_HOME ou ajoutez java au PATH.",
+        "Java 21 est requis : configurez JAVA_HOME ou installez java dans /usr/bin.",
       );
     if (javaHome) writeFileSync(javaFile, `${javaHome}\n`, { mode: 0o600 });
     const fd = openSync(logFile, "w", 0o600);
     const child = spawn(
-      "npx",
+      process.execPath,
       [
+        realpathSync(join(dirname(process.execPath), "npx")),
         "--yes",
         "firebase-tools@15.35.0",
         "emulators:start",

@@ -25,7 +25,7 @@ function state() {
 
 function managed(value) {
   if (!value) return false;
-  const result = spawnSync("ps", ["-p", String(value.pid), "-o", "args="], { encoding: "utf8" });
+  const result = spawnSync("/bin/ps", ["-p", String(value.pid), "-o", "args="], { encoding: "utf8" });
   return result.status === 0 && result.stdout.includes(nextBin) && /(?:^|\s)dev(?:\s|$)/.test(result.stdout);
 }
 
@@ -64,7 +64,7 @@ async function stop() {
     return;
   }
   // Detached Next is the leader of its own process group; never signal another group.
-  const pgid = spawnSync("ps", ["-p", String(value.pid), "-o", "pgid="], { encoding: "utf8" }).stdout.trim();
+  const pgid = spawnSync("/bin/ps", ["-p", String(value.pid), "-o", "pgid="], { encoding: "utf8" }).stdout.trim();
   if (pgid !== String(value.pid)) throw new Error("Groupe de processus inattendu ; arrêt refusé.");
   process.kill(-value.pid, "SIGTERM");
   for (let i = 0; i < 100; i++) {

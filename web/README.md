@@ -14,7 +14,7 @@ npm ci --ignore-scripts
 cd ..
 ```
 
-La première utilisation de la démonstration peut télécharger Firebase CLI 15.35.0 et l'émulateur Firestore. Si Java 21 n'est pas dans le PATH, lancer `JAVA_HOME=/chemin/vers/jdk-21 ./web/demo start` ; le chemin utilisé est mémorisé localement. Les commandes sont prévues pour macOS et Linux avec Bash et `ps` ; Windows natif n'a pas été vérifié.
+La première utilisation de la démonstration peut télécharger Firebase CLI 15.35.0 et l'émulateur Firestore. Si Java 21 n'est pas installé dans `/usr/bin`, lancer `JAVA_HOME=/chemin/vers/jdk-21 ./web/demo start` ; le chemin utilisé est mémorisé localement. Les commandes sont prévues pour macOS et Linux avec Bash et `/bin/ps` ; Windows natif n'a pas été vérifié. Les outils sont lancés par leur chemin absolu ; le PATH de l'émulateur ne contient que les dossiers du runtime Node, du JDK configuré et les dossiers système.
 
 ## Voir les pages avec des données fictives
 

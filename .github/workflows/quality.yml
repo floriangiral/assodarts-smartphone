@@ -24,8 +24,6 @@ name: Quality
 
 permissions:
   contents: read
-  actions: read
-  pull-requests: read
 
 # Cancel obsolete PR runs, but never interrupt a deployment on push or dispatch.
 concurrency:
@@ -397,6 +395,9 @@ jobs:
       (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
     steps:
       - name: Check out full history
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -437,6 +438,10 @@ jobs:
       needs.secret-scan.result == 'success' &&
       needs.sonarqube.result == 'success'
     needs: [changes, ios, backend, web, shared, rules, sonarqube, secret-scan]
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
     uses: ./.github/workflows/deploy-firebase.yml
     with:
       environment: staging
