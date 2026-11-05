@@ -30,6 +30,8 @@ jobs:
       APPHOSTING_BACKEND_ID: ${{ vars.APPHOSTING_BACKEND_ID }}
       GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/assodarts-apphosting-key.json
     steps:
+      - name: Check out the tested commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Validate production settings
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
@@ -38,9 +40,10 @@ jobs:
           test -n "$APPHOSTING_BACKEND_ID" || { echo 'Configure production APPHOSTING_BACKEND_ID'; exit 1; }
           test -n "$FIREBASE_SERVICE_ACCOUNT" || { echo 'Configure production Firebase credentials'; exit 1; }
           case "$APPHOSTING_BACKEND_ID" in *[!a-z0-9-]*|'') echo 'Invalid backend ID'; exit 1 ;; esac
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '24'
+          node-version-file: backend/functions/.nvmrc
+          package-manager-cache: false
       - name: Install Firebase CLI
         run: npm install --global --ignore-scripts firebase-tools@15.35.0
       - name: Authenticate
