@@ -504,3 +504,47 @@ jobs:
               echo "- Distributed via TestFlight, group beta-clubs-ext"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy-web-staging:
+    name: Deploy web to App Hosting (staging)
+    needs: [changes, ios, backend, web, shared, rules, secret-scan, sonarqube]
+    if: >-
+      always() && github.event_name == 'push' && startsWith(github.ref, 'refs/heads/release-') &&
+      (needs.ios.result == 'success' || needs.ios.result == 'skipped') &&
+      needs.backend.result == 'success' && needs.shared.result == 'success' &&
+      needs.rules.result == 'success' && needs.secret-scan.result == 'success' &&
+      needs.sonarqube.result == 'success' && (needs.web.result == 'success' || needs.web.result == 'skipped')
+    runs-on: ubuntu-latest
+    environment: staging
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+      APPHOSTING_BACKEND_ID: ${{ vars.APPHOSTING_BACKEND_ID }}
+      GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/assodarts-apphosting-key.json
+    steps:
+      - name: Validate staging settings
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          test "$FIREBASE_PROJECT_ID" = 'assodarts-staging' || { echo 'Unexpected staging project'; exit 1; }
+          test -n "$APPHOSTING_BACKEND_ID" || { echo 'Configure staging APPHOSTING_BACKEND_ID'; exit 1; }
+          test -n "$FIREBASE_SERVICE_ACCOUNT" || { echo 'Configure staging Firebase credentials'; exit 1; }
+          case "$APPHOSTING_BACKEND_ID" in *[!a-z0-9-]*|'') echo 'Invalid backend ID'; exit 1 ;; esac
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+      - name: Install Firebase CLI
+        run: npm install --global --ignore-scripts firebase-tools@15.35.0
+      - name: Authenticate
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          umask 077
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$GOOGLE_APPLICATION_CREDENTIALS"
+      - name: Roll out the tested commit
+        run: firebase apphosting:rollouts:create "$APPHOSTING_BACKEND_ID" --project "$FIREBASE_PROJECT_ID" --git-commit "$GITHUB_SHA" --force --non-interactive
+      - name: Remove credentials
+        if: always()
+        run: rm -f "$GOOGLE_APPLICATION_CREDENTIALS"
