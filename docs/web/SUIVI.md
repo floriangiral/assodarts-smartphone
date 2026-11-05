@@ -34,6 +34,7 @@ Dernière vérification : **5 novembre 2026**, `develop` au commit `207dd93` ava
 - [x] Projections `clubs_public` et `events_public`, triggers, backfill limité à l'émulateur et tests de règles. La visibilité absente vaut `members` ; la publication du club est explicite.
 - [x] Registre de slugs, callable avec contrôle des rôles et unicité transactionnelle, proposition à la création du club et alias conservés indéfiniment par défaut. Concurrence, refus et alias vérifiés sur émulateur ; la redirection serveur est actuellement 308, au lieu du 301 demandé.
 - [x] Pages club, agenda et événement ; vitrine provisoire, canonicals, sitemap, robots, image Open Graph et JSON-LD. Tests HTTP locaux et démonstration fictive disponibles.
+- [x] Rafraîchissement responsive du thème et des vues publiques, navigation commune, page d'état responsable honnête, asset de marque disponible sur les hôtes club. Lint, typecheck, 15 tests, build et contrôles navigateur locaux réussis ; détails dans [RAPPORT-PHASE-2.md](RAPPORT-PHASE-2.md). Lighthouse et staging restent à vérifier.
 - [ ] Migrer les clubs existants et préparer un backfill réel sûr ; compléter les tests de création de club et des triggers émulés.
 - [ ] Résoudre l'écart 308/301, intégrer les domaines personnalisés et ajouter la revalidation à la demande ; le cache de résolution est actuellement de 60 secondes.
 - [ ] Finaliser les contenus et messages, les formats des données publiques et un contact commercial vérifié.
@@ -54,14 +55,20 @@ Dernière vérification : **5 novembre 2026**, `develop` au commit `207dd93` ava
 
 ## Phase 4 — espace responsables
 
-**État : non commencée.** Recommandation initiale : réutiliser les documents `memberships/{clubId}_{authUid}` existants plutôt qu'ajouter un second index de rôles. L'accès aux profils via les champs historiques reste à examiner. Si une solution modifie les règles utilisées par iOS et n'est pas rétrocompatible, la soumettre avant implémentation.
+**État : en cours, partielle.** La première tranche réutilise les documents `memberships/{clubId}_{authUid}` et la callable `clubRoster`; elle ne modifie pas les règles. Les paiements, invitations, messagerie, édition des rôles et plusieurs parcours de gestion restent à porter. Voir [RAPPORT-PHASE-4.md](RAPPORT-PHASE-4.md). Si une solution modifie les règles utilisées par iOS et n'est pas rétrocompatible, la soumettre avant implémentation.
 
-- [ ] Auditer les fournisseurs Firebase Auth réellement utilisés par iOS et les permissions multiclub. Implémenter connexion navigateur sans cookies de session ni rendu serveur authentifié dans cette phase.
-- [ ] Retrouver les membres via `authUid`, puis les adhésions responsables ; sélecteur multiclub, mémorisation locale non critique, écran sans accès et vérifications serveur/règles.
+- [x] Audit des rôles et du fournisseur : Firebase Auth email/mot de passe; `admin`, `board`/`bureau`/`treasurer`, `member`, avec `platform_admins` séparé. Mapping et sélection multiclub couverts par tests unitaires.
+- [x] Première interface privée à cinq onglets iOS (Accueil, Actualités, Événements, Membres, Tournois), avec sélection multiclub, dashboard adapté au rôle, roster via `clubRoster`, réponses aux événements, création d'événement/annonce pour bureau et admin, et affichage des résultats.
+- [x] Configuration publique de l'app Firebase Web staging présente dans `apphosting.staging.yaml`; le rollout reste à valider.
+- [x] Démonstration locale connectée via les émulateurs Auth/Firestore : comptes membre, bureau, admin club et développeur plateforme. Identifiants dans `web/README.md`.
+- [ ] Confirmer le fournisseur email/mot de passe et les domaines Auth sur staging; les comptes de démo ne sont locaux qu'à `demo-assodarts-web`.
+
+- [x] Auditer le fournisseur Firebase Auth iOS et implémenter la connexion navigateur email/mot de passe sans cookie ni rendu serveur authentifié.
+- [x] Retrouver les membres par `authUid`, puis les adhésions actives; sélecteur multiclub, préférence locale, écran sans accès et lectures protégées par les règles existantes.
 - [ ] Réaliser tableau de bord, gestion des événements et de leurs inscriptions, aperçu public, QR code PNG/PDF, lien copiable, suivi et export CSV Excel FR.
 - [ ] Éditer et publier le profil du club via la source et sa projection, gérer logo/couverture Storage et changement de slug via callable ; notifier les inscrits via l'outbox si l'annulation est choisie.
 - [ ] Garantir que les documents créés restent lisibles par iOS ; documenter les champs ajoutés qu'iOS ignore.
-- [ ] Tester isolement A/B, membre simple, responsable de deux clubs et le parcours Playwright complet sur émulateurs ; rédiger `RAPPORT-PHASE-4.md` avec décision multiclub.
+- [ ] Automatiser les tests Auth de l'utilisateur sans rôle, de l'isolement A/B, du responsable multiclub et du parcours Playwright complet; compléter `RAPPORT-PHASE-4.md` avec la décision multiclub.
 
 ## Phase 5 — SMS, rappels et campagnes
 

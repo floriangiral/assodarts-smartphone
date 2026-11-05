@@ -36,7 +36,7 @@ Le projet staging peut aussi être alimenté par `backend/scripts/seed-staging.j
 
 ## Web local
 
-Les pages publiques lisent des projections Firestore. Pour les essayer sans données réelles, installer Node 26, Java 21 et les dépendances, puis lancer la démonstration :
+Les pages publiques lisent des projections Firestore; le portail responsable utilise Firebase Auth et les memberships/roles existants. Pour essayer les vues publiques et les quatre profils locaux sans données réelles, installer Node 26, Java 21 et les dépendances, puis lancer la démonstration :
 
 ```sh
 cd web && nvm install && nvm use && npm ci --ignore-scripts && cd ..
@@ -46,7 +46,7 @@ cd web && nvm install && nvm use && npm ci --ignore-scripts && cd ..
 ./web/demo stop
 ```
 
-La vitrine est sur http://localhost:3000/ et le club fictif sur http://localhost:3000/?club=club-a. La commande utilise l'émulateur Firestore et ne modifie aucun projet réel. Le serveur seul reste disponible avec `./web/dev` ; pour le détail des pages, prérequis et ports, voir [web/README.md](web/README.md). Le lockfile `shared/` utilise le registre npm public.
+La vitrine est sur http://localhost:3000/, le club fictif sur http://localhost:3000/?club=club-a et l'espace responsable sur http://admin.localhost:3000/. `./web/demo` lance Auth Emulator (9099) et Firestore Emulator (8080), puis sème les profils membre, bureau, admin club et développeur plateforme dans le projet isolé `demo-assodarts-web`; aucune ressource Firebase réelle n'est modifiée. Les identifiants sont dans [web/README.md](web/README.md). Le serveur seul reste disponible avec `./web/dev`, mais il ne connecte pas automatiquement les émulateurs. Pour le détail des pages, prérequis et ports, voir [web/README.md](web/README.md). Le lockfile `shared/` utilise le registre npm public.
 
 ## CI et environnements
 

@@ -6,11 +6,11 @@ Dernière vérification : **5 novembre 2026**, sur `develop` au commit `207dd93`
 
 | Chantier | État | Référence |
 | --- | --- | --- |
-| Web multi-club | Phases 1 et 2 en cours : socle, projections et premières pages publiques ; aucune phase terminée. | [Suivi web](web/SUIVI.md) |
+| Web multi-club | Pages publiques disponibles et phase 4 partiellement implémentée avec profils Auth locaux; staging non déployé et aucune phase terminée. | [Suivi web](web/SUIVI.md) |
 | CI et déploiement | Protections GitHub et changements de workflows en place sur `develop` ; CI non verte au dernier contrôle ; nouvelles règles non encore fusionnées vers release/main. | [Sécurité CI](web/SECURITE-CI.md) |
 | Sécurité Firebase | Premiers tests de règles sur émulateurs ; migration OIDC, audit IAM et couverture complète encore ouverts. | [Architecture](ARCHITECTURE.md) |
 | Structure du dépôt | Audit effectué ; refactorisations proposées, non réalisées. | [Améliorations](#structure-et-maintenance) |
-| Instance web locale | Démonstration locale avec données fictives et émulateur Firestore ; ne constitue pas un déploiement. | [Configuration locale](../SETUP.md#web-local-provisoire) |
+| Instance web locale | Démonstration avec Auth/Firestore Emulators, comptes de rôle fictifs et données locales; ne constitue pas un déploiement. | [Configuration locale](../SETUP.md#web-local) |
 
 PR ouverte : [#77, develop vers release-v0.1](https://github.com/floriangiral/assodarts-smartphone/pull/77), en brouillon au dernier contrôle. Aucun merge ni déploiement production n'a été effectué dans ce chantier. Le propriétaire garde ces décisions.
 

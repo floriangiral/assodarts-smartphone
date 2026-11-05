@@ -1,6 +1,6 @@
 # Phase 2 — état d'avancement
 
-**Phase en cours : ne pas déployer en production.** Ce document décrit le travail effectivement vérifié ; les points ci-dessous restent ouverts.
+**Phase en cours : ne pas déployer en production.** Ce rapport couvre la phase 2 et son actualisation visuelle. L'état courant de l'espace Auth/rôles est documenté séparément dans [RAPPORT-PHASE-4.md](RAPPORT-PHASE-4.md); les points ci-dessous restent ouverts pour la phase 2.
 
 ## Audit et choix
 
@@ -43,3 +43,25 @@
 - [ ] Valider le texte marketing, les données publiques proposées, le maintien indéfini des alias et la durée de cache.
 - La publication est volontairement opt-in. Aucun résultat nominatif ni inscription publique n'est exposé. Les inscriptions iOS existantes restent inchangées et leur convergence avec la phase 3 reste à arbitrer.
 - Firebase Functions utilise Node 24 ; le web Node 26. Le middleware Next 16 est déprécié au profit de `proxy` ; sa migration reste à planifier avec ses tests de routage.
+
+## Actualisation — rafraîchissement des pages web (5 novembre 2026)
+
+### Réalisé
+
+- Reprise des tons clairs de `Theme.swift` (canvas `#F6F7F4`, surfaces blanches, bordures grises, texte `#17233A`, touches orange/vert), utilisation de la marque iOS comme asset local et shell responsive avec navigation de club et liens contact. Les grands aplats navy et l'adaptation sombre automatique ont été retirés; le marine reste réservé aux actions primaires et petits accents.
+- Refonte de la vitrine, du profil club, de l'agenda, du détail d'événement, de `/admin` et des 404. Les pages métier continuent de lire les projections publiques côté serveur.
+- À la date de cette actualisation UI, avant l'implémentation partielle de la phase 4, la connexion responsable et les inscriptions n'étaient pas encore disponibles. La copie marketing reste provisoire ; aucun essai gratuit ni contact commercial non validé n'est promis.
+- Assets image et fontes statiques exemptés des réécritures d'hôte afin qu'ils fonctionnent sur les sous-domaines de club.
+
+### Vérifications
+
+- Web : `npm run lint`, `npm run typecheck`, `npm test` (15 tests) et `npm run build` réussis.
+- Démo Firestore : profil `club-a`, agenda (événements à venir et passé) et détail événement rendus sur `club-a.localhost`; l'asset de marque répond HTTP 200 sur ce sous-domaine.
+- Contrôle navigateur : vitrine et profil club testés à 375 px sans débordement horizontal ; agenda et événement vérifiés sur desktop. Aucun score Lighthouse n'a été produit.
+- Le tunnel navigateur de l'environnement remplace `localhost` par `127.0.0.1`; les hôtes club ont été testés via `club-a.localhost` et par requête HTTP avec `Host`, sans modifier les règles de production pour contourner le tunnel.
+
+### Écarts et suites
+
+- À la date de cette actualisation visuelle, `/admin` était encore une page d'état; le portail Firebase Auth a depuis été démarré en phase 4. Les inscriptions restent en phase 3 et les résultats publics ne sont toujours pas exposés.
+- Le build est prêt mais aucun déploiement staging n'a été exécuté. Le premier rollout CI, les contrôles d'accessibilité et le score Lighthouse restent à obtenir.
+- La migration `middleware` vers `proxy`, le placeholder de domaine personnalisé, le 308 des alias, les slugs historiques, la revalidation et les actions manuelles staging restent ouverts comme indiqué dans le suivi ci-dessus.

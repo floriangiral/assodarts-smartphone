@@ -1,6 +1,6 @@
 # Assodarts
 
-Assodarts est une application iOS SwiftUI et un backend Firebase pour la gestion de clubs de fléchettes. Un site web multi-club est en cours de préparation ; il n'est pas encore livré ni déployé. L'état des travaux et leurs preuves figurent dans [docs/SUIVI-CHANTIERS.md](docs/SUIVI-CHANTIERS.md).
+Assodarts comprend une application iOS SwiftUI, un backend Firebase et un site Next.js multi-club. Les pages publiques sont disponibles en local; le portail responsable utilise Firebase Auth et les rôles existants, mais la phase 4 reste partielle. Aucun rollout web staging ni déploiement production n'a été validé. L'état et les preuves figurent dans [docs/SUIVI-CHANTIERS.md](docs/SUIVI-CHANTIERS.md).
 
 ## Où trouver quoi
 
@@ -10,7 +10,7 @@ Assodarts est une application iOS SwiftUI et un backend Firebase pour la gestion
 | `backend/` | Configuration Firebase, règles Firestore et Storage, index, scripts et description manuelle des documents dans `types.ts`. |
 | `backend/functions/` | Cloud Functions Node/TypeScript, intégrations Stripe, Resend et FCM, tests Jest et tests des règles sur émulateur. |
 | `shared/` | Validation Zod des slugs et tests Vitest ; utilisée par le web et copiée dans les Functions avec vérification de synchronisation. |
-| `web/` | Site Next.js en cours : pages publiques et démonstration locale ; commandes dans `web/README.md`. |
+| `web/` | Vitrine, pages publiques et portail responsable à cinq onglets; commandes et profils locaux dans `web/README.md`. |
 | `.github/` | Workflows GitHub Actions, Dependabot et politique de sécurité. |
 | `docs/` | Suivi des chantiers, architecture, sécurité et cahier des charges web. |
 
@@ -18,7 +18,7 @@ La configuration Firebase `backend/.firebaserc` associe `staging` à `assodarts-
 
 ## Démarrage
 
-- [Configuration et exécution locales](SETUP.md) : prérequis iOS, Functions, tests des règles et squelette web.
+- [Configuration et exécution locales](SETUP.md) : prérequis iOS, Functions, tests des règles et démo web avec profils Auth.
 - [Architecture et invariants](docs/ARCHITECTURE.md) : collections, identifiants, rôles et frontières de confiance.
 - [Suivi des chantiers](docs/SUIVI-CHANTIERS.md) : ordre de travail, risques et preuves disponibles.
 - [Projet web](docs/web/SUIVI.md) : état des cinq phases, décisions et actions manuelles.

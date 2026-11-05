@@ -1,37 +1,39 @@
 # Plan des pages web
 
-Plan proposé après analyse des écrans iOS et du cahier des charges ; les pages publiques club, agenda et événement sont désormais implémentées et testables localement ; la livraison suit les phases de [SUIVI.md](SUIVI.md). Le contenu commercial et les décisions produit restent à valider. Aucun parcours n'est considéré livré avant ses preuves et son rapport de phase.
+Plan et état courant après comparaison avec les écrans iOS. Les pages publiques sont implémentées et le premier portail responsable Auth est disponible en local; la phase 4 reste partielle et aucun rollout staging n'est validé. Voir [SUIVI.md](SUIVI.md) et les [rapports de phase](RAPPORT-PHASE-1.md), [phase 2](RAPPORT-PHASE-2.md) et [phase 4](RAPPORT-PHASE-4.md).
 
 ## Sources existantes
 
 - Navigation iOS : `ios-assodarts/Assodarts/Views/Club/ClubTabView.swift` ; accueil adapté au rôle : `DashboardView.swift`.
 - Agenda et réponses des membres : `EventsView.swift`, création : `NewEventSheet.swift` ; les réponses existantes sont privées et écrites par iOS dans `event_registrations`.
 - Rôles `admin`, `board`, `member` : `backend/firestore.rules` et `backend/functions/src/shared/auth.ts`. L'accès administrateur plateforme utilise `platform_admins`.
-- Identité visuelle : `ios-assodarts/Assodarts/Utilities/Theme.swift` ; bleu marine, orange, vert, surfaces claires et variantes sombres.
+- Identité visuelle : `ios-assodarts/Assodarts/Utilities/Theme.swift` ; police système, canvas gris clair, surfaces blanches, bordures grises, orange/vert et marine pour les actions principales. Le site reste en thème clair pour correspondre aux écrans de l'app.
 - Les données `clubs` et `events` sont privées. Les pages publiques utilisent des projections dédiées et ne jamais exposer les profils ou inscriptions privées.
 
 ## Pages prévues
 
 | Espace | URL | Contenu et étape |
 | --- | --- | --- |
-| Vitrine | `assodarts.app/` | Présentation minimale en phase 1 ; proposition de valeur, fonctionnalités, essai 14 jours et contact provisoires en phase 2. |
-| Club public | `{slug}.assodarts.app/` | Placeholder phase 1 ; présentation publiée, horaires, contact et événements publics phase 2. |
-| Club public | `/agenda` | Prochains événements puis passés, phase 2. |
-| Club public | `/e/{eventId}` | Détail public phase 2 ; inscription sans compte phase 3. |
-| Club public | `/annulation` | Confirmation d'annulation phase 3. |
-| Club public | `/resultats` | Seulement si l'audit confirme des données publiables et exploitables. |
-| Responsables | `admin.assodarts.app/` | Placeholder connexion phase 1 ; Auth et sélection du club phase 4. |
-| Responsables | tableau de bord, événements, inscrits, page publique | Gestion autorisée par les rôles existants, phase 4. |
+| Vitrine | `assodarts.app/` | Implémentée avec copie provisoire et aperçu produit. Offre, essai gratuit et contact commercial restent à valider. |
+| Club public | `{slug}.assodarts.app/` | Profil publié, horaires, contact et événements publics depuis les projections. Implémenté en phase 2. |
+| Club public | `/agenda` | Événements à venir puis passés; implémenté en phase 2. |
+| Club public | `/e/{eventId}` | Détail public et SEO; les inscriptions sans compte sont la phase 3 et ne sont pas disponibles. |
+| Club public | `/annulation` | À créer avec les inscriptions en phase 3. |
+| Club public | `/resultats` | Non créée : les résultats disponibles contiennent des données nominatives sans projection publique validée. |
+| Responsables | `admin.assodarts.app/` | Auth Firebase email/mot de passe et résolution par `authUid`/memberships; en staging la configuration Auth reste à valider. |
+| Responsables | Accueil, actualités, événements, membres, tournois | Cinq onglets comme iOS; dashboard par rôle, multi-club, RSVP, création événement/annonce/tournoi et saisie résultat. Phase 4 partielle. |
+| Responsables | Paiements, invitations, profils, rôles, messagerie, paramètres | À porter en phase 4; les règles Firestore existantes restent l'autorité. |
+| Démo locale | `admin.localhost:3000/` | Auth + Firestore Emulator avec comptes membre, bureau, admin club et développeur plateforme; identifiants dans [web/README.md](../../web/README.md). |
 | Responsables | campagnes et préférences | Campagnes email/SMS et gestion des consentements, phase 5. |
 
-La connexion est centralisée sur le domaine admin. Les URLs racine `/c/{slug}/…` redirigent vers le sous-domaine canonique. Le design est mobile d'abord, accessible au clavier, traduit depuis un fichier de messages et adapté aux écrans larges et au mode sombre.
+La connexion est centralisée sur le domaine admin. Les URLs racine `/c/{slug}/…` redirigent vers le sous-domaine canonique. Le design est mobile d'abord, accessible au clavier, traduit depuis un fichier de messages et adapté aux écrans larges. Les pages privées utilisent le SDK navigateur; elles ne créent pas de cookie ni de session serveur.
 
 ## Ordre et points de décision
 
-1. Fiabiliser la CI, les hôtes et le socle ; conserver les pages comme placeholders sans métier ni données réelles.
-2. Ajouter les projections publiques, les slugs uniques/alias, puis le contenu public et le référencement.
-3. Ajouter inscriptions et annulation sans compte. La coexistence avec les réponses iOS existantes est une décision ouverte à documenter avant implémentation.
-4. Ajouter l'espace responsable multi-club, après audit de compatibilité des règles iOS.
-5. Ajouter rappels et campagnes avec consentements, quotas et prestataire SMS à valider.
+1. Socle et hôtes disponibles; rollout staging, CI finale, domaines et Lighthouse restent à prouver.
+2. Pages publiques et projections disponibles; migration des slugs existants, alias 301, revalidation à la demande et domaine personnalisé restent ouverts.
+3. Inscriptions publiques et annulation sans compte non commencées; décider la coexistence avec `event_registrations` iOS avant d'écrire.
+4. Portail Auth/rôles commencé; compléter paiements, invitations, édition des rôles et profils, messagerie, exports, QR codes et tests multi-club/A-B.
+5. Rappels et campagnes avec consentements, quotas et fournisseur SMS non commencés.
 
 À chaque phase : audit ciblé, validation émulateur, tests, build, rapport `RAPPORT-PHASE-N.md`, checklist manuelle et conservation du contrôle des merges et de la production par le propriétaire.

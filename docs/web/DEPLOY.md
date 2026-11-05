@@ -21,6 +21,8 @@ La création assistée est disponible avec `firebase apphosting:backends:create 
 - [ ] Production : `assodarts.app`, `www.assodarts.app`, `admin.assodarts.app`, `*.assodarts.app`.
 - [ ] Suivre la validation et les enregistrements DNS affichés par Firebase pour chaque backend et attendre les certificats. Préserver les enregistrements explicites, notamment DKIM/SPF Resend : ne pas les supprimer au profit du générique.
 - [ ] Firebase Auth : autoriser uniquement les hôtes admin concernés et `localhost` pour le web. Les sous-domaines de club n'ont pas besoin d'Auth.
+- [x] Configuration publique de l'app Web staging ajoutée à `apphosting.staging.yaml` (`NEXT_PUBLIC_FIREBASE_API_KEY`, `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`, `NEXT_PUBLIC_FIREBASE_APP_ID`). Ces valeurs sont intégrées au bundle Next au build; la clé n'est pas un compte de service et ne donne pas accès aux données sans Firebase Auth et les règles Firestore.
+- [ ] Pour la production, enregistrer une app Web dans `assodarts`, puis configurer ses propres valeurs `NEXT_PUBLIC_FIREBASE_*` dans `apphosting.production.yaml`. Ne pas réutiliser les valeurs staging.
 - [ ] Avant une phase nécessitant des secrets, les créer dans Secret Manager, accorder l'accès au compte du backend et ajouter uniquement des références dans `apphosting.yaml`. Aucun secret n'est requis par le squelette phase 1 ; ne pas créer de fausse référence bloquante.
 
 ## Déclenchement
@@ -75,23 +77,23 @@ firebase emulators:exec --project demo-assodarts-rules --only firestore 'cd ../w
 
 Ce test nécessite Node 26 sur le PATH, crée des données uniquement dans l'émulateur et démarre temporairement le serveur Next sur le port 3000. Redémarrer ensuite `./web/dev start`. Le script `backend/functions/scripts/backfill-public.cjs` refuse de s'exécuter sans `FIRESTORE_EMULATOR_HOST` ; ne pas l'utiliser pour une migration de production. Les limites connues sont dans [RAPPORT-PHASE-2.md](RAPPORT-PHASE-2.md).
 
-## Démonstration locale des pages publiques
+## Démonstration locale des rôles et pages
 
 Avec Node 26 (installé via nvm), Java 21 et les dépendances web installées (`cd web && npm ci`), depuis la racine du dépôt :
 
 ```sh
-./web/demo start    # démarre Firestore local, installe les données fictives et relance le web
-./web/demo status   # état du web et de l'émulateur
+./web/demo start    # démarre Auth et Firestore, installe profils/données fictifs, relance le web
+./web/demo status   # état du web et des émulateurs
 ./web/demo restart  # redémarre les deux et réinitialise les données de démonstration
 ./web/demo stop     # arrête les deux processus gérés
 ```
 
-Si Java 21 n'est pas sur le PATH, indiquez son installation avec `JAVA_HOME=/chemin/vers/jdk-21 ./web/demo start`. La première utilisation peut télécharger Firebase CLI 15.35.0 et l'émulateur Firestore. Le port 8080 doit être libre ; le script refuse de tuer un processus inconnu. Les données sont dans le projet isolé `demo-assodarts-web` sur l'émulateur, jamais dans un projet Firebase réel ; elles sont éphémères.
+Si Java 21 n'est pas sur le PATH, indiquez son installation avec `JAVA_HOME=/chemin/vers/jdk-21 ./web/demo start`. La première utilisation peut télécharger Firebase CLI 15.35.0 et les émulateurs Auth/Firestore. Les ports 8080 et 9099 doivent être libres ; le script refuse de tuer un processus inconnu. Les données et comptes sont dans le projet isolé `demo-assodarts-web`, jamais dans un projet Firebase réel; les données sont éphémères.
 
 - Vitrine : http://localhost:3000/
 - Club fictif : http://localhost:3000/?club=club-a
 - Agenda : http://localhost:3000/agenda?club=club-a
 - Détail d'événement : http://localhost:3000/e/tournoi-decouverte?club=club-a
-- Espace responsables (placeholder, connexion non encore développée) : http://admin.localhost:3000/
+- Espace responsables : http://admin.localhost:3000/ (comptes de test listés dans `web/README.md`)
 
 Le sous-domaine `club-a.localhost:3000` fonctionne aussi si votre navigateur résout les sous-domaines `.localhost`. Les formulaires d'inscription et la gestion du club restent à développer dans les phases suivantes ; la page résultats n'est pas créée. Ne pas utiliser `./web/dev restart` pour relancer une démonstration : cette commande seule ne garantit pas que le serveur utilise l'émulateur ; utiliser `./web/demo restart`.
