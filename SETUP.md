@@ -30,7 +30,7 @@ Les tests de règles requièrent Java 21, Firebase CLI 15.35.0 et les dépendanc
 firebase emulators:exec --project demo-assodarts-rules --only firestore,storage 'npm --prefix functions run test:rules'
 ```
 
-Cette commande utilise un projet `demo-` et les règles locales. Elle ne déploie rien. Les premiers scénarios d'isolation et de photos ont réussi localement ; ils ne couvrent pas encore tous les flux métier. `backend/firebase.json` ne définit pas de configuration explicite des ports d'émulateur.
+Cette commande utilise un projet `demo-` et les règles locales. Elle ne déploie rien. Les premiers scénarios d'isolation et de photos ont réussi localement ; ils ne couvrent pas encore tous les flux métier. `backend/firebase.json` configure également l’émulateur App Hosting sur le port 5002, avec `web/` comme racine.
 
 Le projet staging peut aussi être alimenté par `backend/scripts/seed-staging.js` : examiner les options du script et la cible avant toute exécution. Il s'agit d'une action sur un projet réel, distincte des émulateurs.
 
@@ -46,7 +46,7 @@ cd web && nvm install && nvm use && npm ci --ignore-scripts && cd ..
 ./web/dev stop
 ```
 
-La vitrine est disponible sur `http://localhost:3000/` et les pages de substitution sur `http://test-club.localhost:3000/` et `http://admin.localhost:3000/`. Le gestionnaire n'arrête que son propre processus ; un service étranger occupant le port 3000 est laissé intact. Pour les journaux, la résolution des sous-domaines et les limites, voir [web/README.md](web/README.md).
+La vitrine est disponible sur `http://localhost:3000/` et les pages de substitution sur `http://test-club.localhost:3000/` et `http://admin.localhost:3000/`. Le gestionnaire n'arrête que son propre processus ; un service étranger occupant le port 3000 est laissé intact. Pour les journaux, la résolution des sous-domaines et les limites, voir [web/README.md](web/README.md). Pour l’émulateur App Hosting, arrêter `./web/dev` puis, depuis `backend/` avec Node 26 et Java 21 : `firebase emulators:exec --project demo-assodarts-rules --only apphosting,firestore 'curl -fsS http://localhost:5002/'`. Redémarrer ensuite avec `./web/dev start`.
 
 Le lockfile web utilise le registre npm public ; l'installation a réussi localement. Le lockfile `shared/` contient encore des URL d'un registre privé et bloque la CI publique : voir [le suivi](docs/SUIVI-CHANTIERS.md).
 

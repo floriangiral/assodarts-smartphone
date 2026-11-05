@@ -36,6 +36,16 @@ firebase apphosting:rollouts:create --help
 
 La commande de rollout utilisée par les workflows est `firebase apphosting:rollouts:create BACKEND_ID --project PROJECT_ID --git-commit COMMIT_SHA --force --non-interactive`. Ne pas l'exécuter à la main pour contourner les contrôles ou l'approbation. Vérifier en particulier la réussite du build App Hosting et le contrat de résolution d'hôtes derrière le proxy.
 
+## Émulateur App Hosting en local
+
+Avec Node 26, Java 21 et Firebase CLI 15.35.0, arrêter d’abord `./web/dev`, puis depuis `backend/` exécuter :
+
+```sh
+firebase emulators:exec --project demo-assodarts-rules --only apphosting,firestore 'curl -fsS http://localhost:5002/'
+```
+
+La configuration `backend/firebase.json` pointe vers `../web` et `web/apphosting.emulator.yaml` fixe `ROOT_DOMAIN=localhost` et le projet de démonstration. La commande vérifie localement le service sans déployer. Redémarrer ensuite le serveur habituel avec `./web/dev start`.
+
 ## Contrôle des domaines personnalisés en local
 
 Avec Java 21, Firebase CLI 15.35.0 et les dépendances web installées, depuis `backend/` :

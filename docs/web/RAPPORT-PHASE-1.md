@@ -13,9 +13,10 @@
 
 - Functions : build et 227 tests Jest réussis ; les tests de règles Firestore/Storage ont réussi sur émulateur dans le run GitHub du commit `59b56ba`.
 - Package partagé : installation propre, 46 tests Vitest réussis et audit npm sans vulnérabilité au niveau demandé.
-- Web : installation propre `npm ci`, lint, typage, 14 tests Vitest et build Next réussis ; `npm audit --audit-level=high` réussit avec 8 alertes modérées restantes. L’override gRPC 1.14.7 est à suivre.
+- Web : installation propre `npm ci` depuis une archive Git sans dépendances préexistantes, 14 tests Vitest et build Next réussis ; lint et typage réussis dans l’espace de travail ; `npm audit --audit-level=high` réussit avec 8 alertes modérées restantes. L’override gRPC 1.14.7 est à suivre.
 - HTTP local : vitrine, sous-domaine club et admin HTTP 200 ; URL canonique HTTP 301 ; `?club=test-club` HTTP 200 ; slug réservé HTTP 404 avec message club. L’existence des clubs valides n’est pas encore vérifiée. Sur émulateur Firestore, domaine connu HTTP 200 et domaine inconnu HTTP 404 (`npm run test:domain` via `firebase emulators:exec`).
-- CI GitHub : non déclarée verte ; les jobs du dernier run doivent être contrôlés sur le commit final. Aucun déploiement staging réussi n'a été observé.
+- App Hosting et Firestore Emulator Suite : démarrage sur le projet `demo-assodarts-rules`, vitrine HTTP 200 ; configuration locale dans `backend/firebase.json` et `web/apphosting.emulator.yaml`.
+- CI GitHub : sur le commit `fbde3f5`, les jobs web, shared, Functions, règles et secret-scan ont réussi ; iOS était encore en cours au contrôle. La CI du commit final reste à contrôler. Aucun déploiement staging réussi n’a été observé.
 
 ## 3. Écarts et traitement
 
