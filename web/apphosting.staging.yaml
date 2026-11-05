@@ -1,0 +1,4 @@
+env:
+  - variable: ROOT_DOMAIN
+    value: staging.assodarts.app
+    availability: [RUNTIME]

@@ -36,19 +36,19 @@ Le projet staging peut aussi être alimenté par `backend/scripts/seed-staging.j
 
 ## Web local provisoire
 
-Le dossier `web/` n'est pas encore suivi par Git : il n'est disponible que dans l'espace de travail local où il existe. Il contient des pages de substitution, sans connexion ni données Firebase. Avec Node 26 et `nvm`, depuis la racine :
+Le dossier `web/` contient des pages de substitution, sans connexion ni données Firebase. Avec Node 26 et `nvm`, depuis la racine :
 
 ```sh
-cd web
-nvm install
-nvm use
-npm ci --ignore-scripts
-npm run dev -- --hostname 127.0.0.1
+cd web && nvm install && nvm use && npm ci --ignore-scripts && cd ..
+./web/dev start
+./web/dev status
+./web/dev reload
+./web/dev stop
 ```
 
-Ouvrir `http://localhost:3000/`, `http://test-club.localhost:3000/` ou `http://admin.localhost:3000/`. La route `http://localhost:3000/c/test-club` redirige vers le sous-domaine. Arrêter le serveur avec Ctrl+C. Si `*.localhost` ne se résout pas sur la machine, configurer les noms nécessaires dans son fichier hosts. Les URL, les limites et le contexte de validation sont détaillés dans le [suivi web](docs/web/SUIVI.md).
+La vitrine est disponible sur `http://localhost:3000/` et les pages de substitution sur `http://test-club.localhost:3000/` et `http://admin.localhost:3000/`. Le gestionnaire n'arrête que son propre processus ; un service étranger occupant le port 3000 est laissé intact. Pour les journaux, la résolution des sous-domaines et les limites, voir [web/README.md](web/README.md).
 
-Le lockfile web local a été corrigé pour utiliser le registre npm public et `npm ci` a réussi localement ; il n'a pas encore été soumis à la CI. Le lockfile `shared/` suivi contient encore des URL d'un registre privé et bloque la CI publique : ne pas considérer son installation sur un runner GitHub comme vérifiée.
+Le lockfile web utilise le registre npm public ; l'installation a réussi localement. Le lockfile `shared/` contient encore des URL d'un registre privé et bloque la CI publique : voir [le suivi](docs/SUIVI-CHANTIERS.md).
 
 ## CI et environnements
 

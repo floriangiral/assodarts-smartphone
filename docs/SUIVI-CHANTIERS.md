@@ -6,7 +6,7 @@ Dernière vérification : **5 novembre 2026**, sur `develop` au commit `2092e82`
 
 | Chantier | État | Référence |
 | --- | --- | --- |
-| Web multi-club | Phase 1 commencée, aucune des cinq phases terminée. `web/` est local et non versionné. | [Suivi web](web/SUIVI.md) |
+| Web multi-club | Phase 1 commencée, aucune des cinq phases terminée. `web/` est versionné comme squelette ; ses fonctionnalités restent incomplètes. | [Suivi web](web/SUIVI.md) |
 | CI et déploiement | Protections GitHub et changements de workflows en place sur `develop` ; CI non verte au dernier contrôle ; nouvelles règles non encore fusionnées vers release/main. | [Sécurité CI](web/SECURITE-CI.md) |
 | Sécurité Firebase | Premiers tests de règles sur émulateurs ; migration OIDC, audit IAM et couverture complète encore ouverts. | [Architecture](ARCHITECTURE.md) |
 | Structure du dépôt | Audit effectué ; refactorisations proposées, non réalisées. | [Améliorations](#structure-et-maintenance) |
@@ -16,9 +16,9 @@ PR ouverte : [#77, develop vers release-v0.1](https://github.com/floriangiral/as
 
 ## P0 — rétablir une CI reproductible
 
-- [ ] Corriger `shared/package-lock.json` : les URL `resolved` pointent vers un registre d'entreprise inaccessible aux runners GitHub publics. Régénérer proprement avec le registre npm public, vérifier les intégrités et `npm ci` dans un environnement propre. Le lockfile web local a été corrigé et testé mais reste non versionné ; le lockfile Functions utilise déjà le registre public.
+- [ ] Corriger `shared/package-lock.json` : les URL `resolved` pointent vers un registre d'entreprise inaccessible aux runners GitHub publics. Régénérer proprement avec le registre npm public, vérifier les intégrités et `npm ci` dans un environnement propre. Le lockfile web a été corrigé, testé localement et versionné ; le lockfile Functions utilise déjà le registre public.
 - [ ] Aligner les versions de `github/codeql-action/init` et `analyze` pour iOS et backend. Le run [41991299937](https://github.com/floriangiral/assodarts-smartphone/actions/runs/41991299937) a rapporté une configuration CodeQL 3.37.9 utilisée avec l'analyse 4.38.1 ; le contrôle échoue ensuite faute de SARIF. Épingler les deux actions à des SHA compatibles, puis prouver le résultat sur GitHub.
-- [ ] Confirmer le succès des jobs requis sur le commit final et de la PR. Au dernier contrôle du [run 41992766869](https://github.com/floriangiral/assodarts-smartphone/actions/runs/41992766869), les tests de règles et le scan de secrets réussissaient, les jobs Functions et shared échouaient, iOS était encore en cours, et le job web était sauté car `web/` n'est pas versionné. Le run push correspondant était en attente. Ne pas appeler cette CI verte.
+- [ ] Confirmer le succès des jobs requis sur le commit final et de la PR. Au dernier contrôle du [run 41992766869](https://github.com/floriangiral/assodarts-smartphone/actions/runs/41992766869), les tests de règles et le scan de secrets réussissaient, les jobs Functions et shared échouaient, iOS était encore en cours, et le job web était sauté car `web/` n'était alors pas versionné. Le run push correspondant était en attente. Ne pas appeler cette CI verte.
 - [ ] Revoir les alertes Dependabot de `main` après fusion éventuelle des correctifs : au dernier contrôle, 3 critiques, 2 élevées, 4 moyennes et 2 faibles étaient ouvertes. Ne pas supposer qu'elles décrivent les mêmes versions que `develop`.
 
 ## P0 — accès, secrets et déploiements
@@ -37,7 +37,7 @@ PR ouverte : [#77, develop vers release-v0.1](https://github.com/floriangiral/as
 - [x] Codemagic ne doit distribuer automatiquement sur `release-*` que pour des changements iOS ; la distribution manuelle est explicite. Une validation manuelle seule ne déploie rien par défaut.
 - [ ] Prouver ces conditions sur des runs GitHub : aucune preuve distante finale n'est encore disponible. La PR peut déclencher iOS parce qu'elle contient une modification antérieure de `codemagic.yaml`.
 - [ ] Surveiller les coûts et le stockage. Les runners GitHub standards d'un dépôt public sont annoncés gratuits ; Codemagic a sa facturation distincte. Les jobs Linux push et PR sont conservés pour les portes de qualité ; seul le doublon macOS d'un push develop déjà couvert par une PR sur le même SHA est évité.
-- [ ] Intégrer le web dans Git, puis vérifier son job Linux, audit npm, lint, typage, tests et build. Ajouter Playwright quand les parcours le permettront. Ne pas prétendre que le web est actuellement couvert par la CI.
+- [ ] Vérifier le job web Linux, audit npm, lint, typage, tests et build sur GitHub. Ajouter Playwright quand les parcours le permettront. Ne pas prétendre que le web est actuellement couvert par la CI.
 
 ## Structure et maintenance
 
@@ -55,4 +55,4 @@ PR ouverte : [#77, develop vers release-v0.1](https://github.com/floriangiral/as
 - Les versions récentes sont une préférence explicite ; une incompatibilité vérifiée doit être signalée plutôt que forcée silencieusement.
 - La sécurité est prioritaire ; le propriétaire contrôle merges et production. Pas de branche de fonctionnalité, rebase ni force-push sur les branches partagées.
 - Les conflits avec l'existant doivent être documentés avec preuves ; les choix produit restent ouverts, avec les valeurs par défaut indiquées quand elles existent.
-- L'utilisateur a demandé une instance web locale, une CI économe pour le web et les travaux de préproduction, puis cette documentation. L'instance locale a été démarrée et testée ; le dossier n'est pas suivi. La CI iOS a été ajustée, validation distante finale encore attendue.
+- L'utilisateur a demandé une instance web locale, une CI économe pour le web et les travaux de préproduction, puis cette documentation. L'instance locale a été démarrée et testée ; le squelette et son gestionnaire local sont versionnés. La CI iOS a été ajustée, validation distante finale encore attendue.

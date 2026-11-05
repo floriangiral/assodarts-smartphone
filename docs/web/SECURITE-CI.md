@@ -14,7 +14,7 @@ Voir aussi le [suivi général](../SUIVI-CHANTIERS.md) pour les échecs CI const
 
 - [ ] Migrer les déploiements des clés de comptes de service vers Workload Identity Federation/OIDC, en séparant les identités et les rôles staging/production, puis supprimer les anciennes clés après validation. La configuration IAM Google Cloud n'a pas été modifiée.
 - [ ] Vérifier régulièrement les permissions des collaborateurs et les protections des branches.
-- [ ] Valider le job web Linux déjà défini lorsque le dossier web sera prêt et commité ; ajouter Playwright et traiter les vulnérabilités avant déploiement.
+- [ ] Valider le job web Linux sur le squelette désormais versionné ; ajouter Playwright et traiter les vulnérabilités avant déploiement.
 - [ ] Examiner les alertes GitHub Secret Scanning historiques sur des clés Google et vérifier les restrictions effectives de ces clés, sans les présumer secrètes ni les fermer automatiquement.
 - [ ] Traiter les alertes Dependabot ouvertes sur la branche par défaut. Les correctifs sur `develop` n'ont pas été fusionnés dans `main`.
 - [ ] Vérifier en staging les droits IAM, le comportement de l'approbation et la correspondance des SHA ; aucun déploiement réel ni simulation de contournement de production n'a été effectué.
@@ -23,6 +23,6 @@ Voir aussi le [suivi général](../SUIVI-CHANTIERS.md) pour les échecs CI const
 
 - Le contrôle iOS complet tourne pour les changements `ios-assodarts/**` ou `codemagic.yaml`, et à chaque lancement manuel de `Quality`. Une modification du seul workflow, du web ou du backend ne lance pas le simulateur iOS.
 - Si un push sur `develop` est déjà couvert par une PR ouverte portant exactement le même SHA vers une branche suivie, le job macOS du push est sauté ; le job de la PR reste obligatoire. Si GitHub ne peut pas être interrogé, le job macOS est exécuté. Un déploiement manuel de ce SHA exige alors aussi le succès de cette PR.
-- Les contrôles web s'exécutent sur Linux lorsque le web ou les schémas partagés changent et que `web/package.json` est présent, ainsi qu'en lancement manuel. Ils couvrent l'installation, l'audit, le lint, le typage, les tests et le build. La première intégration du dossier web dans Git reste nécessaire ; Playwright n'est pas encore configuré.
+- Les contrôles web s'exécutent sur Linux lorsque le web ou les schémas partagés changent et que `web/package.json` est présent, ainsi qu'en lancement manuel. Ils couvrent l'installation, l'audit, le lint, le typage, les tests et le build. Le squelette web est désormais versionné ; son job n’a pas encore été prouvé en CI et Playwright n’est pas encore configuré.
 - La distribution Codemagic sur un push `release-*` est limitée aux changements iOS ou de sa configuration. Un lancement manuel de `Quality` ne déploie rien par défaut ; l’option `distribute_ios` déclenche explicitement le déploiement staging puis la distribution après succès des contrôles. L’option `deploy_staging` ne déploie que le backend staging. Les déploiements Firebase staging restent indépendants de la présence de changements iOS.
 - Les jobs Linux des événements push et PR continuent d'être exécutés : le déploiement manuel requiert un résultat `Quality` de type push pour le SHA exact et les contrôles de sécurité ne sont pas supprimés.

@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -euo pipefail
+WEB_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+
+# Prefer the configured Node release, while allowing an existing Node 26 PATH.
+if ! command -v node >/dev/null 2>&1 || [[ "$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || true)" != 26 ]]; then
+  NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+  if [[ -s "$NVM_DIR/nvm.sh" ]]; then
+    # nvm's own script is not compatible with nounset.
+    set +u
+    . "$NVM_DIR/nvm.sh"
+    nvm use --silent "$(cat "$WEB_DIR/.nvmrc")" >/dev/null || true
+    set -u
+  fi
+fi
+if ! command -v node >/dev/null 2>&1 || [[ "$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || true)" != 26 ]]; then
+  echo "Node 26 requis. Installez nvm puis lancez : cd web && nvm install" >&2
+  exit 1
+fi
+exec node "$WEB_DIR/scripts/dev-manager.mjs" "$@"

@@ -1,0 +1,4 @@
+env:
+  - variable: ROOT_DOMAIN
+    value: assodarts.app
+    availability: [RUNTIME]

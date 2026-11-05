@@ -16,20 +16,20 @@ Dernière vérification : **5 novembre 2026**, `develop` au commit `2092e82` ava
 
 ## Phase 1 — socle, hôtes et staging
 
-**État : partiel, non terminé.** L'audit initial et le schéma de slug ont été commités. Un squelette web existe uniquement dans le poste de travail courant. Il n'a pas été ajouté à Git ni déployé.
+**État : partiel, non terminé.** L'audit initial et le schéma de slug ont été commités. Un squelette web est versionné avec un gestionnaire local ; il n'a pas été déployé.
 
 ### Réalisé ou observé
 
 - [x] Audit initial : [AUDIT-INITIAL.md](AUDIT-INITIAL.md), qui contient aussi des constatations historiques datées.
 - [x] `shared/src/index.ts` propose `clubSlugSchema`, une liste réservée et `slugify` ; 46 tests Vitest ont réussi localement. Le package n'est pas encore consommé par le web ou les Functions.
 - [x] Le squelette local `web/` contient des pages de substitution, un résolveur d'hôtes, des fichiers Firebase et des configurations App Hosting provisoires. En local, vitrine, club et admin ont répondu HTTP 200 ; `/c/test-club` a répondu 301 vers le sous-domaine. Aucun parcours métier n'a été validé.
-- [x] Lors de l'ajustement local, le lockfile web a été orienté vers le registre npm public et `npm ci --ignore-scripts` a réussi. Ces changements restent non versionnés.
-- [x] Un job web Linux est défini dans `quality.yml` quand le dossier est suivi et concerné. Il a été sauté au dernier run observé car le web n'est pas dans Git.
+- [x] Lors de l'ajustement local, le lockfile web a été orienté vers le registre npm public et `npm ci --ignore-scripts` a réussi. Le lockfile est désormais versionné avec le squelette.
+- [x] Un job web Linux est défini dans `quality.yml` quand le dossier est suivi et concerné. Il a été sauté lors du run historique observé avant l’intégration du web ; aucun run web réussi n’est encore prouvé.
 
 ### Reste à faire
 
 - [ ] Corriger la CI existante : lockfile `shared/` vers registre public et versions CodeQL cohérentes. Relancer et observer les checks de PR et de push.
-- [ ] Vérifier et intégrer le socle web dans Git, sans inclure `node_modules`, `.next`, secrets ou fichiers locaux. Vérifier les versions et dépendances, l'audit npm, ESLint, Prettier, mode sombre et initialisation shadcn.
+- [ ] Vérifier et compléter le socle web versionné, sans inclure `node_modules`, `.next`, secrets ou fichiers locaux. Vérifier les versions et dépendances, l'audit npm, ESLint, Prettier, mode sombre et initialisation shadcn.
 - [ ] Définir l'empaquetage et l'intégration réelle des schémas partagés entre web et Functions sans casser l'archive ou le build Firebase ; tester en CI et émulateur. La validation des slugs est actuellement répétée dans le middleware local et le package partagé.
 - [ ] Terminer le routage : racine et www, admin, slug club, 301 canonique, redirection admin, domaines inconnus via `domains/{host}` côté serveur, hôte et port normalisés. Le middleware ne doit pas interroger Firestore. Vérifier les en-têtes de proxy de confiance et éviter les boucles.
 - [ ] Ajouter la résolution serveur slug → club avec cache lorsque les données nécessaires existeront. En phase 1, ne pas créer prématurément `club_slugs` ni de Function métier.
