@@ -316,6 +316,17 @@ jobs:
         working-directory: backend
       - run: npm run build
         working-directory: web
+      - name: Use the App Hosting staging runtime
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+      - name: Build and check staging indexing policy
+        working-directory: web
+        env:
+          ROOT_DOMAIN: staging.assodarts.app
+        run: |
+          npm run build
+          grep -q 'name="robots" content="noindex, nofollow"' .next/server/app/index.html
 
   shared:
     name: Shared schemas quality
@@ -552,6 +563,10 @@ jobs:
         run: |
           umask 077
           printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$GOOGLE_APPLICATION_CREDENTIALS"
+      - name: Verify backend environment
+        run: |
+          firebase apphosting:backends:get "$APPHOSTING_BACKEND_ID" --project "$FIREBASE_PROJECT_ID" --json |
+            jq -e '.result.environment == "staging"' > /dev/null || { echo 'Backend must explicitly use the staging environment'; exit 1; }
       - name: Roll out the tested commit
         run: firebase apphosting:rollouts:create "$APPHOSTING_BACKEND_ID" --project "$FIREBASE_PROJECT_ID" --git-commit "$GITHUB_SHA" --force --non-interactive
       - name: Remove credentials

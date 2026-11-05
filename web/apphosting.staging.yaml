@@ -1,7 +1,10 @@
 env:
   - variable: ROOT_DOMAIN
     value: staging.assodarts.app
-    availability: [RUNTIME]
+    availability: [BUILD, RUNTIME]
   - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
     value: assodarts-staging
+    availability: [BUILD, RUNTIME]
+  - variable: APPHOSTING_DEFAULT_HOST
+    value: assodarts-web-staging--assodarts-staging.europe-west4.hosted.app
     availability: [BUILD, RUNTIME]

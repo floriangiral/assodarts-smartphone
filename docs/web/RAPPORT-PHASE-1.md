@@ -44,3 +44,7 @@ Les slugs sont définis une seule fois dans `shared/` et consommés côté web ;
 ## 7. Risques et dette
 
 CI finale et staging non prouvés ; backend App Hosting absent ; confiance des en-têtes de proxy à vérifier ; gestion et publication futures des domaines personnalisés à définir ; résolution de clubs et 404 réels en attente de la phase 2 ; validation de l'override gRPC à suivre ; Node/Next récents potentiellement en aperçu chez App Hosting ; migration OIDC et alertes de sécurité historiques encore ouvertes.
+
+## Actualisation — backend staging
+
+Le backend `assodarts-web-staging` a été créé dans `assodarts-staging` (`europe-west4`) et relié au dépôt, environnement `staging`, runtime Node 24 et rollouts automatiques désactivés. Les variables GitHub staging sont configurées. Le premier rollout reste à faire après validation de la CI sur la branche release ; la CI examinée signale un échec SonarQube. Le staging n'est donc pas encore prouvé en ligne. Voir [DEPLOY.md](DEPLOY.md).

@@ -4,7 +4,7 @@ import { resolveHost, resolveRequest } from "./lib/routing/resolveHost";
 
 export function middleware(request: NextRequest) {
   const root = process.env.ROOT_DOMAIN || "localhost";
-  const host = resolveHost(request.headers.get("x-forwarded-host"), request.headers.get("host"), root);
+  const host = resolveHost(request.headers.get("x-forwarded-host"), request.headers.get("host"), root, process.env.APPHOSTING_DEFAULT_HOST);
   const url = request.nextUrl.clone();
   // Local-only fallback where *.localhost is unavailable. It never affects staging or production.
   const localClub = root === "localhost" && host.kind === "marketing" ? url.searchParams.get("club") : null;

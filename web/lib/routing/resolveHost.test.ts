@@ -11,6 +11,11 @@ describe("host routing", () => {
   it("uses a configured staging root", () => {
     expect(resolveHost(null, "club-a.staging.assodarts.app", "staging.assodarts.app")).toEqual({ kind: "club", slug: "club-a" });
   });
+  it("recognizes only the configured App Hosting preview host", () => {
+    const preview = "site.example.hosted.app";
+    expect(resolveHost(null, preview, "staging.assodarts.app", preview)).toEqual({ kind: "marketing" });
+    expect(resolveHost(null, "other.example.hosted.app", "staging.assodarts.app", preview).kind).toBe("custom");
+  });
   it("rewrites admin and club paths", () => {
     expect(resolveRequest({ kind: "admin" }, "/events", "localhost")).toEqual({ action: "rewrite", path: "/admin/events" });
     expect(resolveRequest({ kind: "club", slug: "club-a" }, "/agenda", "localhost")).toEqual({ action: "rewrite", path: "/c/club-a/agenda" });

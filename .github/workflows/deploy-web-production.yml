@@ -48,6 +48,10 @@ jobs:
         run: |
           umask 077
           printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$GOOGLE_APPLICATION_CREDENTIALS"
+      - name: Verify backend environment
+        run: |
+          firebase apphosting:backends:get "$APPHOSTING_BACKEND_ID" --project "$FIREBASE_PROJECT_ID" --json |
+            jq -e '.result.environment == "production"' > /dev/null || { echo 'Backend must explicitly use the production environment'; exit 1; }
       - name: Roll out the tested commit
         run: firebase apphosting:rollouts:create "$APPHOSTING_BACKEND_ID" --project "$FIREBASE_PROJECT_ID" --git-commit "$GITHUB_SHA" --force --non-interactive
       - name: Remove credentials

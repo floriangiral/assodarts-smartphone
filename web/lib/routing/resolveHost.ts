@@ -11,10 +11,10 @@ export function normalizeHost(value: string): string {
 }
 
 /** Forwarded headers must be supplied by a trusted proxy. */
-export function resolveHost(forwardedHost: string | null, host: string | null, rootDomain: string): HostResolution {
+export function resolveHost(forwardedHost: string | null, host: string | null, rootDomain: string, previewHost?: string): HostResolution {
   const hostname = normalizeHost(forwardedHost || host || "");
   const root = normalizeHost(rootDomain);
-  if (hostname === root || hostname === `www.${root}`) return { kind: "marketing" };
+  if (hostname === root || hostname === `www.${root}` || (previewHost && hostname === normalizeHost(previewHost))) return { kind: "marketing" };
   if (hostname === `admin.${root}`) return { kind: "admin" };
   const suffix = `.${root}`;
   if (hostname.endsWith(suffix)) {

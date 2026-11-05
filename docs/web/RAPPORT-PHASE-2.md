@@ -39,7 +39,7 @@
 
 ## Actions manuelles et risques
 
-- [ ] Créer et configurer le backend App Hosting de staging suivant `DEPLOY.md` : il était absent lors de l'audit phase 1. Vérifier domaines, DNS, certificats, en-têtes de proxy et domaine autorisé Auth. Déployer seulement après validation des points précédents.
+- [ ] Valider le premier rollout du backend App Hosting staging créé depuis l'audit phase 1, suivant `DEPLOY.md`. Vérifier domaines, DNS, certificats, en-têtes de proxy et domaine autorisé Auth. Déployer seulement après validation des points précédents.
 - [ ] Valider le texte marketing, les données publiques proposées, le maintien indéfini des alias et la durée de cache.
 - La publication est volontairement opt-in. Aucun résultat nominatif ni inscription publique n'est exposé. Les inscriptions iOS existantes restent inchangées et leur convergence avec la phase 3 reste à arbitrer.
 - Firebase Functions utilise Node 24 ; le web Node 26. Le middleware Next 16 est déprécié au profit de `proxy` ; sa migration reste à planifier avec ses tests de routage.

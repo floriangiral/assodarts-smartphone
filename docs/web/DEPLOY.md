@@ -1,15 +1,17 @@
 # Firebase App Hosting — préparation et déploiement
 
-État du 5 novembre 2026. Aucun backend App Hosting staging n'était présent lors de la vérification CLI (`apphosting:backends:list` sur `assodarts-staging` a retourné une liste vide). Ce document est une préparation ; il ne constitue pas une preuve de déploiement. **Ne pas déployer en production sans décision et validation du propriétaire.**
+État du 5 novembre 2026 : le backend `assodarts-web-staging` existe dans `assodarts-staging`, région `europe-west4`, connecté au dépôt et à la racine `web/`. L'environnement est `staging`, la branche est `release-v0.1` et les rollouts automatiques App Hosting sont désactivés. **Aucun rollout n'a encore été effectué** ; l'adresse gérée Firebase n'est donc pas une preuve que le site est en ligne. **Ne pas déployer en production sans décision et validation du propriétaire.**
 
 ## Préparer les backends
 
 - [ ] Vérifier la facturation et les API requises sur chaque projet, les permissions IAM et les limites de coût.
-- [ ] Dans Firebase Console, créer un backend App Hosting pour `assodarts-staging`, lier `floriangiral/assodarts-smartphone`, sélectionner `web/` comme racine d'application et l'environnement App Hosting `staging` pour charger `apphosting.staging.yaml`.
-- [ ] Sélectionner un runtime compatible avec `web/package.json` (Node 26) ; vérifier sa disponibilité et le support de Next.js/monorepo dans App Hosting. Le web dépend de `file:../shared` ; valider que `shared/` est présent à l'installation/build GitHub App Hosting. En cas d'échec, corriger le packaging avant tout déploiement.
-- [ ] Désactiver les rollouts automatiques App Hosting : GitHub Actions doit déclencher uniquement le commit dont les contrôles ont réussi. Ne pas démarrer un premier rollout avant vérification de la configuration.
-- [ ] Dans l'environnement GitHub `staging`, définir `FIREBASE_PROJECT_ID=assodarts-staging`, `APPHOSTING_BACKEND_ID` avec l'ID réel, et vérifier que `FIREBASE_SERVICE_ACCOUNT` et ses droits permettent App Hosting. La migration vers OIDC reste ouverte.
+- [x] Backend staging créé, dépôt connecté, racine `web/` et environnement `staging` configurés et vérifiés par API.
+- [x] Runtime staging `nodejs24` sélectionné avec mises à jour automatiques de l'image. Le service ne propose que Node 22 et 24 versionnés ; Node 26 reste utilisé en local. Installation et build depuis une archive locale complète vérifiés en Node 24 ; la présence de `shared/` lors du build Cloud reste à confirmer au premier rollout.
+- [x] Rollouts automatiques App Hosting désactivés ; la CI déclenche les rollouts après contrôles.
+- [x] Variables GitHub `staging` `FIREBASE_PROJECT_ID=assodarts-staging` et `APPHOSTING_BACKEND_ID=assodarts-web-staging` configurées. Le secret `FIREBASE_SERVICE_ACCOUNT` existe ; ses droits App Hosting doivent encore être vérifiés lors du déploiement. La migration vers OIDC reste ouverte.
 - [ ] Une fois staging validé, préparer séparément un backend de production dans `assodarts`, environnement GitHub `production` avec `FIREBASE_PROJECT_ID=assodarts` et son propre `APPHOSTING_BACKEND_ID`. Ne créer les ressources ni ne déployer la production sans validation du propriétaire.
+
+L'adresse Firebase réservée est `https://assodarts-web-staging--assodarts-staging.europe-west4.hosted.app` ; elle ne servira l'application qu'après un rollout réussi. Le routage la reconnaît comme vitrine de staging. Le fichier `apphosting.yaml` ne contient plus de paramètres de production par défaut : un backend doit sélectionner explicitement `staging` ou `production`. Les workflows refusent un environnement incohérent ; le backend de production devra donc sélectionner `production`. La variable `ROOT_DOMAIN` est disponible au build et au runtime pour garantir le `noindex` de staging.
 
 La création assistée est disponible avec `firebase apphosting:backends:create --project assodarts-staging` ; les choix de région, de connexion GitHub et de ressources doivent être confirmés dans la console ou l'assistant. La racine de l'application est `web/`. Les [instructions Firebase de monorepo](https://firebase.google.com/docs/app-hosting/monorepos) et de [rollout](https://firebase.google.com/docs/app-hosting/rollouts) précisent les paramètres.
 
