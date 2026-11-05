@@ -17,4 +17,8 @@ if ! command -v node >/dev/null 2>&1 || [[ "$(node -p 'process.versions.node.spl
   echo "Node 26 requis. Installez nvm puis lancez : cd web && nvm install" >&2
   exit 1
 fi
+if [[ "${1:-}" == demo ]]; then
+  shift
+  exec node "$WEB_DIR/scripts/demo-manager.mjs" "$@"
+fi
 exec node "$WEB_DIR/scripts/dev-manager.mjs" "$@"

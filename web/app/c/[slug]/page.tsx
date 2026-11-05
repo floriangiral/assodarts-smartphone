@@ -24,6 +24,10 @@ export async function generateMetadata({ params }: Props) {
 export default async function Club({ params }: Props) {
   const { slug } = await params;
   const club = await getClub(slug);
+  const localClubQuery =
+    process.env.ROOT_DOMAIN === "localhost"
+      ? `?club=${encodeURIComponent(club.slug)}`
+      : "";
   const events = splitEvents(await getEvents(club.id)).upcoming.slice(0, 5);
   return (
     <Shell>
@@ -54,7 +58,7 @@ export default async function Club({ params }: Props) {
                 <li key={e.id}>
                   <Link
                     className="underline"
-                    href={`/e/${encodeURIComponent(e.id)}`}
+                    href={`/e/${encodeURIComponent(e.id)}${localClubQuery}`}
                   >
                     {e.title}
                   </Link>{" "}
@@ -65,7 +69,10 @@ export default async function Club({ params }: Props) {
           ) : (
             <p className="mt-3">Aucun événement à venir.</p>
           )}
-          <Link className="mt-5 inline-block underline" href="/agenda">
+          <Link
+            className="mt-5 inline-block underline"
+            href={`/agenda${localClubQuery}`}
+          >
             Voir l’agenda
           </Link>
         </section>

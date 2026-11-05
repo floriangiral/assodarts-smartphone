@@ -74,3 +74,24 @@ firebase emulators:exec --project demo-assodarts-rules --only firestore 'cd ../w
 ```
 
 Ce test nécessite Node 26 sur le PATH, crée des données uniquement dans l'émulateur et démarre temporairement le serveur Next sur le port 3000. Redémarrer ensuite `./web/dev start`. Le script `backend/functions/scripts/backfill-public.cjs` refuse de s'exécuter sans `FIRESTORE_EMULATOR_HOST` ; ne pas l'utiliser pour une migration de production. Les limites connues sont dans [RAPPORT-PHASE-2.md](RAPPORT-PHASE-2.md).
+
+## Démonstration locale des pages publiques
+
+Avec Node 26 (installé via nvm), Java 21 et les dépendances web installées (`cd web && npm ci`), depuis la racine du dépôt :
+
+```sh
+./web/demo start    # démarre Firestore local, installe les données fictives et relance le web
+./web/demo status   # état du web et de l'émulateur
+./web/demo restart  # redémarre les deux et réinitialise les données de démonstration
+./web/demo stop     # arrête les deux processus gérés
+```
+
+Si Java 21 n'est pas sur le PATH, indiquez son installation avec `JAVA_HOME=/chemin/vers/jdk-21 ./web/demo start`. La première utilisation peut télécharger Firebase CLI 15.35.0 et l'émulateur Firestore. Le port 8080 doit être libre ; le script refuse de tuer un processus inconnu. Les données sont dans le projet isolé `demo-assodarts-web` sur l'émulateur, jamais dans un projet Firebase réel ; elles sont éphémères.
+
+- Vitrine : http://localhost:3000/
+- Club fictif : http://localhost:3000/?club=club-a
+- Agenda : http://localhost:3000/agenda?club=club-a
+- Détail d'événement : http://localhost:3000/e/tournoi-decouverte?club=club-a
+- Espace responsables (placeholder, connexion non encore développée) : http://admin.localhost:3000/
+
+Le sous-domaine `club-a.localhost:3000` fonctionne aussi si votre navigateur résout les sous-domaines `.localhost`. Les formulaires d'inscription et la gestion du club restent à développer dans les phases suivantes ; la page résultats n'est pas créée. Ne pas utiliser `./web/dev restart` pour relancer une démonstration : cette commande seule ne garantit pas que le serveur utilise l'émulateur ; utiliser `./web/demo restart`.
