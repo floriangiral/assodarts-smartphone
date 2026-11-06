@@ -32,6 +32,18 @@ function candidateSlug(base, suffix) {
   return `${prefix}${tail}`;
 }
 
+function getSlugPlan(data, clubId) {
+  const currentSlug =
+    typeof data.slug === "string" && clubSlugSchema.safeParse(data.slug).success
+      ? data.slug
+      : null;
+  const suggested = slugify(String(data.name ?? ""));
+  const base = clubSlugSchema.safeParse(suggested).success
+    ? suggested
+    : fallbackSlug(clubId);
+  return { currentSlug, base, firstChoice: currentSlug ?? base };
+}
+
 async function migrateCandidate(db, clubRef, clubId, slug, apply) {
   return db.runTransaction(async (transaction) => {
     const currentClub = await transaction.get(clubRef);
@@ -88,15 +100,7 @@ async function migrateClub(db, clubId, reserved) {
   if (!initial.exists) return { status: "missing", clubId };
 
   const data = initial.data() ?? {};
-  const currentSlug =
-    typeof data.slug === "string" && clubSlugSchema.safeParse(data.slug).success
-      ? data.slug
-      : null;
-  const suggested = slugify(String(data.name ?? ""));
-  const base = clubSlugSchema.safeParse(suggested).success
-    ? suggested
-    : fallbackSlug(clubId);
-  const firstChoice = currentSlug ?? base;
+  const { currentSlug, base, firstChoice } = getSlugPlan(data, clubId);
 
   for (let suffix = 0; suffix < 100; suffix += 1) {
     const slug = suffix === 0 ? firstChoice : candidateSlug(base, suffix);
