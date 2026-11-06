@@ -17,4 +17,7 @@ describe("slugify", () => {
   it.each([["Club Éléphant", "club-elephant"], ["  Fléchettes & Darts ! ", "flechettes-darts"], ["東京", ""], ["a".repeat(41), "a".repeat(40)], ["e\u0301cole", "ecole"]])("suggests %s", (name, slug) => {
     expect(slugify(name)).toBe(slug);
   });
+  it("handles long punctuation-heavy names without changing the slug format", () => {
+    expect(slugify(`${"Club ! ".repeat(100)}Darts`)).toBe("club-club-club-club-club-club-club-club");
+  });
 });

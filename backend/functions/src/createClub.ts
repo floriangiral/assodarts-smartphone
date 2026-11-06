@@ -1,7 +1,6 @@
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
 import { randomUUID } from "node:crypto";
-import { requireNotPlatformAdmin } from "./shared/auth";
 import { clubSlugSchema, slugify } from "./shared/club-slug";
 
 export const createClub = onCall(async (request) => {
@@ -19,7 +18,6 @@ export const createClub = onCall(async (request) => {
 
   const db = getFirestore();
   const uid = request.auth.uid;
-  await requireNotPlatformAdmin(uid);
 
   const memberQuery = await db
     .collection("members")
@@ -45,9 +43,18 @@ export const createClub = onCall(async (request) => {
   const base = clubSlugSchema.safeParse(proposed).success
     ? proposed
     : `club-${clubId.slice(0, 8)}`;
-  for (let suffix = 0; suffix < 100; suffix++) {
+  const createWithSlug = async (
+    suffix: number,
+  ): Promise<{ clubId: string }> => {
+    if (suffix >= 100) {
+      throw new HttpsError(
+        "resource-exhausted",
+        "Could not allocate a club slug",
+      );
+    }
     const tail = suffix === 0 ? "" : `-${suffix + 1}`;
-    const slug = `${base.slice(0, 40 - tail.length).replace(/-+$/, "")}${tail}`;
+    const prefix = base.slice(0, 40 - tail.length);
+    const slug = `${prefix.endsWith("-") ? prefix.slice(0, -1) : prefix}${tail}`;
     try {
       return await db.runTransaction(async (transaction) => {
         const clubRef = db.collection("clubs").doc(clubId);
@@ -117,12 +124,11 @@ export const createClub = onCall(async (request) => {
         return { clubId };
       });
     } catch (error) {
-      if (
-        !(error instanceof HttpsError) ||
-        error.message !== "Slug unavailable"
-      )
-        throw error;
+      if (error instanceof HttpsError && error.message === "Slug unavailable") {
+        return createWithSlug(suffix + 1);
+      }
+      throw error;
     }
-  }
-  throw new HttpsError("resource-exhausted", "Could not allocate a club slug");
+  };
+  return createWithSlug(0);
 });

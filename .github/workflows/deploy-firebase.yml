@@ -89,6 +89,7 @@ jobs:
           PROJECT_ID=$(printf '%s' "$FIREBASE_PROJECT_ID" | tr -d '[:space:]')
           case "$PROJECT_ID" in
             *[!a-z0-9-]*|'') echo "FIREBASE_PROJECT_ID is invalid"; exit 1 ;;
+            *) ;;
           esac
           echo "FIREBASE_PROJECT_ID=$PROJECT_ID" >> "$GITHUB_ENV"
         env:

@@ -14,6 +14,15 @@ const aliasSlug = `ancien-${randomUUID().slice(0, 8)}`;
 const eventId = randomUUID();
 const privateEventId = randomUUID();
 const paths = [`club_slugs/${slug}`, `club_slugs/${aliasSlug}`, `clubs_public/${clubId}`, `events_public/${eventId}`, `events_public/${privateEventId}`];
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+async function waitForServer(attempts) {
+  try {
+    if ((await get('localhost', '/')).status === 200) return true;
+  } catch {}
+  if (attempts <= 1) return false;
+  await delay(250);
+  return waitForServer(attempts - 1);
+}
 await db.doc(`club_slugs/${slug}`).set({clubId, status:'active'});
 await db.doc(`club_slugs/${aliasSlug}`).set({clubId, status:'alias'});
 await db.doc(`clubs_public/${clubId}`).set({name:'Club Démo', slug, isPublished:true, logoUrl:'https://images.example/logo.png', coverUrl:'https://images.example/cover.jpg', socialLinks:{Instagram:'https://instagram.com/demo'}});
@@ -21,9 +30,7 @@ await db.doc(`events_public/${eventId}`).set({clubId, isPublished:true, title:'T
 await db.doc(`events_public/${privateEventId}`).set({clubId, isPublished:false, title:'Secret'});
 const server = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '--hostname', '127.0.0.1', '--port', '3000'], { env: {...process.env, ROOT_DOMAIN:'localhost'}, stdio:'inherit' });
 try {
-  let ready = false;
-  for (let i=0; i<60; i++) { try { const r = await get('localhost','/'); if(r.status === 200) {ready = true; break;} } catch {} await new Promise(r => setTimeout(r,250)); }
-  assert(ready, 'Next server did not start');
+  assert(await waitForServer(60), 'Next server did not start');
   let response = await get(`${slug}.localhost`,'/');
   assert.equal(response.status,200); const homeBody = await response.text(); assert.match(homeBody,/Club Démo/); assert.match(homeBody,/logo.png/); assert.match(homeBody,/cover.jpg/); assert.match(homeBody,/instagram.com\/demo/);
   response = await get(`${slug}.localhost`,`/e/${eventId}`);

@@ -1,72 +1,11 @@
 export const messages = {
   title: "Assodarts",
-  tagline: "Le club, réuni autour des fléchettes.",
-  marketing:
-    "Un espace pour organiser la vie de votre club et retrouver ses événements.",
-  marketingTrial: "Découvrez Assodarts avec 14 jours d’essai gratuit.",
-  marketingFeatures:
-    "Membres, événements et vie du club réunis dans un même espace.",
-  preview: "Site en préparation",
   navigation: {
     clubHome: "Le club",
     agenda: "Agenda",
     contact: "Contacter",
     features: "L’application",
-    admin: "Espace responsable",
-  },
-  marketingPage: {
-    eyebrow: "Le quotidien des clubs de fléchettes",
-    headlineLead: "Le club en jeu.",
-    headlineAccent: "Tout le reste",
-    headlineEnd: ", plus simple.",
-    description:
-      "Membres, événements et vie associative, réunis dans un espace pensé pour les clubs de fléchettes.",
-    adminLink: "Découvrir l’espace club",
-    featuresLink: "Voir les fonctionnalités",
-    accessNote:
-      "Aperçu du produit. L’accès responsable sera ouvert après la mise en service de la connexion.",
-    previewLabel: "Aperçu de l’application Assodarts",
-    clubSpace: "Espace club",
-    season: "Saison en cours",
-    members: "Membres",
-    memberSnapshot: "En équipe",
-    nextEvent: "Prochain rendez-vous",
-    calendarSnapshot: "Agenda",
-    onTheBill: "À l’affiche",
-    eventExample: "Tournoi du club",
-    eventTeaser: "Événement · inscriptions à venir",
-    clubLife: "La vie du club",
-    together: "Au même endroit",
-    seasonOrganization: "La saison, bien organisée",
-    toolsSummary: "Membres · calendrier · actualités",
-    clubFocused: "Pensé pour les clubs",
-    featuresEyebrow: "Moins d’administratif, plus de jeu",
-    featuresTitle: "Tout ce qui fait vivre un club, sans s’éparpiller.",
-    featuresDescription:
-      "Une base claire pour les responsables et un point de rendez-vous pour les membres.",
-    featureCards: [
-      {
-        title: "Les membres",
-        description:
-          "Retrouvez les adhérents et les informations utiles à la vie associative.",
-      },
-      {
-        title: "Les événements",
-        description:
-          "Organisez les rendez-vous du club et partagez un agenda lisible.",
-      },
-      {
-        title: "Un espace commun",
-        description:
-          "Les outils du club et son actualité restent au même endroit.",
-      },
-    ],
-    mobileEyebrow: "Du terrain au téléphone",
-    mobileTitle: "Une expérience familière, où que vous soyez.",
-    mobileDescription:
-      "Assodarts accompagne déjà les clubs sur iPhone. Le site prolonge cet univers avec des pages publiques et des outils web dédiés.",
-    provisional:
-      "Présentation provisoire. Les offres, l’essai gratuit et les coordonnées commerciales seront ajoutés après validation.",
+    admin: "Espace club",
   },
   clubPage: {
     eyebrow: "Club de fléchettes",
@@ -101,22 +40,6 @@ export const messages = {
     contactClub: "Contacter le club",
     returnAgenda: "Retour à l’agenda",
   },
-  adminPage: {
-    eyebrow: "Espace responsables",
-    title: "Le cockpit du club, bientôt sur le web.",
-    description:
-      "Nous préparons un espace pour gérer les événements, les inscriptions et la page publique de votre club.",
-    status: "Accès en préparation",
-    statusDetail:
-      "La connexion sécurisée avec votre compte Assodarts sera activée dans une prochaine étape.",
-    backHome: "Retour à Assodarts",
-    current: "Déjà disponible sur le site",
-    publicPages: "Pages publiques des clubs",
-    publicPagesDetail: "Présentation, agenda et détail des événements publiés.",
-    nextSteps: "Prochaine étape",
-    nextStepsDetail:
-      "Connexion responsable et outils de gestion, sans créer un second compte.",
-  },
   adminWorkspace: {
     appName: "Espace club",
     tabs: {
@@ -130,7 +53,7 @@ export const messages = {
       member: "Membre",
       committee: "Bureau",
       admin: "Administrateur",
-      platform: "Développeur plateforme",
+      platform: "Administrateur plateforme",
     },
     loading: "Chargement de votre espace…",
     configurationTitle: "Connexion Firebase à configurer",
@@ -151,9 +74,9 @@ export const messages = {
     noMembershipTitle: "Votre compte n’a pas d’accès actif à un club.",
     noMembershipDescription:
       "Demandez à un responsable du club de vérifier votre adhésion dans l’application.",
-    platformTitle: "Espace développeur",
+    platformTitle: "Administration Assodarts",
     platformDescription:
-      "Ce compte est administrateur de la plateforme. La console développeur web n’est pas encore disponible.",
+      "Votre compte dispose d’un accès à la plateforme. La console d’administration web est en cours de préparation.",
     signOut: "Se déconnecter",
     greeting: "Bonjour",
     clubSwitcher: "Club actif",
@@ -229,10 +152,6 @@ export const messages = {
     complete: "Terminé",
     inProgress: "En cours",
   },
-  club: "Page du club",
-  clubPlaceholder: "Cet espace est en cours de préparation.",
-  admin: "Espace responsables",
-  adminPlaceholder: "La connexion sera disponible prochainement.",
   notFound: "Page introuvable",
   notFoundDescription: "Cette page n’est pas disponible.",
   clubNotFound: "Ce club n’existe pas.",

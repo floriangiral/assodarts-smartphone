@@ -45,7 +45,10 @@ function isAdminPath(path: string): boolean {
   return path === "/admin" || path.startsWith("/admin/");
 }
 
-function resolveAdminPath(path: string): RouteDecision {
+function resolveAdminPath(path: string, root: string): RouteDecision {
+  if (path === "/retour-accueil") {
+    return { action: "redirect", host: root, path: "/" };
+  }
   return isAdminPath(path)
     ? { action: "next" }
     : { action: "rewrite", path: `/admin${path === "/" ? "" : path}` };
@@ -71,8 +74,11 @@ export function resolveRequest(
   rootDomain: string,
 ): RouteDecision {
   const root = normalizeHost(rootDomain);
-  if (host.kind === "custom") return { action: "custom", host: host.host };
+  if (host.kind === "custom") {
+    if (isAdminPath(path)) return { action: "redirect", host: `admin.${root}`, path: path.slice(6) || "/" };
+    return { action: "custom", host: host.host };
+  }
   if (host.kind === "marketing") return resolveMarketingPath(path, root);
-  if (host.kind === "admin") return resolveAdminPath(path);
+  if (host.kind === "admin") return resolveAdminPath(path, root);
   return resolveClubPath(host, path, root);
 }

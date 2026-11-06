@@ -24,6 +24,8 @@ describe("host routing", () => {
     expect(resolveRequest({ kind: "marketing" }, "/c/club-a/agenda", "localhost")).toEqual({ action: "redirect", host: "club-a.localhost", path: "/agenda" });
     expect(resolveRequest({ kind: "club", slug: "club-a" }, "/admin/events", "localhost")).toEqual({ action: "redirect", host: "admin.localhost", path: "/events" });
     expect(resolveRequest({ kind: "marketing" }, "/c/admin", "localhost")).toEqual({ action: "next" });
+    expect(resolveRequest({ kind: "marketing" }, "/admin", "localhost")).toEqual({ action: "redirect", host: "admin.localhost", path: "/" });
+    expect(resolveRequest({ kind: "admin" }, "/retour-accueil", "staging.assodarts.app")).toEqual({ action: "redirect", host: "staging.assodarts.app", path: "/" });
   });
   it("leaves unknown hosts for server-side resolution", () => {
     expect(resolveRequest({ kind: "custom", host: "other.example" }, "/", "localhost")).toEqual({ action: "custom", host: "other.example" });

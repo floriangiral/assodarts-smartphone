@@ -1,6 +1,6 @@
 # Web — développement et démonstration locale
 
-Les pages publiques club, agenda et événement sont rendues côté serveur depuis les projections Firestore. `/admin` utilise le même compte Firebase email/mot de passe et les memberships de l'app iOS; son premier espace comporte les cinq onglets principaux et les règles Firestore existantes restent l'autorité. La vitrine reste provisoire. Les paiements, invitations, messagerie et administration des rôles ne sont pas encore portés sur le web; les inscriptions publiques restent en phase 3. Voir [le suivi des phases](../docs/web/SUIVI.md).
+Les pages publiques club, agenda et événement sont rendues côté serveur depuis les projections Firestore. `/admin` utilise le même compte Firebase email/mot de passe et les memberships de l'app iOS; son premier espace comporte les cinq onglets principaux et les règles Firestore existantes restent l'autorité. La vitrine lit son contenu publié dans Firestore et affiche un état indisponible si aucun contenu valide n’est publié. Les paiements, invitations, messagerie et administration des rôles ne sont pas encore portés sur le web; les inscriptions publiques restent en phase 3. Voir [le suivi des phases](../docs/web/SUIVI.md).
 
 ## Installation
 
@@ -41,8 +41,14 @@ Le navigateur peut aussi utiliser `club-a.localhost:3000` si les sous-domaines `
 | Bureau | `bureau@demo.assodarts.test` |
 | Admin du club | `admin@demo.assodarts.test` |
 | Développeur plateforme | `developpeur@demo.assodarts.test` |
+| Administrateur plateforme et membre | `double-role@demo.assodarts.test` |
+| Éditeur du site | `site@demo.assodarts.test` |
 
 Le mot de passe temporaire, régénéré à chaque démarrage, est affiché par `./web/demo start`. Ces identifiants fonctionnent uniquement avec `./web/demo` et les émulateurs locaux; ne les réutilisez jamais en staging ou production. Les inscriptions publiques et la page résultats ne sont pas disponibles. Les ports 8080, 9099 ou 3000 occupés par un processus étranger doivent être libérés par son propriétaire : les scripts ne l'arrêtent pas.
+
+Un compte peut être administrateur de la plateforme et membre d'un ou plusieurs clubs. Dans ce cas, l'espace club propose « Administration Assodarts » et l'écran plateforme permet de revenir à l'espace club. Les droits de club restent ceux de chaque adhésion : le rôle plateforme ne confère pas de droits de gestion du club. Les permissions sont relues sur le serveur à l'ouverture de l'espace ; une connexion Firestore est donc nécessaire. L'administration plateforme affiche les clubs en lecture seule par groupes de 50 ; ses autres fonctions restent à réaliser. La gestion du site permet aux éditeurs autorisés de modifier, prévisualiser et publier les contenus de la vitrine (titre, description et sections facultatives). Le changement d'espace n'est pas encore disponible dans l'application iOS.
+
+Le droit d'édition du site est distinct des droits plateforme et club. Pour l'attribuer à un compte existant, un opérateur disposant des droits Firebase peut exécuter `node backend/scripts/grant-site-editor.js --project-id <projet> --email <adresse>`. Il se retire en supprimant le document `site_editors/<uid>` avec les droits d'administration Firebase. Le brouillon est privé ; seul le contenu publié est affiché sur la vitrine. Pour initialiser un environnement vide, un éditeur autorisé doit saisir puis publier ses contenus ; aucune donnée de remplacement n’est injectée en production. Les dix dernières publications effectuées après cette mise à jour sont consultables et peuvent être reprises dans l'éditeur. Une modification concurrente est détectée avant enregistrement : l'éditeur conserve son texte à l'écran pour pouvoir le copier avant de recharger la dernière version.
 
 `./web/demo` fournit une clé cliente factice et connecte explicitement le navigateur aux émulateurs; aucune clé réelle n'est nécessaire pour parcourir les rôles.
 

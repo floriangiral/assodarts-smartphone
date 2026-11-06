@@ -14,6 +14,13 @@ const nextBin = join(webDir, "node_modules/next/dist/bin/next");
 const port = 3000;
 const delay = (ms) => new Promise((done) => setTimeout(done, ms));
 
+async function waitFor(check, attempts, interval) {
+  if (await check()) return true;
+  if (attempts <= 1) return false;
+  await delay(interval);
+  return waitFor(check, attempts - 1, interval);
+}
+
 function state() {
   try {
     const value = JSON.parse(readFileSync(statePath, "utf8"));
@@ -67,13 +74,10 @@ async function stop() {
   const pgid = spawnSync("/bin/ps", ["-p", String(value.pid), "-o", "pgid="], { encoding: "utf8" }).stdout.trim();
   if (pgid !== String(value.pid)) throw new Error("Groupe de processus inattendu ; arrêt refusé.");
   process.kill(-value.pid, "SIGTERM");
-  for (let i = 0; i < 100; i++) {
-    if (!managed(value) && await isPortFree()) {
-      removeState();
-      console.log("Serveur web arrêté.");
-      return;
-    }
-    await delay(100);
+  if (await waitFor(async () => !managed(value) && await isPortFree(), 100, 100)) {
+    removeState();
+    console.log("Serveur web arrêté.");
+    return;
   }
   throw new Error(`Arrêt non confirmé ; vérifier le PID ${value.pid} et le port ${port}.`);
 }
@@ -96,14 +100,14 @@ async function start() {
   if (!child.pid) throw new Error("Impossible de démarrer Next.js.");
   writeFileSync(statePath, JSON.stringify({ pid: child.pid, port }) + "\n", { mode: 0o600 });
   child.unref();
-  for (let i = 0; i < 300; i++) {
+  const readyInTime = await waitFor(async () => {
     if (!managed({ pid: child.pid, port })) { removeState(); throw new Error(`Le serveur s'est arrêté. Voir ${logPath}`); }
-    if (await ready()) {
-      console.log(`Serveur prêt : http://localhost:${port}/ (PID ${child.pid})`);
-      console.log(`Journaux : ${logPath}`);
-      return;
-    }
-    await delay(100);
+    return ready();
+  }, 300, 100);
+  if (readyInTime) {
+    console.log(`Serveur prêt : http://localhost:${port}/ (PID ${child.pid})`);
+    console.log(`Journaux : ${logPath}`);
+    return;
   }
   throw new Error(`Le serveur n'est pas prêt après 30 secondes. Voir ${logPath} ; utilisez stop pour l'arrêter.`);
 }
@@ -140,8 +144,11 @@ async function showStatus() {
   }
 
   const portFree = await isPortFree();
+  const status = portFree
+    ? "Serveur arrêté."
+    : `Serveur arrêté ; port ${port} occupé par un autre processus.`;
   console.log(
-    `Serveur arrêté${portFree ? "." : ` ; port ${port} occupé par un autre processus.`}`,
+    status,
   );
   process.exitCode = 1;
 }
@@ -186,4 +193,9 @@ async function main() {
   }
 }
 
-main().catch((error) => { console.error(`Erreur : ${error.message}`); process.exitCode = 1; });
+try {
+  await main();
+} catch (error) {
+  console.error(`Erreur : ${error.message}`);
+  process.exitCode = 1;
+}

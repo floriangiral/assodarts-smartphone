@@ -4,7 +4,9 @@ import {
   deleteDoc,
   doc,
   getDoc,
+  getDocFromServer,
   getDocs,
+  getDocsFromServer,
   query,
   serverTimestamp,
   setDoc,
@@ -14,6 +16,7 @@ import {
 import { httpsCallable } from "firebase/functions";
 import { clientDb, clientFunctions } from "@/lib/firebase/client";
 import { canManageClub, roleFromMembership, type ClubRole } from "./roles";
+import { persistedAttendance, persistedScore } from "./values";
 
 export interface ClubAccess {
   id: string;
@@ -25,11 +28,14 @@ export interface ClubAccess {
 }
 
 export type ClubSessionResult =
-  | { kind: "platform-admin"; uid: string; email: string }
+  | { kind: "platform-admin"; uid: string; email: string; siteEditor: boolean }
+  | { kind: "site-editor"; uid: string; email: string }
   | { kind: "no-profile"; uid: string; email: string }
   | { kind: "no-membership"; uid: string; email: string; memberId: string }
   | {
       kind: "club-member";
+      platformAdmin: boolean;
+      siteEditor: boolean;
       uid: string;
       email: string;
       memberId: string;
@@ -80,7 +86,7 @@ export interface ClubTournament {
   name: string;
   date: Date | null;
   location: string;
-  isFinished: boolean;
+  isFinished: boolean | null;
   markerIds: string[];
   entries: ClubTournamentEntry[];
 }
@@ -91,8 +97,8 @@ export interface ClubTournamentEntry {
   tour: string;
   playerA: string;
   playerB: string;
-  scoreA: number;
-  scoreB: number;
+  scoreA: number | null;
+  scoreB: number | null;
 }
 
 export interface ClubWorkspaceData {
@@ -106,20 +112,26 @@ export interface ClubWorkspaceData {
 export async function resolveClubSession(user: User): Promise<ClubSessionResult> {
   const db = clientDb();
   const email = user.email ?? "";
-  const platformAdmin = await getDoc(doc(db, "platform_admins", user.uid));
-  if (platformAdmin.exists()) {
-    return { kind: "platform-admin", uid: user.uid, email };
-  }
+  // Authorization decisions must not be based on an offline Firestore cache.
+  const [platformAdmin, siteEditor] = await Promise.all([
+    getDocFromServer(doc(db, "platform_admins", user.uid)),
+    getDocFromServer(doc(db, "site_editors", user.uid)),
+  ]);
+  const isPlatformAdmin = platformAdmin.exists();
+  const isSiteEditor = siteEditor.exists();
+  const withoutClub = () => isPlatformAdmin
+    ? { kind: "platform-admin" as const, uid: user.uid, email, siteEditor: isSiteEditor }
+    : isSiteEditor ? { kind: "site-editor" as const, uid: user.uid, email } : null;
 
-  const memberQuery = await getDocs(
+  const memberQuery = await getDocsFromServer(
     query(collection(db, "members"), where("authUid", "==", user.uid)),
   );
   const memberDocument = memberQuery.docs[0];
-  if (!memberDocument) return { kind: "no-profile", uid: user.uid, email };
+  if (!memberDocument) return withoutClub() ?? { kind: "no-profile", uid: user.uid, email };
 
   const memberData = memberDocument.data();
   const memberId = memberDocument.id;
-  const memberships = await getDocs(
+  const memberships = await getDocsFromServer(
     query(
       collection(db, "memberships"),
       where("memberId", "==", memberId),
@@ -128,14 +140,14 @@ export async function resolveClubSession(user: User): Promise<ClubSessionResult>
     ),
   );
   if (memberships.empty) {
-    return { kind: "no-membership", uid: user.uid, email, memberId };
+    return withoutClub() ?? { kind: "no-membership", uid: user.uid, email, memberId };
   }
 
   const clubs = (
     await Promise.all(
       memberships.docs.map(async (membershipDocument) => {
         const membership = membershipDocument.data();
-        const clubDocument = await getDoc(doc(db, "clubs", membership.clubId));
+        const clubDocument = await getDocFromServer(doc(db, "clubs", membership.clubId));
         if (!clubDocument.exists()) return null;
         const club = clubDocument.data();
         return {
@@ -153,10 +165,12 @@ export async function resolveClubSession(user: User): Promise<ClubSessionResult>
     .sort((a, b) => a.name.localeCompare(b.name, "fr"));
 
   if (!clubs.length) {
-    return { kind: "no-membership", uid: user.uid, email, memberId };
+    return withoutClub() ?? { kind: "no-membership", uid: user.uid, email, memberId };
   }
   return {
     kind: "club-member",
+    platformAdmin: isPlatformAdmin,
+    siteEditor: isSiteEditor,
     uid: user.uid,
     email,
     memberId,
@@ -198,8 +212,8 @@ export async function loadClubWorkspace(
       tour: stringValue(data.tour),
       playerA: stringValue(data.playerA),
       playerB: stringValue(data.playerB),
-      scoreA: typeof data.scoreA === "number" ? data.scoreA : 0,
-      scoreB: typeof data.scoreB === "number" ? data.scoreB : 0,
+      scoreA: persistedScore(data.scoreA),
+      scoreB: persistedScore(data.scoreB),
     };
   });
 
@@ -232,13 +246,13 @@ export async function loadClubWorkspace(
       })
       .sort((a, b) => (a.startsAt?.getTime() ?? 0) - (b.startsAt?.getTime() ?? 0)),
     attendance: attendance.docs
-      .filter((snapshot) => snapshot.data().memberId === memberId)
+      .filter((snapshot) => snapshot.data().memberId === memberId && persistedAttendance(snapshot.data().status) !== null)
       .map((snapshot) => {
         const data = snapshot.data();
         return {
           eventId: stringValue(data.eventId),
           memberId: stringValue(data.memberId),
-          status: data.status === "declined" ? "declined" : "going",
+          status: persistedAttendance(data.status)!,
         };
       }),
     members: roster,
@@ -250,7 +264,7 @@ export async function loadClubWorkspace(
           name: stringValue(data.name),
           date: dateValue(data.date),
           location: stringValue(data.location),
-          isFinished: data.isFinished === true,
+          isFinished: typeof data.isFinished === "boolean" ? data.isFinished : null,
           markerIds: Array.isArray(data.markerIds)
             ? data.markerIds.filter((value): value is string => typeof value === "string")
             : [],
@@ -411,7 +425,7 @@ export async function recordTournamentResult(
     clubId,
     tournamentId,
     tableau: input.tableau.trim(),
-    tour: input.tour.trim() || "Match",
+    tour: input.tour.trim(),
     playerA: input.playerA.trim(),
     playerB: input.playerB.trim(),
     scoreA: input.scoreA,

@@ -54,6 +54,16 @@ const members = [
     licenseNumber: "FFD-1001",
     seasonStatus: "player",
   },
+  {
+    id: "55555555-5555-4555-8555-555555555555",
+    uid: "demo-dual-uid",
+    email: "double-role@demo.assodarts.test",
+    firstName: "Noa",
+    lastName: "Demo",
+    role: "member",
+    licenseNumber: "",
+    seasonStatus: "member",
+  },
 ];
 const platformAdmin = {
   uid: "demo-platform-admin-uid",
@@ -61,7 +71,8 @@ const platformAdmin = {
   firstName: "Sam",
   lastName: "Demo",
 };
-for (const user of [...members, platformAdmin]) {
+const siteEditor = { uid: "demo-site-editor-uid", email: "site@demo.assodarts.test", firstName: "Lou", lastName: "Demo" };
+for (const user of [...members, platformAdmin, siteEditor]) {
   const credentials = {
     email: user.email,
     password: demoPassword,
@@ -284,6 +295,11 @@ batch.set(db.doc(`platform_admins/${platformAdmin.uid}`), {
   authUid: platformAdmin.uid,
   email: platformAdmin.email,
 });
+batch.set(db.doc(`platform_admins/${members[3].uid}`), {
+  authUid: members[3].uid,
+  email: members[3].email,
+});
+batch.set(db.doc(`site_editors/${siteEditor.uid}`), { email: siteEditor.email });
 await batch.commit();
 await db.terminate();
 console.log("Données et comptes de démonstration installés dans les émulateurs locaux.");

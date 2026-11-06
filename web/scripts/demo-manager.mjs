@@ -23,6 +23,13 @@ const logFile = join(dir, "demo-emulator.log");
 const javaFile = join(dir, "demo-java-home");
 const project = "demo-assodarts-web";
 const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
+async function waitFor(check, attempts, interval) {
+  if (await check()) return true;
+  if (attempts <= 1) return false;
+  await sleep(interval);
+  return waitFor(check, attempts - 1, interval);
+}
+
 function readState() {
   try {
     return JSON.parse(readFileSync(stateFile, "utf8"));
@@ -86,12 +93,9 @@ async function stopEmulator() {
   if (pgid !== String(state.pid))
     throw new Error("Groupe d'émulateur inattendu ; arrêt refusé.");
   process.kill(-state.pid, "SIGTERM");
-  for (let i = 0; i < 100; i++) {
-    if (!alive(state) && (await portsFree())) {
-      unlinkSync(stateFile);
-      return;
-    }
-    await sleep(100);
+  if (await waitFor(async () => !alive(state) && await portsFree(), 100, 100)) {
+    unlinkSync(stateFile);
+    return;
   }
   throw new Error("L'arrêt de l'émulateur n'est pas confirmé.");
 }
@@ -146,12 +150,13 @@ function startEmulator(java) {
 }
 
 async function waitForEmulator(state) {
-  for (let i = 0; i < 300; i++) {
-    if (await ready()) return;
+  const readyInTime = await waitFor(async () => {
+    if (await ready()) return true;
     if (!alive(state))
       throw new Error(`L'émulateur s'est arrêté ; voir ${logFile}.`);
-    await sleep(100);
-  }
+    return false;
+  }, 300, 100);
+  if (readyInTime) return;
   throw new Error(`L'émulateur n'est pas prêt ; voir ${logFile}.`);
 }
 
@@ -186,7 +191,7 @@ async function start() {
   command(process.execPath, [join(webDir, "scripts/seed-demo.mjs")], env);
   command(join(webDir, "dev"), ["restart"], env);
   console.log(
-    `\nPages :\n  Vitrine : http://localhost:3000/\n  Club : http://localhost:3000/?club=club-a\n  Agenda : http://localhost:3000/agenda?club=club-a\n  Événement : http://localhost:3000/e/tournoi-decouverte?club=club-a\n  Espace club : http://admin.localhost:3000/\n\nComptes locaux (mot de passe temporaire : ${demoPassword}) :\n  Membre : membre@demo.assodarts.test\n  Bureau : bureau@demo.assodarts.test\n  Admin du club : admin@demo.assodarts.test\n  Développeur plateforme : developpeur@demo.assodarts.test`,
+    `\nPages :\n  Vitrine : http://localhost:3000/\n  Club : http://localhost:3000/?club=club-a\n  Agenda : http://localhost:3000/agenda?club=club-a\n  Événement : http://localhost:3000/e/tournoi-decouverte?club=club-a\n  Espace club : http://admin.localhost:3000/\n\nComptes locaux (mot de passe temporaire : ${demoPassword}) :\n  Membre : membre@demo.assodarts.test\n  Bureau : bureau@demo.assodarts.test\n  Admin du club : admin@demo.assodarts.test\n  Développeur plateforme : developpeur@demo.assodarts.test\n  Plateforme et membre : double-role@demo.assodarts.test\n  Gestion du site : site@demo.assodarts.test`,
   );
 }
 const action = process.argv[2] || "start";

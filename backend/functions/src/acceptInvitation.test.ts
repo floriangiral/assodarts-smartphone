@@ -132,6 +132,16 @@ describe("acceptInvitation", () => {
     );
   });
 
+  it("accepts a verified invitation for a platform administrator", async () => {
+    mockPlatformAdminGet.mockResolvedValue({ exists: true });
+    mockInvitationsGet
+      .mockResolvedValueOnce(firestoreSnapshot([invitationDoc({ clubId: "c1", role: "member", status: "pending", expiresAt: Date.now() + 60_000 })]))
+      .mockResolvedValueOnce({ docs: [] });
+    mockMembersGet.mockResolvedValue(firestoreSnapshot([memberDoc("m1")]));
+    await expect(wrapped(makeRequest("user@example.com", "u1"))).resolves.toEqual({ joinedClubId: "c1" });
+    expect(mockMembershipSet).toHaveBeenCalledWith(expect.objectContaining({ clubId: "c1", authUid: "u1", role: "member" }), { merge: true });
+  });
+
   it("ignores an expired pending invitation", async () => {
     mockInvitationsGet
       .mockResolvedValueOnce(

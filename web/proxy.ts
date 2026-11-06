@@ -68,6 +68,12 @@ export function proxy(request: NextRequest) {
     process.env.APPHOSTING_DEFAULT_HOST,
   );
   const url = request.nextUrl.clone();
+  if (url.pathname === "/retour-accueil") {
+    url.hostname = root;
+    url.pathname = "/";
+    url.search = "";
+    return NextResponse.redirect(url, 302);
+  }
   const localResponse = resolveLocalClubFallback(url, root, host.kind);
   if (localResponse) return localResponse;
 

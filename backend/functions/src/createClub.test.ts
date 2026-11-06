@@ -113,12 +113,12 @@ describe("createClub", () => {
     );
   });
 
-  it("rejects a platform admin from creating a club", async () => {
+  it("allows a platform admin with a member profile to create a club", async () => {
     platformAdminExists = true;
 
     await expect(
       wrapped(makeRequest({ name: "Platform Club" }, "u1")),
-    ).rejects.toThrow("Platform admin accounts cannot belong to a club");
-    expect(mockRunTransaction).not.toHaveBeenCalled();
+    ).resolves.toEqual({ clubId: expect.any(String) });
+    expect(mockRunTransaction).toHaveBeenCalled();
   });
 });

@@ -1,7 +1,7 @@
 "use client";
+/* eslint-disable @next/next/no-html-link-for-pages -- Space changes reload and recheck the authenticated session. */
 
 import Image from "next/image";
-import Link from "next/link";
 import {
   onAuthStateChanged,
   sendPasswordResetEmail,
@@ -27,6 +27,8 @@ import {
   Trophy,
   UsersRound,
   X,
+  ChevronDown,
+  ExternalLink,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -46,10 +48,13 @@ import {
   type EventAttendance,
 } from "@/lib/admin/data";
 import { canManageClub, chooseInitialClub } from "@/lib/admin/roles";
+import { parseWorkspacePath, workspacePath, type WorkspaceTabId } from "@/lib/admin/navigation";
 import { clientAuth, isFirebaseClientConfigured } from "@/lib/firebase/client";
 import { messages } from "@/lib/messages";
+import PlatformWorkspace from "@/components/admin/platform";
+import SiteWorkspace from "@/components/admin/site";
 
-type TabId = "home" | "news" | "events" | "members" | "tournaments";
+type TabId = WorkspaceTabId;
 type AdminSession = Extract<ClubSessionResult, { kind: "club-member" }>;
 type DialogType = "event" | "announcement" | "tournament" | "entry" | null;
 type CreationDialogType = Exclude<DialogType, null>;
@@ -70,7 +75,7 @@ const tabs: Array<{ id: TabId; label: string; icon: LucideIcon }> = [
   { id: "tournaments", label: messages.adminWorkspace.tabs.tournaments, icon: Trophy },
 ];
 
-export default function AdminWorkspace() {
+export default function AdminWorkspace({ space = "club" }: { space?: "club" | "platform" | "site" }) {
   const configured = isFirebaseClientConfigured();
   const [authReady, setAuthReady] = useState(!configured);
   const [user, setUser] = useState<User | null>(null);
@@ -83,8 +88,10 @@ export default function AdminWorkspace() {
     if (!configured) return;
 
     let active = true;
+    let generation = 0;
     const unsubscribe = onAuthStateChanged(clientAuth(), async (nextUser) => {
       if (!active) return;
+      const current = ++generation;
       setUser(nextUser);
       setSession(null);
       setActiveClubId(null);
@@ -98,7 +105,7 @@ export default function AdminWorkspace() {
       setIdentityLoading(true);
       try {
         const nextSession = await resolveClubSession(nextUser);
-        if (!active) return;
+        if (!active || current !== generation) return;
         setSession(nextSession);
         if (nextSession.kind === "club-member") {
           setActiveClubId(
@@ -110,9 +117,9 @@ export default function AdminWorkspace() {
           );
         }
       } catch {
-        if (active) setIdentityError(true);
+        if (active && current === generation) setIdentityError(true);
       } finally {
-        if (active) setIdentityLoading(false);
+        if (active && current === generation) setIdentityLoading(false);
       }
     });
 
@@ -134,8 +141,20 @@ export default function AdminWorkspace() {
   if (identityError) {
     return <AccessState title={messages.adminWorkspace.dataError} onSignOut={handleSignOut} />;
   }
+  if (space === "site" || (space === "club" && session?.kind === "site-editor")) {
+    if (session?.kind === "site-editor" || (session?.kind === "platform-admin" && session.siteEditor) || (session?.kind === "club-member" && session.siteEditor)) {
+      return <SiteWorkspace uid={session.uid} hasClub={session.kind === "club-member"} hasPlatform={session.kind === "platform-admin" || (session.kind === "club-member" && session.platformAdmin)} onSignOut={handleSignOut} />;
+    }
+    return <AccessState title="Accès à la gestion du site non autorisé" description="Ce compte ne dispose pas des droits d’édition du site." onSignOut={handleSignOut} clubLink={session?.kind === "club-member"} />;
+  }
+  if (space === "platform") {
+    if (session?.kind === "platform-admin" || (session?.kind === "club-member" && session.platformAdmin)) {
+      return <PlatformWorkspace email={session.email} hasClubs={session.kind === "club-member"} siteEditor={session.siteEditor} onSignOut={handleSignOut} />;
+    }
+    return <AccessState title="Accès à la plateforme non autorisé" description="Ce compte ne dispose pas des droits d’administration de la plateforme." onSignOut={handleSignOut} clubLink={session?.kind === "club-member"} />;
+  }
   if (session?.kind === "platform-admin") {
-    return <AccessState title={messages.adminWorkspace.platformTitle} description={messages.adminWorkspace.platformDescription} role={messages.adminWorkspace.role.platform} onSignOut={handleSignOut} />;
+    return <PlatformWorkspace email={session.email} hasClubs={false} siteEditor={session.siteEditor} onSignOut={handleSignOut} />;
   }
   if (session?.kind === "no-profile") {
     return <AccessState title={messages.adminWorkspace.noProfileTitle} onSignOut={handleSignOut} />;
@@ -214,10 +233,11 @@ function SignInScreen() {
   return (
     <main className="grid min-h-screen bg-background px-5 py-10 sm:place-items-center sm:px-8">
       <div className="mx-auto w-full max-w-[28rem] sm:-mt-8">
-        <Link className="focus-ring inline-flex items-center gap-3 rounded-sm" href="/">
+        <a className="focus-ring inline-flex items-center gap-3 rounded-sm" href="/retour-accueil" aria-label="Retour au site Assodarts">
           <Image alt="" aria-hidden="true" className="size-11 rounded-xl" height={44} src="/assodarts-mark.png" unoptimized width={44} />
           <span className="text-base font-bold">Assodarts</span>
-        </Link>
+        </a>
+        <a className="focus-ring mt-6 flex w-fit items-center gap-2 text-sm font-semibold text-muted hover:text-navy" href="/retour-accueil"><ArrowLeft aria-hidden="true" size={16} /> Site Assodarts</a>
         <section className="mt-10 rounded-2xl border border-border bg-surface p-6 shadow-sm sm:p-8">
           <p className="text-xs font-bold text-green">{copy.appName}</p>
           <h1 className="mt-3 text-3xl font-bold leading-tight text-ink">{copy.signInTitle}</h1>
@@ -250,11 +270,13 @@ function AccessState({
   description,
   role,
   onSignOut,
+  clubLink = false,
 }: {
   title: string;
   description?: string;
   role?: string;
   onSignOut?: () => void;
+  clubLink?: boolean;
 }) {
   return (
     <main className="grid min-h-screen place-items-center bg-background px-5 py-12">
@@ -268,11 +290,15 @@ function AccessState({
         </div>
         <h1 className="mt-8 text-3xl font-bold leading-tight">{title}</h1>
         {description && <p className="mt-4 text-sm leading-6 text-muted">{description}</p>}
+        <div className="mt-7 flex flex-wrap items-center gap-3">
+        {clubLink && <a className="focus-ring inline-flex min-h-11 items-center gap-2 rounded-full border border-border bg-surface px-5 text-sm font-bold hover:bg-soft" href="/">Espace club <ArrowRight aria-hidden="true" size={16} /></a>}
+        <a className="focus-ring inline-flex min-h-11 items-center gap-2 rounded-full bg-navy px-5 text-sm font-bold text-white hover:bg-navy-deep" href="/retour-accueil"><ArrowLeft aria-hidden="true" size={16} /> Site Assodarts</a>
         {onSignOut && (
-          <button className="focus-ring mt-7 inline-flex min-h-11 items-center gap-2 rounded-full border border-border bg-surface px-5 text-sm font-bold hover:bg-soft" onClick={onSignOut} type="button">
+          <button className="focus-ring inline-flex min-h-11 items-center gap-2 rounded-full border border-border bg-surface px-5 text-sm font-bold hover:bg-soft" onClick={onSignOut} type="button">
             <LogOut aria-hidden="true" size={16} /> {messages.adminWorkspace.signOut}
           </button>
         )}
+        </div>
       </section>
     </main>
   );
@@ -315,6 +341,28 @@ function ClubWorkspace({
   const loading = loadState?.clubId !== activeClubId;
   const loadError = loadState?.clubId === activeClubId && "error" in loadState;
   const workspace = loadState?.clubId === activeClubId && "data" in loadState ? loadState.data : null;
+
+  useEffect(() => {
+    function syncLocation() {
+      const location = parseWorkspacePath(window.location.pathname);
+      if (location) {
+        setTab(location.tab);
+        setSelectedEventId(location.eventId);
+      }
+    }
+    syncLocation();
+    window.addEventListener("popstate", syncLocation);
+    return () => window.removeEventListener("popstate", syncLocation);
+  }, []);
+
+  function navigate(nextTab: TabId, eventId: string | null = null) {
+    const prefix = /^\/admin(?:\/|$)/.test(window.location.pathname) ? "/admin" : "";
+    const path = workspacePath(nextTab, eventId);
+    window.history.pushState(null, "", `${prefix}${path}`);
+    setTab(nextTab);
+    setSelectedEventId(eventId);
+    window.scrollTo(0, 0);
+  }
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => setNow(Date.now()));
@@ -369,8 +417,7 @@ function ClubWorkspace({
   }
 
   function changeClub(clubId: string) {
-    setTab("home");
-    setSelectedEventId(null);
+    navigate("home");
     setMessage("");
     onClubChange(clubId);
   }
@@ -383,18 +430,18 @@ function ClubWorkspace({
   return (
     <div className="min-h-screen bg-background">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-border bg-surface px-4 py-5 md:flex">
-        <Link className="focus-ring mb-8 flex items-center gap-3 rounded-sm px-2" href="/">
+        <a className="focus-ring mb-8 flex items-center gap-3 rounded-sm px-2" href="/retour-accueil" aria-label="Retour au site Assodarts">
           <Image alt="" aria-hidden="true" className="size-10 rounded-xl" height={40} src="/assodarts-mark.png" unoptimized width={40} />
           <span><span className="block text-sm font-bold">Assodarts</span><span className="mt-0.5 block text-xs text-muted">{copy.appName}</span></span>
-        </Link>
+        </a>
         <ClubNavigation
           activeTab={tab}
-          onSelect={(nextTab) => {
-            setSelectedEventId(null);
-            setTab(nextTab);
-          }}
+          onSelect={(nextTab) => navigate(nextTab)}
         />
         <div className="mt-auto border-t border-border pt-4">
+          {session.platformAdmin && <a className="focus-ring mb-1 flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-semibold text-muted transition hover:bg-background hover:text-navy" href="/plateforme"><ShieldCheck aria-hidden="true" size={16} /> Administration Assodarts</a>}
+          {session.siteEditor && <a className="focus-ring mb-1 flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-semibold text-muted transition hover:bg-background hover:text-navy" href="/site"><ExternalLink aria-hidden="true" size={16} /> Gestion du site</a>}
+          <a className="focus-ring mb-4 flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-semibold text-muted transition hover:bg-background hover:text-navy" href="/retour-accueil"><ExternalLink aria-hidden="true" size={16} /> Site Assodarts</a>
           <p className="truncate px-3 text-sm font-semibold">{session.firstName} {session.lastName}</p>
           <p className="mt-1 px-3 text-xs text-muted">{roleLabel}</p>
           <button aria-label={copy.signOut} className="focus-ring mt-3 inline-flex min-h-10 w-full items-center gap-2 rounded-lg px-3 text-sm font-semibold text-muted transition hover:bg-soft hover:text-ink" onClick={onSignOut} type="button">
@@ -406,9 +453,9 @@ function ClubWorkspace({
       <div className="md:pl-64">
         <header className="sticky top-0 z-20 border-b border-border bg-surface/95 backdrop-blur">
           <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:px-7">
-            <div className="flex min-w-0 items-center gap-3 md:hidden">
+            <div className="flex min-w-0 items-center gap-2 md:hidden">
               <Image alt="" aria-hidden="true" className="size-9 shrink-0 rounded-lg" height={36} src="/assodarts-mark.png" unoptimized width={36} />
-              <span className="truncate text-sm font-bold">{copy.appName}</span>
+              <span className="hidden truncate text-sm font-bold sm:block">{copy.appName}</span>
             </div>
             <label className="flex min-w-0 items-center gap-2">
               <span className="sr-only">{copy.clubSwitcher}</span>
@@ -418,8 +465,19 @@ function ClubWorkspace({
             </label>
             <div className="flex shrink-0 items-center gap-2">
               <span className="hidden text-xs font-semibold text-muted sm:inline">{roleLabel}</span>
-              <span aria-hidden="true" className="grid size-9 place-items-center rounded-full bg-soft text-sm font-bold text-navy">{initials(session.firstName, session.lastName)}</span>
-              <button aria-label={copy.signOut} className="focus-ring grid size-10 place-items-center rounded-full text-muted transition hover:bg-soft hover:text-ink md:hidden" onClick={onSignOut} type="button"><LogOut aria-hidden="true" size={17} /></button>
+              <details className="group relative">
+                <summary aria-label="Compte et navigation" className="focus-ring flex min-h-11 cursor-pointer list-none items-center gap-1 rounded-full px-1 [&::-webkit-details-marker]:hidden">
+                  <span aria-hidden="true" className="grid size-9 place-items-center rounded-full bg-soft text-sm font-bold text-navy">{initials(session.firstName, session.lastName)}</span>
+                  <ChevronDown aria-hidden="true" className="text-muted transition group-open:rotate-180" size={15} />
+                </summary>
+                <div className="absolute right-0 top-full z-50 mt-2 w-64 rounded-2xl border border-border bg-surface p-2 shadow-xl">
+                  <div className="border-b border-border px-3 py-3"><p className="truncate text-sm font-bold">{session.firstName} {session.lastName}</p><p className="mt-1 truncate text-xs text-muted">{roleLabel} · {club.name}</p></div>
+                  <a className="focus-ring mt-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-semibold hover:bg-background" href="/retour-accueil"><ExternalLink aria-hidden="true" size={16} /> Site Assodarts</a>
+                  {session.platformAdmin && <a className="focus-ring flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-semibold hover:bg-background" href="/plateforme"><ShieldCheck aria-hidden="true" size={16} /> Administration Assodarts</a>}
+                  {session.siteEditor && <a className="focus-ring flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-semibold hover:bg-background" href="/site"><ExternalLink aria-hidden="true" size={16} /> Gestion du site</a>}
+                  <button className="focus-ring flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-left text-sm font-semibold hover:bg-background" onClick={onSignOut} type="button"><LogOut aria-hidden="true" size={16} /> {copy.signOut}</button>
+                </div>
+              </details>
             </div>
           </div>
         </header>
@@ -443,9 +501,11 @@ function ClubWorkspace({
               event={selectedEvent}
               now={now}
               onAttendance={(status) => changeAttendance(selectedEvent, status)}
-              onBack={() => setSelectedEventId(null)}
+              onBack={() => navigate("events")}
               saving={attendanceSaving}
             />
+          ) : selectedEventId ? (
+            <div className="rounded-2xl border border-border bg-surface p-6"><h1 className="text-xl font-bold">Événement indisponible</h1><p className="mt-2 text-sm text-muted">Cet événement est introuvable dans le club actif.</p><button className="focus-ring mt-5 font-semibold text-navy" onClick={() => navigate("events")} type="button">Retour aux événements</button></div>
           ) : (
             <WorkspaceTab
               activeMembers={activeMembers}
@@ -456,7 +516,8 @@ function ClubWorkspace({
               onCreateEvent={() => { setDialog("event"); setDialogError(""); }}
               onCreateTournament={() => { setSelectedTournamentId(null); setDialog("tournament"); setDialogError(""); }}
               onRecordResult={(tournamentId) => { setSelectedTournamentId(tournamentId); setDialog("entry"); setDialogError(""); }}
-              onSelectEvent={setSelectedEventId}
+              onSelectEvent={(id) => navigate("events", id)}
+              onOpenEvents={() => navigate("events")}
               period={period}
               role={role}
               roleLabel={roleLabel}
@@ -475,7 +536,7 @@ function ClubWorkspace({
       <nav aria-label="Navigation du club" className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface/95 px-1 pb-[env(safe-area-inset-bottom)] pt-1 backdrop-blur md:hidden">
         <div className="mx-auto grid max-w-xl grid-cols-5">
           {tabs.map(({ id, label, icon: Icon }) => (
-            <button aria-current={tab === id ? "page" : undefined} className={`focus-ring flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[10px] font-semibold ${tab === id ? "text-navy" : "text-muted"}`} key={id} onClick={() => { setTab(id); setSelectedEventId(null); }} type="button">
+            <button aria-current={tab === id ? "page" : undefined} className={`focus-ring flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[10px] font-semibold ${tab === id ? "text-navy" : "text-muted"}`} key={id} onClick={() => navigate(id)} type="button">
               <Icon aria-hidden="true" size={19} /><span className="max-w-full truncate">{label}</span>
             </button>
           ))}
@@ -576,8 +637,10 @@ function formString(fields: FormData, name: string) {
 }
 
 function formNumber(fields: FormData, name: string) {
-  const value = Number(formString(fields, name));
-  return Number.isFinite(value) ? value : 0;
+  const raw = formString(fields, name).trim();
+  const value = Number(raw);
+  if (!raw || !Number.isInteger(value) || value < 0 || value > 30) throw new Error("invalid-score");
+  return value;
 }
 
 function isFormString(value: FormDataEntryValue): value is string {
@@ -612,6 +675,7 @@ function WorkspaceTab({
   search,
   setSearch,
   onSelectEvent,
+  onOpenEvents,
   onCreateEvent,
   onCreateAnnouncement,
   onCreateTournament,
@@ -632,6 +696,7 @@ function WorkspaceTab({
   search: string;
   setSearch: (search: string) => void;
   onSelectEvent: (eventId: string) => void;
+  onOpenEvents: () => void;
   onCreateEvent: () => void;
   onCreateAnnouncement: () => void;
   onCreateTournament: () => void;
@@ -685,7 +750,7 @@ function WorkspaceTab({
         )}
         <div className="grid gap-8 xl:grid-cols-[1.2fr_0.8fr]">
           <section>
-            <SectionHeading title={copy.nextEvent} action={copy.tabs.events} />
+            <SectionHeading title={copy.nextEvent} action={copy.tabs.events} onAction={onOpenEvents} />
             <div className="mt-3">
               {upcomingEvents[0] ? <EventRow attendance={attendanceFor(upcomingEvents[0].id)} event={upcomingEvents[0]} onClick={() => onSelectEvent(upcomingEvents[0].id)} /> : <EmptyState icon={CalendarDays} text={copy.noEvents} />}
             </div>
@@ -794,7 +859,7 @@ function WorkspaceTab({
                 <h2 className="mt-2 text-lg font-bold">{tournament.name}</h2>
                 {tournament.location && <p className="mt-2 flex items-center gap-2 text-sm text-muted"><MapPin aria-hidden="true" size={15} />{tournament.location}</p>}
               </div>
-              <span className={`rounded-full px-3 py-1 text-xs font-bold ${tournament.isFinished ? "bg-soft text-muted" : "bg-green-soft text-green"}`}>{tournament.isFinished ? copy.complete : copy.inProgress}</span>
+              <span className={`rounded-full px-3 py-1 text-xs font-bold ${tournament.isFinished === false ? "bg-green-soft text-green" : "bg-soft text-muted"}`}>{tournament.isFinished === null ? "Statut indisponible" : tournament.isFinished ? copy.complete : copy.inProgress}</span>
             </div>
             {tournament.entries.length > 0 && (
               <div className="mt-5 overflow-x-auto border-t border-border pt-4">
@@ -803,7 +868,7 @@ function WorkspaceTab({
                   <thead className="text-xs text-muted"><tr><th className="pb-2 pr-3 font-semibold">{copy.match}</th><th className="px-3 pb-2 font-semibold">{copy.result}</th><th className="pb-2 pl-3 font-semibold">{copy.stage}</th></tr></thead>
                   <tbody className="divide-y divide-border">
                     {tournament.entries.map((entry) => (
-                      <tr key={entry.id}><td className="py-2 pr-3">{entry.playerA} · {entry.playerB}</td><td className="px-3 py-2 font-bold tabular-nums">{entry.scoreA} – {entry.scoreB}</td><td className="py-2 pl-3 text-muted">{entry.tableau} · {entry.tour}</td></tr>
+                      <tr key={entry.id}><td className="py-2 pr-3">{entry.playerA} · {entry.playerB}</td><td className="px-3 py-2 font-bold tabular-nums">{entry.scoreA ?? "—"} – {entry.scoreB ?? "—"}</td><td className="py-2 pl-3 text-muted">{entry.tableau} · {entry.tour}</td></tr>
                     ))}
                   </tbody>
                 </table>
@@ -994,9 +1059,9 @@ function renderCreationFields(
       <FormField label={copy.draw} name="tableau" required />
       <FormField label={copy.round} name="tour" />
       <FormField label={copy.playerA} name="playerA" required />
-      <label className="block text-sm font-semibold" htmlFor="score-a">{copy.scoreA}<input className="mt-2 min-h-11 w-full rounded-xl border border-border bg-background px-4 text-sm text-ink" id="score-a" max={30} min={0} name="scoreA" type="number" defaultValue={0} /></label>
+      <label className="block text-sm font-semibold" htmlFor="score-a">{copy.scoreA}<input className="mt-2 min-h-11 w-full rounded-xl border border-border bg-background px-4 text-sm text-ink" id="score-a" max={30} min={0} name="scoreA" type="number" required /></label>
       <FormField label={copy.playerB} name="playerB" required />
-      <label className="block text-sm font-semibold" htmlFor="score-b">{copy.scoreB}<input className="mt-2 min-h-11 w-full rounded-xl border border-border bg-background px-4 text-sm text-ink" id="score-b" max={30} min={0} name="scoreB" type="number" defaultValue={0} /></label>
+      <label className="block text-sm font-semibold" htmlFor="score-b">{copy.scoreB}<input className="mt-2 min-h-11 w-full rounded-xl border border-border bg-background px-4 text-sm text-ink" id="score-b" max={30} min={0} name="scoreB" type="number" required /></label>
       <FormField label={copy.optionalNote} name="note" multiline />
     </>
   );
@@ -1032,8 +1097,8 @@ function PageHeading({ title, description, action }: { title: string; descriptio
   );
 }
 
-function SectionHeading({ title, action }: { title: string; action?: string }) {
-  return <div className="flex items-center justify-between gap-4"><h2 className="text-lg font-bold">{title}</h2>{action && <span className="text-xs font-semibold text-muted">{action}</span>}</div>;
+function SectionHeading({ title, action, onAction }: { title: string; action?: string; onAction?: () => void }) {
+  return <div className="flex items-center justify-between gap-4"><h2 className="text-lg font-bold">{title}</h2>{action && onAction && <button className="focus-ring rounded-sm text-xs font-semibold text-navy hover:underline" onClick={onAction} type="button">{action}</button>}</div>;
 }
 
 function ActionButton({ children, icon: Icon, onClick }: { children: ReactNode; icon: LucideIcon; onClick: () => void }) {

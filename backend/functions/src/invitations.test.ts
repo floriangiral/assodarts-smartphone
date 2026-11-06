@@ -154,19 +154,14 @@ describe("createInvitation", () => {
     );
   });
 
-  it("rejects the platform admin email", async () => {
+  it("allows a club board to invite a platform administrator", async () => {
     mockMembership("board");
     mockPlatformAdminEmailGet.mockResolvedValue({ empty: false });
 
-    await expect(
-      wrapped(
-        makeRequest(
-          { clubId: "c1", email: "platform-admin@assodarts.test" },
-          "u1",
-        ),
-      ),
-    ).rejects.toThrow("Platform admin accounts cannot belong to a club");
-    expect(mockInvitationSet).not.toHaveBeenCalled();
+    mockInvitationSet.mockResolvedValue(undefined);
+    mockMailAdd.mockResolvedValue({ id: "mail1" });
+    await wrapped(makeRequest({ clubId: "c1", email: "platform-admin@assodarts.test" }, "u1"));
+    expect(mockInvitationSet).toHaveBeenCalledWith(expect.objectContaining({ email: "platform-admin@assodarts.test", role: "member" }), { merge: true });
   });
 });
 

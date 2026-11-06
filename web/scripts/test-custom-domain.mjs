@@ -78,13 +78,18 @@ async function get(host, path = "/") {
     req.on("error", reject); req.on("timeout", () => req.destroy(new Error("timeout"))); req.end();
   });
 }
-try {
-  let up = false;
-  for (let i = 0; i < 100; i++) {
-    try { if ((await get(`localhost:${port}`)).status === 200) { up = true; break; } } catch { /* startup */ }
-    await delay(200);
+async function waitForServer(attempts) {
+  try {
+    if ((await get(`localhost:${port}`)).status === 200) return true;
+  } catch {
+    // The development server may still be starting.
   }
-  if (!up) throw new Error("Le serveur de test n'a pas démarré.");
+  if (attempts <= 1) return false;
+  await delay(200);
+  return waitForServer(attempts - 1);
+}
+try {
+  if (!(await waitForServer(100))) throw new Error("Le serveur de test n'a pas démarré.");
   const home = await get("club.example");
   const agenda = await get("club.example", "/agenda");
   const event = await get("club.example", `/e/${eventId}`);

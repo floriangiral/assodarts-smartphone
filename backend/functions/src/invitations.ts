@@ -3,8 +3,6 @@ import { getFirestore, FieldValue, Timestamp } from "firebase-admin/firestore";
 import {
   requireClubAdmin,
   requireClubBoard,
-  requireEmailNotPlatformAdmin,
-  requireNotPlatformAdmin,
 } from "./shared/auth";
 import { timestampMillis } from "./shared/timestamps";
 
@@ -42,7 +40,6 @@ export const createInvitation = onCall(async (request) => {
   if (role !== "member") {
     await requireClubAdmin(clubId, request.auth.uid);
   }
-  await requireEmailNotPlatformAdmin(email);
 
   const db = getFirestore();
   const expiresAt = Timestamp.fromMillis(Date.now() + INVITATION_TTL_MS);
@@ -143,7 +140,6 @@ export const acceptInvitation = onCall(async (request) => {
   if (request.auth.token.email_verified !== true) {
     return { joinedClubId: null, verificationRequired: true };
   }
-  await requireNotPlatformAdmin(request.auth.uid);
 
   const memberSnapshot = await db
     .collection("members")

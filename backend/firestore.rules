@@ -18,6 +18,37 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/platform_admins/$(request.auth.uid));
     }
 
+    function isSiteEditor() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/site_editors/$(request.auth.uid));
+    }
+
+    function validSiteHome() {
+      return request.resource.data.keys().hasOnly(['headline', 'description', 'eyebrow', 'featuresTitle', 'featuresDescription', 'feature1Title', 'feature1Description', 'feature2Title', 'feature2Description', 'feature3Title', 'feature3Description', 'mobileTitle', 'mobileDescription', 'updatedBy', 'updatedAt', 'revision'])
+        && request.resource.data.keys().hasAll(['headline', 'description', 'updatedBy', 'updatedAt', 'revision'])
+        && request.resource.data.headline is string
+        && request.resource.data.headline.size() > 0
+        && request.resource.data.headline.size() <= 120
+        && request.resource.data.description is string
+        && request.resource.data.description.size() > 0
+        && request.resource.data.description.size() <= 500
+        && request.resource.data.get('eyebrow', '') is string && request.resource.data.get('eyebrow', '').size() <= 120
+        && request.resource.data.get('featuresTitle', '') is string && request.resource.data.get('featuresTitle', '').size() <= 160
+        && request.resource.data.get('featuresDescription', '') is string && request.resource.data.get('featuresDescription', '').size() <= 500
+        && request.resource.data.get('feature1Title', '') is string && request.resource.data.get('feature1Title', '').size() <= 120
+        && request.resource.data.get('feature1Description', '') is string && request.resource.data.get('feature1Description', '').size() <= 500
+        && request.resource.data.get('feature2Title', '') is string && request.resource.data.get('feature2Title', '').size() <= 120
+        && request.resource.data.get('feature2Description', '') is string && request.resource.data.get('feature2Description', '').size() <= 500
+        && request.resource.data.get('feature3Title', '') is string && request.resource.data.get('feature3Title', '').size() <= 120
+        && request.resource.data.get('feature3Description', '') is string && request.resource.data.get('feature3Description', '').size() <= 500
+        && request.resource.data.get('mobileTitle', '') is string && request.resource.data.get('mobileTitle', '').size() <= 160
+        && request.resource.data.get('mobileDescription', '') is string && request.resource.data.get('mobileDescription', '').size() <= 500
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.revision is string
+        && request.resource.data.revision.size() == 36
+        && request.resource.data.updatedAt == request.time;
+    }
+
     function membership(clubId) {
       return get(/databases/$(database)/documents/memberships/$(clubId + '_' + request.auth.uid)).data;
     }
@@ -347,6 +378,27 @@ service cloud.firestore {
     match /platform_admins/{uid} {
       allow read: if isSignedIn() && request.auth.uid == uid;
       allow write: if false;
+    }
+
+    match /site_editors/{uid} {
+      allow read: if isSignedIn() && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    match /site_content/{page} {
+      allow read: if page == 'home_published' || (page == 'home_draft' && isSiteEditor());
+      allow create, update: if page in ['home_draft', 'home_published'] && isSiteEditor() && validSiteHome()
+        && (page == 'home_draft'
+          || getAfter(/databases/$(database)/documents/site_publication_history/$(request.resource.data.revision)).data == request.resource.data);
+      allow delete: if false;
+    }
+
+    match /site_publication_history/{revision} {
+      allow read: if isSiteEditor();
+      allow create: if isSiteEditor() && validSiteHome()
+        && revision == request.resource.data.revision
+        && getAfter(/databases/$(database)/documents/site_content/home_published).data == request.resource.data;
+      allow update, delete: if false;
     }
 
     match /memberships/{membershipId} {
