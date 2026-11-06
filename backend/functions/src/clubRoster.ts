@@ -171,7 +171,10 @@ export const clubRoster = onCall(async (request) => {
     .doc(`${clubId}_${request.auth.uid}`)
     .get();
   const caller = callerMembership.data();
-  if (caller?.status !== "active") {
+  if (
+    caller?.status !== "active" ||
+    !["admin", "board"].includes(cleanString(caller.role))
+  ) {
     throw new HttpsError(
       "permission-denied",
       "Active club membership required",

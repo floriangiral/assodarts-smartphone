@@ -1,0 +1,22 @@
+env:
+  - variable: ROOT_DOMAIN
+    value: staging.assodarts.app
+    availability: [BUILD, RUNTIME]
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: assodarts-staging
+    availability: [BUILD, RUNTIME]
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: AIzaSyAy8JXSSBW0OQdKbnRRee960MYT-LDnY0Y
+    availability: [BUILD, RUNTIME]
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: assodarts-staging.firebaseapp.com
+    availability: [BUILD, RUNTIME]
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: 1:189674137376:web:7817b7e16fcd9e4e91d945
+    availability: [BUILD, RUNTIME]
+  - variable: WEB_REVALIDATION_SECRET
+    secret: projects/assodarts-staging/secrets/WEB_REVALIDATION_SECRET/versions/latest
+    availability: [RUNTIME]
+  - variable: APPHOSTING_DEFAULT_HOST
+    value: assodarts-web-staging--assodarts-staging.europe-west4.hosted.app
+    availability: [BUILD, RUNTIME]

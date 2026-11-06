@@ -1,10 +1,11 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { getFirestore } from "firebase-admin/firestore";
 import {
   functionsBaseUrl,
   stripeClient,
   stripeSecretKey,
 } from "./shared/stripe";
+import { createOrReuseCheckoutSession } from "./shared/checkoutSession";
 
 /**
  * Creates a Stripe Checkout session for one payment line.
@@ -59,45 +60,42 @@ export const stripeCreateCheckout = onCall(
 
     const stripe = stripeClient(stripeSecretKey.value());
     const base = functionsBaseUrl();
-    const session = await stripe.checkout.sessions.create({
-      mode: "payment",
-      customer_email: request.auth.token.email,
-      line_items: [
-        {
-          quantity: 1,
-          price_data: {
-            currency: (call?.currency ?? "eur").toLowerCase(),
-            unit_amount: call?.amountCents ?? 0,
-            product_data: {
-              name: call?.title ?? "Paiement du club",
-              description: call?.detail || undefined,
+    const session = await createOrReuseCheckoutSession(
+      itemRef,
+      stripe,
+      {
+        mode: "payment",
+        customer_email: request.auth.token.email,
+        line_items: [
+          {
+            quantity: 1,
+            price_data: {
+              currency: (call?.currency ?? "eur").toLowerCase(),
+              unit_amount: call?.amountCents ?? 0,
+              product_data: {
+                name: call?.title ?? "Paiement du club",
+                description: call?.detail || undefined,
+              },
             },
           },
+        ],
+        payment_intent_data: {
+          transfer_data: { destination: bank.stripeAccountId },
+          metadata: {
+            item_id: itemId,
+            club_id: item.clubId,
+            member_id: item.memberId,
+          },
         },
-      ],
-      payment_intent_data: {
-        transfer_data: { destination: bank.stripeAccountId },
         metadata: {
           item_id: itemId,
           club_id: item.clubId,
           member_id: item.memberId,
         },
+        success_url: `${base}/stripeReturn?state=paid`,
+        cancel_url: `${base}/stripeReturn?state=cancelled`,
       },
-      metadata: {
-        item_id: itemId,
-        club_id: item.clubId,
-        member_id: item.memberId,
-      },
-      success_url: `${base}/stripeReturn?state=paid`,
-      cancel_url: `${base}/stripeReturn?state=cancelled`,
-    });
-
-    await itemRef.set(
-      {
-        stripeCheckoutSessionId: session.id,
-        updatedAt: FieldValue.serverTimestamp(),
-      },
-      { merge: true },
+      `payment-${itemId}`,
     );
 
     return { url: session.url, sessionId: session.id };

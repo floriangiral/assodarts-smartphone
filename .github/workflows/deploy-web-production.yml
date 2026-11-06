@@ -1,0 +1,66 @@
+name: Deploy web production
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: apphosting-production
+  cancel-in-progress: false
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+    steps:
+      - name: Require a successful quality run on this exact main commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$GITHUB_REF" = refs/heads/main || { echo 'Production requires main'; exit 1; }
+          runs=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/quality.yml/runs?head_sha=$GITHUB_SHA&event=push&status=success&per_page=100")
+          echo "$runs" | jq -e --arg sha "$GITHUB_SHA" '[.workflow_runs[] | select(.head_sha == $sha and .event == "push" and .conclusion == "success")] | length > 0' > /dev/null || { echo 'No successful Quality run for this commit'; exit 1; }
+  deploy:
+    needs: preflight
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 20
+    env:
+      FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+      APPHOSTING_BACKEND_ID: ${{ vars.APPHOSTING_BACKEND_ID }}
+      GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/assodarts-apphosting-key.json
+    steps:
+      - name: Check out the tested commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Validate production settings
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          test "$FIREBASE_PROJECT_ID" = 'assodarts' || { echo 'Unexpected production project'; exit 1; }
+          test -n "$APPHOSTING_BACKEND_ID" || { echo 'Configure production APPHOSTING_BACKEND_ID'; exit 1; }
+          test -n "$FIREBASE_SERVICE_ACCOUNT" || { echo 'Configure production Firebase credentials'; exit 1; }
+          case "$APPHOSTING_BACKEND_ID" in
+            *[!a-z0-9-]*|'') echo 'Invalid backend ID'; exit 1 ;;
+            *) ;;
+          esac
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: backend/functions/.nvmrc
+          package-manager-cache: false
+      - name: Install Firebase CLI
+        run: npm install --global --ignore-scripts firebase-tools@15.35.0
+      - name: Authenticate
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          umask 077
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$GOOGLE_APPLICATION_CREDENTIALS"
+      - name: Verify backend environment
+        run: |
+          firebase apphosting:backends:get "$APPHOSTING_BACKEND_ID" --project "$FIREBASE_PROJECT_ID" --json |
+            jq -e '.result.environment == "production"' > /dev/null || { echo 'Backend must explicitly use the production environment'; exit 1; }
+      - name: Roll out the tested commit
+        run: firebase apphosting:rollouts:create "$APPHOSTING_BACKEND_ID" --project "$FIREBASE_PROJECT_ID" --git-commit "$GITHUB_SHA" --force --non-interactive
+      - name: Remove credentials
+        if: always()
+        run: rm -f "$GOOGLE_APPLICATION_CREDENTIALS"

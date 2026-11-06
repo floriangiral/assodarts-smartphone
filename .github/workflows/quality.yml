@@ -12,17 +12,23 @@ name: Quality
       - develop
       - "release-*"
   workflow_dispatch:
+    inputs:
+      deploy_staging:
+        description: Deploy the Firebase backend to staging after validation
+        type: boolean
+        default: false
+      distribute_ios:
+        description: Deploy staging and distribute the iOS build after validation
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
-# NOUVEAU : annule automatiquement tout run en cours sur la même branche/PR
-# dès qu'un nouveau push arrive. Évite de payer pour des runs devenus obsolètes
-# avant même d'avoir fini (gain quasi gratuit, surtout précieux sur le job
-# macOS facturé 10x).
+# Cancel obsolete PR runs, but never interrupt a deployment on push or dispatch.
 concurrency:
   group: quality-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   # NOUVEAU : détecte quels dossiers ont changé pour éviter de lancer le job
@@ -37,14 +43,14 @@ jobs:
     outputs:
       ios: ${{ steps.filter.outputs.ios }}
       backend: ${{ steps.filter.outputs.backend }}
+      web: ${{ steps.filter.outputs.web }}
+      shared: ${{ steps.filter.outputs.shared }}
+      web_exists: ${{ steps.web_present.outputs.value }}
+      duplicate_ios_push: ${{ steps.duplicate.outputs.value }}
     steps:
       - name: Check out source
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # NOTE : action non pinnée par SHA ici (contrairement au reste du workflow).
-      # Si tu veux garder la même discipline de pinning que le reste du fichier,
-      # récupère le SHA exact de la release dorny/paths-filter que tu choisis
-      # et remplace le tag @v3 par ce SHA, comme pour les autres actions ci-dessous.
       - name: Detect changed paths
         id: filter
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
@@ -52,35 +58,63 @@ jobs:
           filters: |
             ios:
               - 'ios-assodarts/**'
-              - '.github/workflows/quality.yml'
+              - 'codemagic.yaml'
             backend:
               - 'backend/**'
+            web:
+              - 'web/**'
+            shared:
+              - 'shared/**'
+
+      - name: Check whether web is present
+        id: web_present
+        run: |
+          if test -f web/package.json; then echo 'value=true' >> "$GITHUB_OUTPUT"; else echo 'value=false' >> "$GITHUB_OUTPUT"; fi
+
+      # An existing PR checks the same SHA; avoid paying for a second macOS job.
+      # If GitHub cannot be queried, run the job rather than silently skipping it.
+      - name: Detect duplicate iOS push checks
+        id: duplicate
+        if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if prs=$(gh api --method GET "repos/$GITHUB_REPOSITORY/pulls" -f state=open -f "head=$GITHUB_REPOSITORY_OWNER:$GITHUB_REF_NAME" -f per_page=100); then
+            if echo "$prs" | jq -e --arg sha "$GITHUB_SHA" 'any(.[]; .head.sha == $sha and (.base.ref == "main" or .base.ref == "develop" or (.base.ref | startswith("release-"))))' > /dev/null; then
+              echo 'value=true' >> "$GITHUB_OUTPUT"
+            else
+              echo 'value=false' >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo 'Could not check for a duplicate PR; running the iOS job.'
+            echo 'value=false' >> "$GITHUB_OUTPUT"
+          fi
 
   ios:
     name: iOS build, test, lint, and SAST
     needs: changes
-    # NOUVEAU : ne tourne plus que si un fichier iOS (ou ce workflow lui-même) a changé.
-    # workflow_dispatch garde toujours la possibilité de forcer le run manuellement.
-    if: needs.changes.outputs.ios == 'true' || github.event_name == 'workflow_dispatch'
+    # Always run on explicit dispatch; PRs cover duplicate develop push checks.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (needs.changes.outputs.ios == 'true' && needs.changes.outputs.duplicate_ios_push != 'true')
     runs-on: macos-15
-    # 30 min ne suffisaient pas : la résolution SPM à froid coûte ~17 min à elle
-    # seule, avant même la compilation instrumentée par CodeQL.
-    timeout-minutes: 45
+    # Cold SPM resolution, instrumented compilation, tests and CodeQL need separate time budgets.
+    timeout-minutes: 60
     permissions:
       contents: read
       actions: read
     steps:
       - name: Check out source
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@5ba2889ada762081db2c4f32a729827dce632c7b # v3
+        uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
           languages: swift
           build-mode: manual
 
       - name: Restore Swift package cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           # Xcode place sinon les checkouts dans DerivedData/Assodarts-<hash>/,
           # dont le suffixe varie : le cache ne retrouvait jamais rien. Les deux
@@ -112,12 +146,26 @@ jobs:
           -scheme Assodarts
           -clonedSourcePackagesDirPath .spm-checkouts
 
+      - name: Prepare iOS simulator
+        timeout-minutes: 5
+        run: |
+          device=$(xcrun simctl list devices available --json | jq -c '[.devices[][] | select(.isAvailable == true and .name == "iPhone 16")] | first')
+          udid=$(jq -r '.udid // empty' <<< "$device")
+          test -n "$udid" || { echo "::error::No available iPhone 16 simulator"; exit 1; }
+          if [ "$(jq -r '.state' <<< "$device")" != Booted ]; then
+            xcrun simctl boot "$udid"
+          fi
+          xcrun simctl bootstatus "$udid" -b
+          echo "IOS_SIMULATOR_UDID=$udid" >> "$GITHUB_ENV"
+
       - name: Build and test
+        timeout-minutes: 35
         run: >-
           xcodebuild test
           -project ios-assodarts/Assodarts.xcodeproj
           -scheme Assodarts
-          -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest'
+          -destination "platform=iOS Simulator,id=$IOS_SIMULATOR_UDID"
+          -parallel-testing-enabled NO
           -clonedSourcePackagesDirPath .spm-checkouts
           -enableCodeCoverage YES
           -resultBundlePath TestResults.xcresult
@@ -127,15 +175,16 @@ jobs:
         run: python3 .github/scripts/xccov_to_sonar_generic.py TestResults.xcresult ios-coverage.xml "$GITHUB_WORKSPACE"
 
       - name: Upload coverage report
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ios-coverage
           path: ios-coverage.xml
           retention-days: 1
 
       - name: Upload CodeQL results
+        id: codeql_ios
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-        uses: github/codeql-action/analyze@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
+        uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
           category: /language:swift
           upload: never
@@ -143,18 +192,18 @@ jobs:
           post-processed-sarif-path: ${{ github.workspace }}/codeql-results/ios-final
 
       - name: Summarize iOS CodeQL results
+        id: summarize_ios
         if: >-
-          always() &&
+          !cancelled() && steps.codeql_ios.outcome == 'success' &&
           (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         run: |
           python3 .github/scripts/summarize_codeql_sarif.py \
             "${{ github.workspace }}/codeql-results/ios-final" \
-            "${{ github.workspace }}/codeql-results/ios.sarif" \
             "iOS"
 
       - name: Upload iOS CodeQL SARIF
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: "!cancelled() && steps.codeql_ios.outcome == 'success'"
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: codeql-sarif-ios
           path: ${{ github.workspace }}/codeql-results/ios.sarif
@@ -169,18 +218,18 @@ jobs:
       actions: read
     steps:
       - name: Check out source
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@5ba2889ada762081db2c4f32a729827dce632c7b # v3
+        uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
           languages: javascript-typescript
           build-mode: none
 
       - name: Set up Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: "22"
+          node-version-file: backend/functions/.nvmrc
           cache: npm
           cache-dependency-path: backend/functions/package-lock.json
 
@@ -212,15 +261,16 @@ jobs:
         run: cp backend/functions/coverage/lcov.info backend-coverage.lcov
 
       - name: Upload coverage report
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: backend-coverage
           path: backend-coverage.lcov
           retention-days: 1
 
       - name: Upload CodeQL results
+        id: codeql_backend
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-        uses: github/codeql-action/analyze@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
+        uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
           category: /language:javascript-typescript
           upload: never
@@ -228,22 +278,126 @@ jobs:
           post-processed-sarif-path: ${{ github.workspace }}/codeql-results/backend-final
 
       - name: Summarize backend CodeQL results
+        id: summarize_backend
         if: >-
-          always() &&
+          !cancelled() && steps.codeql_backend.outcome == 'success' &&
           (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         run: |
           python3 .github/scripts/summarize_codeql_sarif.py \
             "${{ github.workspace }}/codeql-results/backend-final" \
-            "${{ github.workspace }}/codeql-results/backend.sarif" \
             "Backend"
 
       - name: Upload backend CodeQL SARIF
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: "!cancelled() && steps.codeql_backend.outcome == 'success'"
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: codeql-sarif-backend
           path: ${{ github.workspace }}/codeql-results/backend.sarif
           retention-days: 30
+
+  web:
+    name: Web quality
+    needs: changes
+    if: >-
+      needs.changes.outputs.web_exists == 'true' &&
+      (needs.changes.outputs.web == 'true' || needs.changes.outputs.shared == 'true' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: web/.nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci --ignore-scripts
+        working-directory: web
+      - run: npm audit --audit-level=high
+        working-directory: web
+      - run: npm run lint
+        working-directory: web
+      - run: npm run typecheck
+        working-directory: web
+      - run: npm test
+        working-directory: web
+      - uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
+        with:
+          distribution: temurin
+          java-version: "21"
+      - run: npm install --global --ignore-scripts firebase-tools@15.35.0
+      - run: firebase emulators:exec --project demo-assodarts-rules --only firestore 'npm --prefix ../web run test:domain'
+        working-directory: backend
+      - run: npm run build
+        working-directory: web
+      - name: Use the App Hosting staging runtime
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: backend/functions/.nvmrc
+          package-manager-cache: false
+      - name: Build and check staging indexing policy
+        working-directory: web
+        env:
+          ROOT_DOMAIN: staging.assodarts.app
+        run: |
+          npm run build
+          node node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port 3210 > /tmp/assodarts-staging.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --header 'Host: staging.assodarts.app' http://127.0.0.1:3210/ -o /tmp/assodarts-staging-home.html; then
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              cat /tmp/assodarts-staging.log
+              echo "Staging web server did not start"
+              exit 1
+            fi
+            sleep 1
+          done
+          grep -q 'name="robots" content="noindex, nofollow"' /tmp/assodarts-staging-home.html
+
+  shared:
+    name: Shared schemas quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Test CodeQL SARIF summarizer
+        run: python3 -m unittest discover -s .github/scripts -p 'test_*.py'
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: shared/.nvmrc
+          cache: npm
+          cache-dependency-path: shared/package-lock.json
+      - run: npm ci --ignore-scripts
+        working-directory: shared
+      - run: npm audit --audit-level=high
+        working-directory: shared
+      - run: npm test
+        working-directory: shared
+
+  rules:
+    name: Firebase rules emulator tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: backend/functions/.nvmrc
+          cache: npm
+          cache-dependency-path: backend/functions/package-lock.json
+      - uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
+        with:
+          distribution: temurin
+          java-version: "21"
+      - run: npm ci --ignore-scripts
+        working-directory: backend/functions
+      - run: npm run build
+        working-directory: backend/functions
+      - run: npm install --global --ignore-scripts firebase-tools@15.35.0
+      - run: firebase emulators:exec --project demo-assodarts-rules --only firestore,storage 'npm --prefix functions run test:rules && cd functions && node scripts/test-public-emulator.cjs'
+        working-directory: backend
 
   secret-scan:
     name: Secret scan
@@ -254,7 +408,7 @@ jobs:
       pull-requests: read
     steps:
       - name: Check out full history
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
@@ -275,28 +429,30 @@ jobs:
       (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
+      checks: read
     steps:
-      - name: Check out full history
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          fetch-depth: 0
-
-      - name: Download backend coverage report
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: backend-coverage
-          path: .
-        continue-on-error: true
-
-      - name: Scan with SonarQube
-        uses: SonarSource/sonarqube-scan-action@ba9859eae8dd6bd29e412f25ddbbef3d032000f4 # v8.2.2
+      - name: Enforce automatic SonarCloud Quality Gate for this commit
         env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL || 'https://sonarcloud.io' }}
-        with:
-          args: >-
-            -Dsonar.qualitygate.wait=true
-            -Dsonar.qualitygate.timeout=300
+          GH_TOKEN: ${{ github.token }}
+          ANALYSIS_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          deadline=$((SECONDS + 600))
+          while (( SECONDS < deadline )); do
+            checks=$(gh api "repos/$GITHUB_REPOSITORY/commits/$ANALYSIS_SHA/check-runs?check_name=SonarCloud%20Code%20Analysis&per_page=100&filter=latest")
+            check=$(jq -c --arg sha "$ANALYSIS_SHA" '[.check_runs[] | select(.app.slug == "sonarqubecloud" and .name == "SonarCloud Code Analysis" and .head_sha == $sha)] | sort_by(.id) | last' <<< "$checks")
+            if [ "$(jq -r '.status // empty' <<< "$check")" = completed ]; then
+              conclusion=$(jq -r '.conclusion' <<< "$check")
+              url=$(jq -r '.details_url' <<< "$check")
+              echo "SonarCloud $ANALYSIS_SHA: $conclusion ($url)"
+              test "$conclusion" = success || { echo "::error::SonarCloud Quality Gate did not pass"; exit 1; }
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "::error::No successful SonarCloud analysis completed for $ANALYSIS_SHA within 10 minutes"
+          exit 1
 
   # Le déploiement Firestore passe avant la distribution iOS : les règles,
   # indexes et functions du serveur sont toujours au moins aussi récents que
@@ -307,12 +463,19 @@ jobs:
     # il ne doit pas partir sur un commit qui fuite une clé.
     if: >-
       always() &&
-      (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/release-'))) &&
+      ((github.event_name == 'workflow_dispatch' && (inputs.deploy_staging || inputs.distribute_ios)) || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/release-'))) &&
       (needs.ios.result == 'success' || needs.ios.result == 'skipped') &&
       needs.backend.result == 'success' &&
+      needs.shared.result == 'success' &&
+      needs.rules.result == 'success' &&
+      (needs.web.result == 'success' || needs.web.result == 'skipped') &&
       needs.secret-scan.result == 'success' &&
-      (needs.sonarqube.result == 'success' || needs.sonarqube.result == 'skipped')
-    needs: [changes, ios, backend, sonarqube, secret-scan]
+      needs.sonarqube.result == 'success'
+    needs: [changes, ios, backend, web, shared, rules, sonarqube, secret-scan]
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
     uses: ./.github/workflows/deploy-firebase.yml
     with:
       environment: staging
@@ -326,13 +489,16 @@ jobs:
     # soient évalués au lieu de faire sauter le job d'office.
     if: >-
       always() &&
-      (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/release-'))) &&
-      (needs.ios.result == 'success' || needs.ios.result == 'skipped') &&
+      ((github.event_name == 'workflow_dispatch' && inputs.distribute_ios) || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/release-') && needs.changes.outputs.ios == 'true')) &&
+      needs.ios.result == 'success' &&
       needs.backend.result == 'success' &&
+      needs.shared.result == 'success' &&
+      needs.rules.result == 'success' &&
+      (needs.web.result == 'success' || needs.web.result == 'skipped') &&
       needs.secret-scan.result == 'success' &&
-      (needs.sonarqube.result == 'success' || needs.sonarqube.result == 'skipped') &&
+      needs.sonarqube.result == 'success' &&
       needs.deploy-firestore-staging.result == 'success'
-    needs: [changes, ios, backend, sonarqube, deploy-firestore-staging, secret-scan]
+    needs: [changes, ios, backend, web, shared, rules, sonarqube, deploy-firestore-staging, secret-scan]
     runs-on: ubuntu-latest
     environment: staging
     timeout-minutes: 30
@@ -345,7 +511,7 @@ jobs:
             --request POST https://api.codemagic.io/builds \
             --header "Content-Type: application/json" \
             --header "x-auth-token: $CODEMAGIC_API_TOKEN" \
-            --data "$(jq -nc --arg appId "$CODEMAGIC_APP_ID" --arg branch "$GITHUB_REF_NAME" '{appId: $appId, workflowId: "ios-staging-distribute", branch: $branch}')")
+            --data "$(jq -nc --arg appId "$CODEMAGIC_APP_ID" --arg branch "$GITHUB_REF_NAME" --arg sha "$GITHUB_SHA" '{appId: $appId, workflowId: "ios-staging-distribute", branch: $branch, environment: {variables: {EXPECTED_GITHUB_SHA: $sha}}}')")
           build_id=$(jq -r '.buildId // empty' <<< "$response")
           test -n "$build_id" || { echo "Codemagic did not return buildId: $response"; exit 1; }
           echo "CODEMAGIC_BUILD_ID=$build_id" >> "$GITHUB_ENV"
@@ -373,6 +539,11 @@ jobs:
                 echo "Codemagic build ended with status $status: $CODEMAGIC_BUILD_URL"
                 exit 1
                 ;;
+              *)
+                echo "CODEMAGIC_BUILD_STATUS=unknown" >> "$GITHUB_ENV"
+                echo "Unexpected Codemagic build status: ${status:-empty}"
+                exit 1
+                ;;
             esac
             sleep 20
           done
@@ -392,6 +563,60 @@ jobs:
               echo "- Codemagic build: $CODEMAGIC_BUILD_URL"
             fi
             if [ "${CODEMAGIC_BUILD_STATUS:-}" = "finished" ]; then
-              echo "- Distributed via TestFlight, group beta-clubs"
+              echo "- Distributed via TestFlight, group beta-clubs-ext"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy-web-staging:
+    name: Deploy web to App Hosting (staging)
+    needs: [changes, ios, backend, web, shared, rules, secret-scan, sonarqube]
+    if: >-
+      always() && github.event_name == 'push' && startsWith(github.ref, 'refs/heads/release-') &&
+      (needs.ios.result == 'success' || needs.ios.result == 'skipped') &&
+      needs.backend.result == 'success' && needs.shared.result == 'success' &&
+      needs.rules.result == 'success' && needs.secret-scan.result == 'success' &&
+      needs.sonarqube.result == 'success' && (needs.web.result == 'success' || needs.web.result == 'skipped')
+    runs-on: ubuntu-latest
+    environment: staging
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+      APPHOSTING_BACKEND_ID: ${{ vars.APPHOSTING_BACKEND_ID }}
+      GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/assodarts-apphosting-key.json
+    steps:
+      - name: Check out the tested commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Validate staging settings
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          test "$FIREBASE_PROJECT_ID" = 'assodarts-staging' || { echo 'Unexpected staging project'; exit 1; }
+          test -n "$APPHOSTING_BACKEND_ID" || { echo 'Configure staging APPHOSTING_BACKEND_ID'; exit 1; }
+          test -n "$FIREBASE_SERVICE_ACCOUNT" || { echo 'Configure staging Firebase credentials'; exit 1; }
+          case "$APPHOSTING_BACKEND_ID" in
+            *[!a-z0-9-]*|'') echo 'Invalid backend ID'; exit 1 ;;
+            *) ;;
+          esac
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: backend/functions/.nvmrc
+          package-manager-cache: false
+      - name: Install Firebase CLI
+        run: npm install --global --ignore-scripts firebase-tools@15.35.0
+      - name: Authenticate
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          umask 077
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$GOOGLE_APPLICATION_CREDENTIALS"
+      - name: Verify backend environment
+        run: |
+          firebase apphosting:backends:get "$APPHOSTING_BACKEND_ID" --project "$FIREBASE_PROJECT_ID" --json |
+            jq -e '.result.environment == "staging"' > /dev/null || { echo 'Backend must explicitly use the staging environment'; exit 1; }
+      - name: Roll out the tested commit
+        run: firebase apphosting:rollouts:create "$APPHOSTING_BACKEND_ID" --project "$FIREBASE_PROJECT_ID" --git-commit "$GITHUB_SHA" --force --non-interactive
+      - name: Remove credentials
+        if: always()
+        run: rm -f "$GOOGLE_APPLICATION_CREDENTIALS"

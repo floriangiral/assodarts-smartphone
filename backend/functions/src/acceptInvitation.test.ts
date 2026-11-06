@@ -8,8 +8,18 @@ import {
 
 const testEnv = functionsTest();
 
-const makeRequest = (email: string | undefined, uid?: string) =>
-  makeCallableRequest({}, { uid, token: email ? { email } : {} });
+const makeRequest = (
+  email: string | undefined,
+  uid?: string,
+  emailVerified = true,
+) =>
+  makeCallableRequest(
+    {},
+    {
+      uid,
+      token: email ? { email, email_verified: emailVerified } : {},
+    },
+  );
 
 const mockPlatformAdminGet = jest.fn();
 const mockInvitationsGet = jest.fn();
@@ -122,6 +132,30 @@ describe("acceptInvitation", () => {
     );
   });
 
+  it("accepts a verified invitation for a platform administrator", async () => {
+    mockPlatformAdminGet.mockResolvedValue({ exists: true });
+    mockInvitationsGet
+      .mockResolvedValueOnce(
+        firestoreSnapshot([
+          invitationDoc({
+            clubId: "c1",
+            role: "member",
+            status: "pending",
+            expiresAt: Date.now() + 60_000,
+          }),
+        ]),
+      )
+      .mockResolvedValueOnce({ docs: [] });
+    mockMembersGet.mockResolvedValue(firestoreSnapshot([memberDoc("m1")]));
+    await expect(
+      wrapped(makeRequest("user@example.com", "u1")),
+    ).resolves.toEqual({ joinedClubId: "c1" });
+    expect(mockMembershipSet).toHaveBeenCalledWith(
+      expect.objectContaining({ clubId: "c1", authUid: "u1", role: "member" }),
+      { merge: true },
+    );
+  });
+
   it("ignores an expired pending invitation", async () => {
     mockInvitationsGet
       .mockResolvedValueOnce(
@@ -143,6 +177,36 @@ describe("acceptInvitation", () => {
     expect(mockMembersGet).not.toHaveBeenCalled();
     expect(mockMembershipSet).not.toHaveBeenCalled();
     expect(mockInvitationSet).not.toHaveBeenCalled();
+  });
+
+  it("requires email verification before accepting a matching invitation", async () => {
+    mockInvitationsGet
+      .mockResolvedValueOnce(
+        firestoreSnapshot([
+          invitationDoc({
+            clubId: "c1",
+            role: "member",
+            status: "pending",
+            expiresAt: Date.now() + 60_000,
+          }),
+        ]),
+      )
+      .mockResolvedValueOnce({ docs: [] });
+
+    await expect(
+      wrapped(makeRequest("user@example.com", "u1", false)),
+    ).resolves.toEqual({ joinedClubId: null, verificationRequired: true });
+    expect(mockInvitationsGet).toHaveBeenCalledTimes(2);
+    expect(mockMembersGet).not.toHaveBeenCalled();
+    expect(mockMembershipSet).not.toHaveBeenCalled();
+  });
+
+  it("does not require email verification when no invitation exists", async () => {
+    mockInvitationsGet.mockResolvedValue({ docs: [] });
+
+    await expect(
+      wrapped(makeRequest("user@example.com", "u1", false)),
+    ).resolves.toEqual({ joinedClubId: null });
   });
 
   it("recovers an already accepted invitation for a recreated auth user", async () => {

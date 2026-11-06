@@ -154,18 +154,16 @@ extension AppStore {
             let result = try await Backend.auth.createUser(withEmail: normalized, password: password)
 
             do {
-                let userId = try await RemoteRepository.createSelfMember(
+                try await result.user.sendEmailVerification()
+                _ = try await RemoteRepository.createSelfMember(
                     firstName: first,
                     lastName: last,
                     phone: phone.isEmpty ? nil : phone
                 )
-                let message = await loadRemote(userId: userId)
-                if message != nil {
-                    await rollbackCreatedAuthUser(result.user, context: "invited member sign-up")
-                } else {
-                    AnalyticsService.logSignUp(method: "invitation")
-                }
-                return message
+                try? Backend.auth.signOut()
+                authNotice = tr("verify_your_email_before_accepting_the_invitation")
+                AnalyticsService.logSignUp(method: "invitation")
+                return nil
             } catch {
                 await rollbackCreatedAuthUser(result.user, context: "invited member sign-up")
                 throw error
@@ -286,6 +284,10 @@ extension AppStore {
             return nil
         } catch {
             print("Club sync failed: \(error)")
+            if case BackendError.emailVerificationRequired = error {
+                resetToSignedOutState()
+                return nil
+            }
             if case BackendError.noMembership = error {
                 prepareOnboardingForMemberWithoutClub(userId: userId)
                 return nil
@@ -348,7 +350,16 @@ extension AppStore {
     /// currently active, `pendingClubSwitchOffer` is set so the UI can offer
     /// an immediate switch instead of silently reloading the old club.
     private func loadSnapshotAcceptingInvitations(for userId: UUID) async throws -> RemoteRepository.Snapshot {
-        let joinedClubId = try await RemoteRepository.acceptPendingInvitation()
+        let acceptance = try await RemoteRepository.acceptPendingInvitation()
+        if acceptance.verificationRequired == true {
+            if let user = Backend.auth.currentUser {
+                try await user.sendEmailVerification()
+            }
+            try? Backend.auth.signOut()
+            authNotice = tr("verify_your_email_before_accepting_the_invitation")
+            throw BackendError.emailVerificationRequired
+        }
+        let joinedClubId = acceptance.joinedClubId
 
         let snapshot: RemoteRepository.Snapshot
         do {

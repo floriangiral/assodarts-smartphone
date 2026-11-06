@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+WEB_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+exec "$WEB_DIR/dev" demo "${1:-start}"

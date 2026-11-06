@@ -1,11 +1,6 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { getFirestore, FieldValue, Timestamp } from "firebase-admin/firestore";
-import {
-  requireClubAdmin,
-  requireClubBoard,
-  requireEmailNotPlatformAdmin,
-  requireNotPlatformAdmin,
-} from "./shared/auth";
+import { requireClubAdmin, requireClubBoard } from "./shared/auth";
 import { timestampMillis } from "./shared/timestamps";
 
 const VALID_ROLES = new Set(["admin", "board", "member"]);
@@ -42,7 +37,6 @@ export const createInvitation = onCall(async (request) => {
   if (role !== "member") {
     await requireClubAdmin(clubId, request.auth.uid);
   }
-  await requireEmailNotPlatformAdmin(email);
 
   const db = getFirestore();
   const expiresAt = Timestamp.fromMillis(Date.now() + INVITATION_TTL_MS);
@@ -119,8 +113,6 @@ export const acceptInvitation = onCall(async (request) => {
 
   const email = request.auth.token.email as string | undefined;
   if (!email) return { joinedClubId: null };
-  await requireNotPlatformAdmin(request.auth.uid);
-
   const db = getFirestore();
   const invitationSnapshots = await Promise.all(
     ["pending", "accepted"].map((status) =>
@@ -142,6 +134,9 @@ export const acceptInvitation = onCall(async (request) => {
     });
 
   if (invitationDocs.length === 0) return { joinedClubId: null };
+  if (request.auth.token.email_verified !== true) {
+    return { joinedClubId: null, verificationRequired: true };
+  }
 
   const memberSnapshot = await db
     .collection("members")

@@ -5,7 +5,6 @@ const testEnv = functionsTest();
 
 const mockRequireClubBoard = jest.fn();
 const mockRequireClubAdmin = jest.fn();
-const mockRequireNotPlatformAdmin = jest.fn();
 const mockMemberSet = jest.fn();
 const mockMembershipSet = jest.fn();
 const mockCreatedMemberSet = jest.fn();
@@ -36,7 +35,6 @@ function makeUnauthenticatedRequest(
 jest.mock("./shared/auth", () => ({
   requireClubBoard: mockRequireClubBoard,
   requireClubAdmin: mockRequireClubAdmin,
-  requireNotPlatformAdmin: mockRequireNotPlatformAdmin,
 }));
 
 jest.mock("firebase-admin/firestore", () => ({
@@ -119,7 +117,6 @@ describe("updateMemberProfile", () => {
     };
     mockRequireClubBoard.mockResolvedValue(undefined);
     mockRequireClubAdmin.mockResolvedValue(undefined);
-    mockRequireNotPlatformAdmin.mockResolvedValue(undefined);
     mockBatchCommit.mockResolvedValue(undefined);
     mockExistingSelfMemberId = null;
   });
@@ -201,7 +198,6 @@ describe("updateMemberProfile", () => {
       expect.objectContaining({ role: "board" }),
       { merge: true },
     );
-    expect(mockRequireNotPlatformAdmin).toHaveBeenCalledWith("self");
   });
 
   it("does not write role changes when the caller is not a club admin", async () => {
@@ -217,15 +213,14 @@ describe("updateMemberProfile", () => {
     expect(mockMembershipSet).not.toHaveBeenCalled();
   });
 
-  it("rejects assigning a platform admin to a club role", async () => {
-    mockRequireNotPlatformAdmin.mockRejectedValue(
-      new Error("Platform admin accounts cannot belong to a club"),
+  it("requires the club admin to change a member role", async () => {
+    await wrapped(makeRequest({ memberId: "m1", clubId: "c1", role: "board" }));
+    expect(mockRequireClubAdmin).toHaveBeenCalledWith("c1", "caller");
+    expect(mockMembershipSet).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ role: "board" }),
+      { merge: true },
     );
-
-    await expect(
-      wrapped(makeRequest({ memberId: "m1", clubId: "c1", role: "board" })),
-    ).rejects.toThrow("Platform admin accounts cannot belong to a club");
-    expect(mockMembershipSet).not.toHaveBeenCalled();
   });
 });
 

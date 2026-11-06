@@ -4,6 +4,11 @@ const mockPaymentCallGet = jest.fn();
 const mockBankAccountGet = jest.fn();
 const mockMembershipGet = jest.fn();
 const mockCheckoutCreate = jest.fn();
+const mockCreateOrReuseCheckoutSession = jest.fn();
+
+jest.mock("./shared/checkoutSession", () => ({
+  createOrReuseCheckoutSession: mockCreateOrReuseCheckoutSession,
+}));
 
 jest.mock("./shared/stripe", () => {
   const actual = jest.requireActual("./shared/stripe");
@@ -80,6 +85,9 @@ beforeEach(() => {
     url: "https://stripe.test/checkout",
   });
   mockItemSet.mockResolvedValue(undefined);
+  mockCreateOrReuseCheckoutSession.mockImplementation((_ref, stripe, params) =>
+    stripe.checkout.sessions.create(params),
+  );
 });
 
 describe("stripeCreateCheckout", () => {
@@ -179,9 +187,17 @@ describe("stripeCreateCheckout", () => {
         metadata: { item_id: "i1", club_id: "c1", member_id: "u1" },
       }),
     );
-    expect(mockItemSet).toHaveBeenCalledWith(
-      { stripeCheckoutSessionId: "cs_123", updatedAt: "SERVER_TIMESTAMP" },
-      { merge: true },
+    expect(mockCreateOrReuseCheckoutSession).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({
+        line_items: [
+          expect.objectContaining({
+            price_data: expect.objectContaining({ unit_amount: 4200 }),
+          }),
+        ],
+      }),
+      "payment-i1",
     );
     expect(result).toEqual({
       url: "https://stripe.test/checkout",

@@ -37,6 +37,7 @@ export {
   acceptInvitation,
 } from "./invitations";
 export { clubRoster } from "./clubRoster";
+export { loadPlatformAnnouncements } from "./platformAnnouncements";
 export { createClub } from "./createClub";
 export { createSelfMember, updateMemberProfile } from "./memberProfile";
 export { sendMailOnCreate } from "./triggers/sendMailOnCreate";
@@ -47,3 +48,5 @@ export {
   createCoupon,
   deleteCoupon,
 } from "./platformAdmin";
+export { onPublicClubWritten, onPublicEventWritten } from "./publicProjections";
+export { setClubSlug } from "./clubSlugs";

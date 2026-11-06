@@ -18,6 +18,37 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/platform_admins/$(request.auth.uid));
     }
 
+    function isSiteEditor() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/site_editors/$(request.auth.uid));
+    }
+
+    function validSiteHome() {
+      return request.resource.data.keys().hasOnly(['headline', 'description', 'eyebrow', 'featuresTitle', 'featuresDescription', 'feature1Title', 'feature1Description', 'feature2Title', 'feature2Description', 'feature3Title', 'feature3Description', 'mobileTitle', 'mobileDescription', 'updatedBy', 'updatedAt', 'revision'])
+        && request.resource.data.keys().hasAll(['headline', 'description', 'updatedBy', 'updatedAt', 'revision'])
+        && request.resource.data.headline is string
+        && request.resource.data.headline.size() > 0
+        && request.resource.data.headline.size() <= 120
+        && request.resource.data.description is string
+        && request.resource.data.description.size() > 0
+        && request.resource.data.description.size() <= 500
+        && request.resource.data.get('eyebrow', '') is string && request.resource.data.get('eyebrow', '').size() <= 120
+        && request.resource.data.get('featuresTitle', '') is string && request.resource.data.get('featuresTitle', '').size() <= 160
+        && request.resource.data.get('featuresDescription', '') is string && request.resource.data.get('featuresDescription', '').size() <= 500
+        && request.resource.data.get('feature1Title', '') is string && request.resource.data.get('feature1Title', '').size() <= 120
+        && request.resource.data.get('feature1Description', '') is string && request.resource.data.get('feature1Description', '').size() <= 500
+        && request.resource.data.get('feature2Title', '') is string && request.resource.data.get('feature2Title', '').size() <= 120
+        && request.resource.data.get('feature2Description', '') is string && request.resource.data.get('feature2Description', '').size() <= 500
+        && request.resource.data.get('feature3Title', '') is string && request.resource.data.get('feature3Title', '').size() <= 120
+        && request.resource.data.get('feature3Description', '') is string && request.resource.data.get('feature3Description', '').size() <= 500
+        && request.resource.data.get('mobileTitle', '') is string && request.resource.data.get('mobileTitle', '').size() <= 160
+        && request.resource.data.get('mobileDescription', '') is string && request.resource.data.get('mobileDescription', '').size() <= 500
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.revision is string
+        && request.resource.data.revision.size() == 36
+        && request.resource.data.updatedAt == request.time;
+    }
+
     function membership(clubId) {
       return get(/databases/$(database)/documents/memberships/$(clubId + '_' + request.auth.uid)).data;
     }
@@ -187,6 +218,7 @@ service cloud.firestore {
         'startsAt',
         'location',
         'category',
+        'visibility',
         'createdByMemberId'
       ];
     }
@@ -194,19 +226,22 @@ service cloud.firestore {
     function eventCreateIsValid() {
       return request.resource.data.keys().hasOnly(eventFields())
         && request.resource.data.clubId is string
-        && request.resource.data.createdByMemberId == currentMemberId(request.resource.data.clubId);
+        && request.resource.data.createdByMemberId == currentMemberId(request.resource.data.clubId)
+        && request.resource.data.get('visibility', 'members') in ['public', 'members'];
     }
 
     function eventUpdateIsValid() {
       return request.resource.data.keys().hasOnly(eventFields())
         && request.resource.data.clubId == resource.data.clubId
         && request.resource.data.createdByMemberId == resource.data.createdByMemberId
+        && request.resource.data.get('visibility', 'members') in ['public', 'members']
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'title',
           'description',
           'startsAt',
           'location',
-          'category'
+          'category',
+          'visibility'
         ]);
     }
 
@@ -323,7 +358,11 @@ service cloud.firestore {
       // Subscription fields are written by the Stripe Cloud Functions with the
       // Admin SDK, which bypasses these rules; an expired club can no longer
       // edit its own settings from the app.
-      allow write: if canWriteClubContent(clubId);
+      allow create: if canWriteClubContent(clubId)
+        && !request.resource.data.keys().hasAny(['slug']);
+      allow update: if canWriteClubContent(clubId)
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['slug']);
+      allow delete: if canWriteClubContent(clubId);
 
       match /contribution_seasons/{seasonId} {
         allow read: if isActiveMember(clubId) || isPlatformAdmin();
@@ -339,6 +378,27 @@ service cloud.firestore {
     match /platform_admins/{uid} {
       allow read: if isSignedIn() && request.auth.uid == uid;
       allow write: if false;
+    }
+
+    match /site_editors/{uid} {
+      allow read: if isSignedIn() && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    match /site_content/{page} {
+      allow read: if page == 'home_published' || (page == 'home_draft' && isSiteEditor());
+      allow create, update: if page in ['home_draft', 'home_published'] && isSiteEditor() && validSiteHome()
+        && (page == 'home_draft'
+          || getAfter(/databases/$(database)/documents/site_publication_history/$(request.resource.data.revision)).data == request.resource.data);
+      allow delete: if false;
+    }
+
+    match /site_publication_history/{revision} {
+      allow read: if isSiteEditor();
+      allow create: if isSiteEditor() && validSiteHome()
+        && revision == request.resource.data.revision
+        && getAfter(/databases/$(database)/documents/site_content/home_published).data == request.resource.data;
+      allow update, delete: if false;
     }
 
     match /memberships/{membershipId} {
@@ -383,8 +443,7 @@ service cloud.firestore {
     }
 
     match /platform_announcements/{announcementId} {
-      allow read: if isSignedIn();
-      allow write: if false;
+      allow read, write: if false;
     }
 
     match /coupons/{couponId} {
@@ -399,6 +458,22 @@ service cloud.firestore {
       allow update: if canWriteClubContent(resource.data.clubId)
         && eventUpdateIsValid();
       allow delete: if canWriteClubContent(resource.data.clubId);
+    }
+
+    // Projections are written by trusted server code only.
+    match /clubs_public/{clubId} {
+      allow read: if resource.data.isPublished == true;
+      allow write: if false;
+    }
+
+    match /events_public/{eventId} {
+      allow read: if resource.data.isPublished == true
+        && get(/databases/$(database)/documents/clubs_public/$(resource.data.clubId)).data.isPublished == true;
+      allow write: if false;
+    }
+
+    match /club_slugs/{slug} {
+      allow read, write: if false;
     }
 
     match /event_registrations/{registrationId} {
@@ -468,7 +543,11 @@ service cloud.firestore {
     }
 
     match /notifications/{notificationId} {
-      allow read, update, delete: if isOwnMember(resource.data.clubId, resource.data.memberId);
+      allow read, delete: if isOwnMember(resource.data.clubId, resource.data.memberId);
+      allow update: if isOwnMember(resource.data.clubId, resource.data.memberId)
+        && resource.data.readAt == null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readAt'])
+        && request.resource.data.readAt == request.time;
       // Created only by Cloud Function triggers (Admin SDK).
       allow create: if false;
     }

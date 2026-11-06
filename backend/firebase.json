@@ -14,5 +14,18 @@
         "npm --prefix \"$RESOURCE_DIR\" run build"
       ]
     }
-  ]
+  ],
+  "emulators": {
+    "auth": {
+      "port": 9099
+    },
+    "firestore": {
+      "port": 8080
+    },
+    "apphosting": {
+      "port": 5002,
+      "rootDirectory": "../web",
+      "startCommand": "npm run dev -- --hostname 127.0.0.1"
+    }
+  }
 }

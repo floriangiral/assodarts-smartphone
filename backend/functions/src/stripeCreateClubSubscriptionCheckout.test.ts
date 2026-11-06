@@ -8,6 +8,11 @@ const mockCustomersCreate = jest.fn();
 const mockSubscriptionsRetrieve = jest.fn();
 const mockCouponsRetrieve = jest.fn();
 const mockStripeCouponsCreate = jest.fn();
+const mockCreateOrReuseCheckoutSession = jest.fn();
+
+jest.mock("./shared/checkoutSession", () => ({
+  createOrReuseCheckoutSession: mockCreateOrReuseCheckoutSession,
+}));
 
 jest.mock("./shared/auth", () => ({
   requireClubAdmin: mockRequireClubAdmin,
@@ -97,6 +102,9 @@ beforeEach(() => {
     id: "cs_sub_1",
     url: "https://stripe.test/subscribe",
   });
+  mockCreateOrReuseCheckoutSession.mockImplementation((_ref, stripe, params) =>
+    stripe.checkout.sessions.create(params),
+  );
 });
 
 describe("stripeCreateClubSubscriptionCheckout", () => {
@@ -104,7 +112,7 @@ describe("stripeCreateClubSubscriptionCheckout", () => {
     handler,
     makeRequest,
     requireClubAdminMock: mockRequireClubAdmin,
-    downstreamMock: mockCheckoutCreate,
+    downstreamMock: mockCreateOrReuseCheckoutSession,
   });
 
   it.each([

@@ -84,6 +84,18 @@ describe("clubRoster", () => {
         },
       },
       {
+        id: "c1_member-caller",
+        data: {
+          clubId: "c1",
+          memberId: "ordinary-member",
+          authUid: "ordinary-user",
+          role: "member",
+          status: "active",
+          joinDate: 1_700_000_000_000,
+          licenseNumber: null,
+        },
+      },
+      {
         id: "c1_u1",
         data: {
           clubId: "c1",
@@ -162,6 +174,12 @@ describe("clubRoster", () => {
 
   it("rejects unauthenticated calls", async () => {
     await expect(wrapped(makeRequest({ clubId: "c1" }))).rejects.toThrow();
+  });
+
+  it("rejects an active member without a board role", async () => {
+    await expect(
+      wrapped(makeRequest({ clubId: "c1" }, "ordinary-user")),
+    ).rejects.toMatchObject({ code: "permission-denied" });
   });
 
   it("returns a server-built roster and deduplicates same-email profiles", async () => {

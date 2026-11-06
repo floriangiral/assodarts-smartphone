@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Summarize local CodeQL SARIF output and enforce the error threshold."""
+"""Summarize local CodeQL SARIF output and enforce the error threshold.
+
+Usage: summarize_codeql_sarif.py <sarif_dir> <iOS|Backend>
+"""
 
 import json
 import os
@@ -7,6 +10,15 @@ import shutil
 import sys
 from collections import Counter
 from pathlib import Path
+
+
+def workspace_path(value: str, workspace: Path) -> Path:
+    path = Path(value).resolve()
+    try:
+        path.relative_to(workspace)
+    except ValueError as error:
+        raise ValueError(f"path must resolve within {workspace}") from error
+    return path
 
 
 def severity(result):
@@ -28,31 +40,28 @@ def severity(result):
 
 
 def main():
-    if len(sys.argv) != 4:
+    if len(sys.argv) != 3:
         print(__doc__, file=sys.stderr)
         return 2
 
-    sarif_dir = Path(sys.argv[1])
-    output_path = Path(sys.argv[2])
-    label = sys.argv[3]
+    workspace = Path(os.environ.get("GITHUB_WORKSPACE", Path.cwd())).resolve()
+    try:
+        sarif_dir = workspace_path(sys.argv[1], workspace)
+    except ValueError as error:
+        print(f"Invalid path: {error}", file=sys.stderr)
+        return 2
+
+    label = sys.argv[2]
+    output_names = {"iOS": "ios.sarif", "Backend": "backend.sarif"}
+    if label not in output_names:
+        print(f"Invalid CodeQL label: {label}", file=sys.stderr)
+        return 2
+    output_path = workspace / "codeql-results" / output_names[label]
     files = sorted(sarif_dir.rglob("*.sarif"))
 
     if not files:
-        print(f"CodeQL {label}: no SARIF file produced; treating as zero alerts")
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(
-            json.dumps(
-                {
-                    "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
-                    "version": "2.1.0",
-                    "runs": [],
-                },
-                indent=2,
-            )
-            + "\n",
-            encoding="utf-8",
-        )
-        return 0
+        print(f"CodeQL {label}: no SARIF file produced; failing closed", file=sys.stderr)
+        return 1
 
     runs = []
     version = "2.1.0"

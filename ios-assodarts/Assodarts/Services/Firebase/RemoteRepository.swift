@@ -16,12 +16,28 @@ enum RemoteRepository {
     private static let initialTournamentsLimit = 60
     private static let initialTournamentEntriesLimit = 500
     private static let initialMessagesPerConversationLimit = 50
-    private static let platformAnnouncementsLimit = 20
+
+    private struct PlatformAnnouncementsResponse: Decodable {
+        let announcements: [PlatformAnnouncementRecord]
+    }
+
+    private struct PlatformAnnouncementRecord: Decodable {
+        let id: String
+        let title: String
+        let body: String
+        let audience: String
+        let publishedAtMillis: Int64
+    }
 
     /// A club the signed-in member belongs to, for the active-club switcher.
     struct AvailableClub: Identifiable, Hashable, Sendable {
         let id: String
         let name: String
+    }
+
+    struct InvitationAcceptance: Decodable {
+        let joinedClubId: String?
+        let verificationRequired: Bool?
     }
 
     private static func encodedData<T: Encodable>(from payload: T) throws -> [String: Any] {
@@ -1054,20 +1070,19 @@ enum RemoteRepository {
     }
 
     static func loadPlatformAnnouncements() async throws -> [PlatformAnnouncement] {
-        let documents = try await Backend.firestore.collection("platform_announcements")
-            .order(by: "publishedAt", descending: true)
-            .limit(to: platformAnnouncementsLimit)
-            .getDocuments().documents
-        return documents.compactMap { document in
-            guard let remote = try? document.data(as: RemotePlatformAnnouncement.self),
-                  let id = remote.id.flatMap(UUID.init(uuidString:)),
+        let result = try await Backend.functions
+            .httpsCallable("loadPlatformAnnouncements")
+            .call([String: Any]())
+        let response = try decodedCallableData(result.data, as: PlatformAnnouncementsResponse.self)
+        return response.announcements.compactMap { remote in
+            guard let id = UUID(uuidString: remote.id),
                   let audience = BroadcastAudience(rawValue: remote.audience) else { return nil }
             return PlatformAnnouncement(
                 id: id,
                 title: remote.title,
                 body: remote.body,
                 audience: audience,
-                publishedAt: remote.publishedAt ?? .now
+                publishedAt: Date(timeIntervalSince1970: Double(remote.publishedAtMillis) / 1000)
             )
         }
     }
@@ -1133,9 +1148,8 @@ enum RemoteRepository {
     /// Called right after sign-in/sign-up, before the first snapshot load.
     /// - Returns: The real Firestore id of the first club joined, if any.
     @discardableResult
-    static func acceptPendingInvitation() async throws -> String? {
+    static func acceptPendingInvitation() async throws -> InvitationAcceptance {
         let result = try await Backend.functions.httpsCallable("acceptInvitation").call([String: Any]())
-        guard let data = result.data as? [String: Any] else { return nil }
-        return data["joinedClubId"] as? String
+        return try decodedCallableData(result.data, as: InvitationAcceptance.self)
     }
 }

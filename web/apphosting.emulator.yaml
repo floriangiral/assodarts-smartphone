@@ -1,0 +1,7 @@
+env:
+  - variable: ROOT_DOMAIN
+    value: localhost
+    availability: [RUNTIME]
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: demo-assodarts-rules
+    availability: [BUILD, RUNTIME]

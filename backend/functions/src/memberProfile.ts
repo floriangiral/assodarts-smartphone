@@ -1,11 +1,7 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { randomUUID } from "node:crypto";
-import {
-  requireClubAdmin,
-  requireClubBoard,
-  requireNotPlatformAdmin,
-} from "./shared/auth";
+import { requireClubAdmin, requireClubBoard } from "./shared/auth";
 
 const VALID_ROLES = new Set(["admin", "board", "member"]);
 const PROFILE_FIELDS = [
@@ -146,7 +142,6 @@ async function buildMembershipUpdate(
   membership: FirebaseFirestore.DocumentData,
   clubId: string,
   callerUid: string,
-  targetAuthUid: string,
 ): Promise<Record<string, unknown>> {
   const update: Record<string, unknown> = {};
 
@@ -176,7 +171,6 @@ async function buildMembershipUpdate(
     }
     if (role !== normalizedRole(membership.role)) {
       await requireClubAdmin(clubId, callerUid);
-      await requireNotPlatformAdmin(targetAuthUid);
       update.role = role;
     }
   }
@@ -263,7 +257,6 @@ export const updateMemberProfile = onCall(async (request) => {
     membership,
     clubId,
     callerUid,
-    targetAuthUid,
   );
 
   const batch = db.batch();
