@@ -5,8 +5,13 @@ const { clubSlugSchema, slugify } = require("../lib/shared/club-slug");
 
 const projectId = process.env.GCLOUD_PROJECT || "";
 const emulator = process.env.FIRESTORE_EMULATOR_HOST || "";
-if (!projectId.startsWith("demo-") || !/^(127\.0\.0\.1|localhost):\d+$/.test(emulator)) {
-  throw new Error("This script only runs against a local demo Firestore emulator.");
+if (
+  !projectId.startsWith("demo-") ||
+  !/^(127\.0\.0\.1|localhost):\d+$/.test(emulator)
+) {
+  throw new Error(
+    "This script only runs against a local demo Firestore emulator.",
+  );
 }
 
 const args = new Set(process.argv.slice(2));
@@ -22,8 +27,59 @@ function fallbackSlug(clubId) {
 
 function candidateSlug(base, suffix) {
   const tail = suffix === 0 ? "" : `-${suffix + 1}`;
-  const prefix = base.slice(0, 40 - tail.length).replace(/-+$/g, "");
+  let prefix = base.slice(0, 40 - tail.length);
+  while (prefix.endsWith("-")) prefix = prefix.slice(0, -1);
   return `${prefix}${tail}`;
+}
+
+async function migrateCandidate(db, clubRef, clubId, slug, apply) {
+  return db.runTransaction(async (transaction) => {
+    const currentClub = await transaction.get(clubRef);
+    if (!currentClub.exists) return { status: "missing", slug };
+    const newSlugRef = db.collection("club_slugs").doc(slug);
+    const newSlug = await transaction.get(newSlugRef);
+    const newSlugData = newSlug.data();
+    if (newSlug.exists && newSlugData?.clubId !== clubId) {
+      return { status: "collision", slug };
+    }
+
+    const latestSlug = currentClub.get("slug");
+    const previousSlug =
+      typeof latestSlug === "string" &&
+      clubSlugSchema.safeParse(latestSlug).success &&
+      latestSlug !== slug
+        ? latestSlug
+        : null;
+    const oldSlugRef = previousSlug
+      ? db.collection("club_slugs").doc(previousSlug)
+      : null;
+    const oldSlug = oldSlugRef ? await transaction.get(oldSlugRef) : null;
+
+    const alreadyCurrent =
+      latestSlug === slug &&
+      newSlug.exists &&
+      newSlugData?.clubId === clubId &&
+      newSlugData?.status === "active";
+    if (!apply || alreadyCurrent) {
+      return { status: alreadyCurrent ? "unchanged" : "planned", slug };
+    }
+
+    const createdAt = newSlugData?.createdAt ?? FieldValue.serverTimestamp();
+    transaction.set(
+      newSlugRef,
+      { clubId, status: "active", createdAt },
+      { merge: true },
+    );
+    if (oldSlugRef && oldSlug?.exists && oldSlug.data()?.clubId === clubId) {
+      transaction.set(
+        oldSlugRef,
+        { clubId, status: "alias", aliasOf: slug },
+        { merge: true },
+      );
+    }
+    transaction.update(clubRef, { slug });
+    return { status: "updated", slug };
+  });
 }
 
 async function migrateClub(db, clubId, reserved) {
@@ -47,53 +103,7 @@ async function migrateClub(db, clubId, reserved) {
     if (slug === currentSlug && suffix > 0) continue;
     if (reserved.has(slug) && slug !== currentSlug) continue;
 
-    const result = await db.runTransaction(async (transaction) => {
-      const currentClub = await transaction.get(clubRef);
-      if (!currentClub.exists) return { status: "missing", slug };
-      const newSlugRef = db.collection("club_slugs").doc(slug);
-      const newSlug = await transaction.get(newSlugRef);
-      const newSlugData = newSlug.data();
-      if (newSlug.exists && newSlugData?.clubId !== clubId) {
-        return { status: "collision", slug };
-      }
-
-      const latestSlug = currentClub.get("slug");
-      const previousSlug =
-        typeof latestSlug === "string" &&
-        clubSlugSchema.safeParse(latestSlug).success &&
-        latestSlug !== slug
-          ? latestSlug
-          : null;
-      const oldSlugRef = previousSlug
-        ? db.collection("club_slugs").doc(previousSlug)
-        : null;
-      const oldSlug = oldSlugRef ? await transaction.get(oldSlugRef) : null;
-
-      const alreadyCurrent =
-        latestSlug === slug &&
-        newSlug.exists &&
-        newSlugData?.clubId === clubId &&
-        newSlugData?.status === "active";
-      if (!apply || alreadyCurrent) {
-        return { status: alreadyCurrent ? "unchanged" : "planned", slug };
-      }
-
-      const createdAt = newSlugData?.createdAt ?? FieldValue.serverTimestamp();
-      transaction.set(
-        newSlugRef,
-        { clubId, status: "active", createdAt },
-        { merge: true },
-      );
-      if (oldSlugRef && oldSlug?.exists && oldSlug.data()?.clubId === clubId) {
-        transaction.set(
-          oldSlugRef,
-          { clubId, status: "alias", aliasOf: slug },
-          { merge: true },
-        );
-      }
-      transaction.update(clubRef, { slug });
-      return { status: "updated", slug };
-    });
+    const result = await migrateCandidate(db, clubRef, clubId, slug, apply);
 
     if (result.status === "collision") continue;
     if (result.status !== "missing") reserved.add(result.slug);
@@ -105,7 +115,13 @@ async function migrateClub(db, clubId, reserved) {
 async function main() {
   const db = getFirestore();
   const reserved = new Set();
-  const counts = { planned: 0, updated: 0, unchanged: 0, missing: 0, exhausted: 0 };
+  const counts = {
+    planned: 0,
+    updated: 0,
+    unchanged: 0,
+    missing: 0,
+    exhausted: 0,
+  };
   let cursor;
 
   for (;;) {
