@@ -9,7 +9,7 @@ import {
   getEvent,
   robots,
 } from "@/lib/public/data";
-type Props = { params: Promise<{ slug: string; eventId: string }> };
+type Props = Readonly<{ params: Promise<{ slug: string; eventId: string }> }>;
 async function load(params: Props["params"]) {
   const { slug, eventId } = await params;
   const path = `/e/${encodeURIComponent(eventId)}`;
@@ -54,7 +54,7 @@ export default async function Event({ params }: Props) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(structured).replace(/</g, "\\u003c"),
+          __html: JSON.stringify(structured).replaceAll("<", String.raw`\u003c`),
         }}
       />
       <div className="mx-auto max-w-7xl px-5 py-10 sm:px-8 sm:py-16">

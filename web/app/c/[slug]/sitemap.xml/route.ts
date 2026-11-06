@@ -1,7 +1,7 @@
 import { canonical, getClub, getEvents } from "@/lib/public/data";
 export async function GET(
   _request: Request,
-  { params }: { params: Promise<{ slug: string }> },
+  { params }: Readonly<{ params: Promise<{ slug: string }> }>,
 ) {
   const { slug } = await params;
   const club = await getClub(slug, "/sitemap.xml");
@@ -14,7 +14,7 @@ export async function GET(
   const urls = paths
     .map(
       (path) =>
-        `<url><loc>${canonical(club.slug, path).replace(/&/g, "&amp;")}</loc></url>`,
+        `<url><loc>${canonical(club.slug, path).replaceAll("&", "&amp;")}</loc></url>`,
     )
     .join("");
   return new Response(

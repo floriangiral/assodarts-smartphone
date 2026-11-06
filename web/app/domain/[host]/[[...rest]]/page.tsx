@@ -14,7 +14,7 @@ import {
 } from "@/lib/public/data";
 import { getCustomDomainClub } from "@/lib/public/customDomain";
 
-type Props = { params: Promise<{ host: string; rest?: string[] }> };
+type Props = Readonly<{ params: Promise<{ host: string; rest?: string[] }> }>;
 type CustomView = "home" | "agenda" | "event";
 
 async function loadCustomPage(params: Props["params"]) {
@@ -102,7 +102,7 @@ export default async function CustomDomain({ params }: Props) {
             </aside>
           </article>
         </div>
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structured).replace(/</g, "\\u003c") }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structured).replaceAll("<", String.raw`\u003c`) }} />
       </Shell>
     );
   }

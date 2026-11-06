@@ -11,7 +11,7 @@ import {
   splitEvents,
 } from "@/lib/public/data";
 
-type Props = { params: Promise<{ slug: string }> };
+type Props = Readonly<{ params: Promise<{ slug: string }> }>;
 export async function generateMetadata({ params }: Props) {
   const { slug } = await params;
   const club = await getClub(slug);

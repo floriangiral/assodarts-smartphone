@@ -17,12 +17,12 @@ async function main() {
   const a = randomUUID(), b = randomUUID();
   const contestedSlug = `unique-${randomUUID().slice(0, 8)}`;
   const replacementSlug = `nouveau-${randomUUID().slice(0, 8)}`;
-  for (const [id, uid, published] of [[a,'a',true], [b,'b',false]]) {
+  await Promise.all([[a,'a',true], [b,'b',false]].map(async ([id, uid, published]) => {
     await db.collection('clubs').doc(id).set({name: `Club ${uid}`, secret: 'never public', publicProfile: {isPublished: published, city:'Paris'}});
     await db.collection('memberships').doc(`${id}_${uid}`).set({clubId:id, authUid:uid, role:'admin', status:'active'});
     await db.collection('events').doc(`public-${uid}`).set({clubId:id, title:'Public', visibility:'public', startsAt:Timestamp.now(), secret:'never public'});
     await db.collection('events').doc(`private-${uid}`).set({clubId:id, title:'Private'});
-  }
+  }));
   await assert.rejects(call(request(null,a,'club-a')));
   await assert.rejects(call(request('b',a,'club-a')));
   await assert.rejects(call(request('a',a,'admin')));
