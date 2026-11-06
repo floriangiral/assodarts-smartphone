@@ -340,7 +340,21 @@ jobs:
           ROOT_DOMAIN: staging.assodarts.app
         run: |
           npm run build
-          grep -q 'name="robots" content="noindex, nofollow"' .next/server/app/index.html
+          node node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port 3210 > /tmp/assodarts-staging.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --header 'Host: staging.assodarts.app' http://127.0.0.1:3210/ -o /tmp/assodarts-staging-home.html; then
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              cat /tmp/assodarts-staging.log
+              echo "Staging web server did not start"
+              exit 1
+            fi
+            sleep 1
+          done
+          grep -q 'name="robots" content="noindex, nofollow"' /tmp/assodarts-staging-home.html
 
   shared:
     name: Shared schemas quality

@@ -160,8 +160,19 @@ describe("createInvitation", () => {
 
     mockInvitationSet.mockResolvedValue(undefined);
     mockMailAdd.mockResolvedValue({ id: "mail1" });
-    await wrapped(makeRequest({ clubId: "c1", email: "platform-admin@assodarts.test" }, "u1"));
-    expect(mockInvitationSet).toHaveBeenCalledWith(expect.objectContaining({ email: "platform-admin@assodarts.test", role: "member" }), { merge: true });
+    await wrapped(
+      makeRequest(
+        { clubId: "c1", email: "platform-admin@assodarts.test" },
+        "u1",
+      ),
+    );
+    expect(mockInvitationSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        email: "platform-admin@assodarts.test",
+        role: "member",
+      }),
+      { merge: true },
+    );
   });
 });
 

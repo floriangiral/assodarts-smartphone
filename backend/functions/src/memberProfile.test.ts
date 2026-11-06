@@ -216,7 +216,11 @@ describe("updateMemberProfile", () => {
   it("requires the club admin to change a member role", async () => {
     await wrapped(makeRequest({ memberId: "m1", clubId: "c1", role: "board" }));
     expect(mockRequireClubAdmin).toHaveBeenCalledWith("c1", "caller");
-    expect(mockMembershipSet).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ role: "board" }), { merge: true });
+    expect(mockMembershipSet).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ role: "board" }),
+      { merge: true },
+    );
   });
 });
 

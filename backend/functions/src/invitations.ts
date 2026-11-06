@@ -1,9 +1,6 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { getFirestore, FieldValue, Timestamp } from "firebase-admin/firestore";
-import {
-  requireClubAdmin,
-  requireClubBoard,
-} from "./shared/auth";
+import { requireClubAdmin, requireClubBoard } from "./shared/auth";
 import { timestampMillis } from "./shared/timestamps";
 
 const VALID_ROLES = new Set(["admin", "board", "member"]);
