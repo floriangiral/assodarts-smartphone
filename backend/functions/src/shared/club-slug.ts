@@ -28,11 +28,27 @@ export const RESERVED_SLUGS = [
   "ffd",
 ] as const;
 
+function hasValidSlugCharacters(slug: string): boolean {
+  if (slug.length < 3 || slug.length > 40) return false;
+  for (let index = 0; index < slug.length; index += 1) {
+    const character = slug.charCodeAt(index);
+    if (
+      (character >= 0x61 && character <= 0x7a) ||
+      (character >= 0x30 && character <= 0x39) ||
+      character === 0x2d
+    ) {
+      continue;
+    }
+    return false;
+  }
+  return true;
+}
+
 export const clubSlugSchema = z
   .string()
   .min(3)
   .max(40)
-  .regex(/^[a-z0-9-]+$/)
+  .refine(hasValidSlugCharacters)
   .refine(
     (slug) =>
       !slug.startsWith("-") && !slug.endsWith("-") && !slug.includes("--"),
